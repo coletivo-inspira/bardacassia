@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 220" role="img" aria-labelledby="title desc">
+  <title id="title">Símbolo do Bar da Cácia</title><desc id="desc">Microfone vintage azul com asas amarelas e faixa em tons pastel.</desc>
+  <defs><linearGradient id="pastels" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e5c5be"/><stop offset=".22" stop-color="#e5c899"/><stop offset=".42" stop-color="#e3d588"/><stop offset=".62" stop-color="#9fcbb8"/><stop offset=".82" stop-color="#9cbbdc"/><stop offset="1" stop-color="#aed49e"/></linearGradient></defs>
+  <path d="M46 36C75 12 151 8 188 42s30 82 1 115-85 48-122 24S17 95 46 36Z" fill="url(#pastels)" stroke="#141414" stroke-width="3"/>
+  <g fill="#dec949" stroke="#141414" stroke-width="4" stroke-linejoin="round"><path d="M102 67C76 42 49 34 21 39c12 15 18 27 20 39 8 22 25 31 49 28l20-15Z"/><path d="M138 70c16-27 43-38 78-32-12 19-21 29-29 35-9 23-26 32-49 29l-16-15Z"/></g>
+  <g stroke="#141414" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><rect x="91" y="28" width="59" height="112" rx="27" fill="#acc8d0"/><path d="M99 51h43M96 67h48M95 83h48M94 99h47M98 115h40" fill="none"/><path d="M108 140v23l-9 13m34-36v23l9 13M99 176h43" fill="none"/><path d="M30 133c45 23 129 22 180-4l-5 38c-49 26-126 27-174-2Z" fill="#eff2f1"/><path d="m56 145-3 23m16-19-3 24m16-21-2 23m16-23-1 23m16-24 1 24m16-25 2 23m16-24 3 21m16-24 4 18" fill="none" stroke-width="2.5"/></g>
+</svg>
