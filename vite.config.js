@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "/bardacassia/",
+  base: "/",
   server: {
     proxy: {
       "/api/deezer": {
