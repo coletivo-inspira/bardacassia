@@ -3,44 +3,152 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#141414" />
-    <meta name="description" content="Bar da Cácia: karaokê, música ao vivo, palco aberto e programação da semana." />
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta
+      name="description"
+      content="Bar da Cácia: karaokê com catálogo completo, busca estilo Spotify, música ao vivo e programação da semana."
+    />
     <title>Bar da Cácia — Solte a voz</title>
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Outfit:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
-    <div class="announcement"><p><span class="status-dot" aria-hidden="true"></span><strong>Palco aberto</strong><span>Quinta a domingo · a partir das 18h</span></p></div>
+
     <header class="site-header">
-      <a class="brand" href="#inicio" aria-label="Bar da Cácia — início"><img src="/logo.svg" alt="" width="54" height="54" /><span>BAR DA <strong>CÁCIA</strong></span></a>
-      <nav aria-label="Navegação principal"><a href="#karaoke">Karaokê</a><a href="#agenda">Programação</a></nav>
+      <a class="brand" href="#inicio" aria-label="Bar da Cácia — início">
+        <img src="/logo.svg" alt="" width="48" height="48" />
+        <span class="brand-text">BAR DA <strong>CÁCIA</strong></span>
+      </a>
+      <nav aria-label="Navegação principal">
+        <a href="#inicio">Início</a>
+        <a href="#buscar" class="nav-active">Buscar</a>
+        <a href="#agenda">Agenda</a>
+      </nav>
     </header>
+
     <main id="conteudo">
       <section class="hero" id="inicio" aria-labelledby="hero-title">
-        <div class="hero-inner"><div class="hero-copy"><p class="eyebrow">Música ao vivo · Karaokê · Boteco</p><h1 id="hero-title">Sua voz.<br /><span>Seu palco.</span></h1><p class="hero-description">Junte a galera, escolha aquela música e solte a voz. O microfone está esperando por você.</p><a class="button button-dark" href="#karaoke">Encontrar minha música <span aria-hidden="true">↗</span></a></div>
-          <div class="hero-art" aria-hidden="true"><div class="art-sticker">A noite<br />é sua!</div><img src="/logo.svg" alt="" /></div>
-        </div><div class="hero-note"><span aria-hidden="true">♪</span> Aqui todo mundo tem vez no microfone.</div>
+        <div class="hero-bg" aria-hidden="true"></div>
+        <div class="hero-inner">
+          <p class="brand-hero">BAR DA CÁCIA</p>
+          <h1 id="hero-title">Solte a voz no microfone.</h1>
+          <p class="hero-description">
+            Catálogo completo de karaokê, busca rápida e o código pronto pra mostrar ao DJ.
+          </p>
+          <div class="hero-cta">
+            <a class="button button-light" href="#buscar">Buscar música</a>
+            <a class="button button-ghost" href="#agenda">Ver programação</a>
+          </div>
+        </div>
       </section>
-      <section class="section karaoke-section" id="karaoke" aria-labelledby="karaoke-title">
-        <div class="section-heading"><div><p class="eyebrow">Escolha o hit</p><h2 id="karaoke-title">Qual vai ser a próxima?</h2></div><p>Pesquise por música, artista, estilo ou código e mostre sua escolha ao DJ.</p></div>
-        <div class="search-wrap"><label for="song-search">Buscar no catálogo</label><div class="search-control"><span aria-hidden="true">⌕</span><input id="song-search" type="search" placeholder="Ex.: Evidências, Tim Maia, 04122..." autocomplete="off" /><button id="clear-search" class="clear-button" type="button" hidden>Limpar</button></div><p id="results-count" class="results-count" aria-live="polite">Carregando músicas…</p></div>
-        <div id="songs-grid" class="songs-grid"></div><p id="empty-state" class="empty-state" hidden>Nenhuma música encontrada. Tente outro nome, artista ou código.</p>
+
+      <section class="search-portal" id="buscar" aria-labelledby="search-heading">
+        <div class="search-portal-inner">
+          <h2 id="search-heading" class="search-heading">Buscar</h2>
+
+          <div class="spotify-search">
+            <label class="visually-hidden" for="song-search">O que você quer ouvir?</label>
+            <div class="spotify-search-control">
+              <span class="search-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2.2" />
+                  <path d="M16.5 16.5 21 21" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                </svg>
+              </span>
+              <input
+                id="song-search"
+                type="search"
+                placeholder="O que você quer ouvir?"
+                autocomplete="off"
+                enterkeyhint="search"
+              />
+              <button id="clear-search" class="clear-button" type="button" hidden>Limpar</button>
+            </div>
+            <p id="results-count" class="results-count" aria-live="polite"></p>
+          </div>
+
+          <div id="browse-view">
+            <h3 class="browse-title">Navegar por tudo</h3>
+            <div id="category-grid" class="category-grid" role="list"></div>
+          </div>
+
+          <div id="results-view" class="results-view" hidden>
+            <div class="results-toolbar">
+              <button type="button" id="back-to-browse" class="text-button">← Voltar às categorias</button>
+              <p id="active-filter" class="active-filter"></p>
+            </div>
+            <div id="songs-list" class="songs-list" role="list"></div>
+            <p id="empty-state" class="empty-state" hidden>
+              Nenhuma música encontrada. Tente outro título, artista, código ou trecho da letra.
+            </p>
+            <button type="button" id="load-more" class="button button-ghost load-more" hidden>
+              Mostrar mais
+            </button>
+          </div>
+        </div>
       </section>
+
       <section class="agenda-section" id="agenda" aria-labelledby="agenda-title">
-        <div class="section-heading agenda-heading"><div><p class="eyebrow">Guarde essa data</p><h2 id="agenda-title">Tem rolê a semana toda.</h2></div><p>Chega mais, chama os amigos e escolhe seu lugar no palco.</p></div>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Na casa</p>
+            <h2 id="agenda-title">Tem rolê a semana toda.</h2>
+          </div>
+          <p>Chega mais, chama os amigos e escolhe seu lugar no palco.</p>
+        </div>
         <div class="agenda-grid">
-          <article class="event-card event-pink"><span class="event-time">QUI · 19H</span><h3>Esquenta do karaokê</h3><p>Palco aberto pra começar a semana cantando.</p></article>
-          <article class="event-card event-yellow"><span class="event-time">SEX · 20H</span><h3>Sexta no palco</h3><p>Música ao vivo e karaokê pra embalar a noite.</p></article>
-          <article class="event-card event-green"><span class="event-time">SÁB · 18H</span><h3>Sabadou da Cácia</h3><p>Petiscos, encontros e microfone liberado.</p></article>
-          <article class="event-card event-blue"><span class="event-time">DOM · 16H</span><h3>Domingueira boêmia</h3><p>Samba, MPB e aquele fim de tarde sem pressa.</p></article>
-        </div><p class="agenda-disclaimer">Programação ilustrativa. Confirme datas, horários e atrações nos canais oficiais do bar.</p>
+          <article class="event-block event-pink">
+            <span class="event-time">QUI · 19H</span>
+            <h3>Esquenta do karaokê</h3>
+            <p>Palco aberto pra começar a semana cantando.</p>
+          </article>
+          <article class="event-block event-yellow">
+            <span class="event-time">SEX · 20H</span>
+            <h3>Sexta no palco</h3>
+            <p>Música ao vivo e karaokê pra embalar a noite.</p>
+          </article>
+          <article class="event-block event-green">
+            <span class="event-time">SÁB · 18H</span>
+            <h3>Sabadou da Cácia</h3>
+            <p>Petiscos, encontros e microfone liberado.</p>
+          </article>
+          <article class="event-block event-blue">
+            <span class="event-time">DOM · 16H</span>
+            <h3>Domingueira boêmia</h3>
+            <p>Samba, MPB e aquele fim de tarde sem pressa.</p>
+          </article>
+        </div>
+        <p class="agenda-disclaimer">
+          Programação ilustrativa. Confirme datas, horários e atrações nos canais oficiais do bar.
+        </p>
       </section>
     </main>
-    <footer class="site-footer"><a class="footer-brand" href="#inicio">BAR DA CÁCIA</a><p>Boa música, gente querida e histórias pra contar.</p><a href="#inicio" class="back-top">Voltar ao topo ↑</a></footer>
-    <dialog id="dj-dialog" aria-labelledby="dialog-title"><form method="dialog" class="dialog-card"><button class="dialog-close" aria-label="Fechar janela">×</button><p class="eyebrow">Mostre ao DJ</p><h2 id="dialog-title">Sua música está na fila.</h2><p id="dialog-song" class="dialog-song"></p><span class="code-label">CÓDIGO DA MÚSICA</span><output id="dialog-code" class="song-code"></output><button class="button button-dark dialog-done" value="close">Pronto</button></form></dialog>
+
+    <footer class="site-footer">
+      <a class="footer-brand" href="#inicio">BAR DA CÁCIA</a>
+      <p>Boa música, gente querida e histórias pra contar.</p>
+      <a href="#inicio" class="back-top">Voltar ao topo ↑</a>
+    </footer>
+
+    <dialog id="dj-dialog" aria-labelledby="dialog-title">
+      <form method="dialog" class="dialog-card">
+        <button class="dialog-close" value="cancel" aria-label="Fechar janela">×</button>
+        <p class="eyebrow">Mostre ao DJ</p>
+        <h2 id="dialog-title">Sua música está na fila.</h2>
+        <p id="dialog-song" class="dialog-song"></p>
+        <span class="code-label">CÓDIGO DA MÚSICA</span>
+        <output id="dialog-code" class="song-code"></output>
+        <button class="button button-light dialog-done" value="close">Pronto</button>
+      </form>
+    </dialog>
+
+    <audio id="preview-audio" preload="none"></audio>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
