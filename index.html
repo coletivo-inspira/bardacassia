@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bar da Cácia • Karaokê, Palco Aberto & Boteco</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Amatic+SC:wght@700&family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cacia-black: #141414;
+      --cacia-wing-yellow: #dec949;
+      --cacia-mic-blue: #acc8d0;
+      --cacia-ribbon-white: #eff2f1;
+      --cacia-ribbon-shadow: #d8dedd;
+      --cacia-pastel-stripes: linear-gradient(
+        155deg,
+        #e5c5be 0%, #e5c5be 16.6%,
+        #e5c899 16.6%, #e5c899 33.2%,
+        #e3d588 33.2%, #e3d588 49.8%,
+        #9fcbb8 49.8%, #9fcbb8 66.4%,
+        #9cbbdc 66.4%, #9cbbdc 83.0%,
+        #aed49e 83.0%, #aed49e 100%
+      );
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background-color: var(--cacia-ribbon-white);
+      color: var(--cacia-black);
+    }
+
+    .font-display-cacia {
+      font-family: 'Amatic SC', cursive;
+      letter-spacing: 0.04em;
+    }
+
+    .font-sub-cacia {
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .bg-pastel-stripes {
+      background: var(--cacia-pastel-stripes);
+    }
+
+    .bg-hatch {
+      background-color: #d8dedd;
+      background-image: repeating-linear-gradient(
+        90deg,
+        #141414 0px,
+        #141414 2px,
+        transparent 2px,
+        transparent 8px
+      );
+    }
+
+    .cacia-card {
+      background-color: var(--cacia-ribbon-white);
+      color: var(--cacia-black);
+      border: 3px solid #141414;
+      border-radius: 16px;
+      box-shadow: 5px 5px 0px #141414;
+    }
+
+    .cacia-btn {
+      border: 3px solid #141414;
+      border-radius: 999px;
+      box-shadow: 3px 3px 0px #141414;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .cacia-btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0px #141414;
+    }
+
+    /* Animações do SVG Oficial */
+    .bg-main { transform-box: view-box; transform-origin: 490px 380px; animation: bgPopLoop 4.8s cubic-bezier(0.34, 1.56, 0.64, 1) infinite; }
+    .bg-crescent { transform-box: view-box; transform-origin: 185px 500px; animation: crescentLoop 4.8s cubic-bezier(0.34, 1.56, 0.64, 1) infinite; }
+    .center-float { transform-box: view-box; transform-origin: 450px 380px; animation: floatLoop 4.8s ease-in-out infinite; }
+    .wing-left { transform-box: view-box; transform-origin: 375px 335px; animation: wingLeftFlap 4.8s ease-in-out infinite; }
+    .wing-right { transform-box: view-box; transform-origin: 545px 350px; animation: wingRightFlap 4.8s ease-in-out infinite; }
+    .motion-ticks-left { transform-box: view-box; transform-origin: 145px 240px; animation: ticksPulse 4.8s ease-in-out infinite; }
+    .motion-tick-right { transform-box: view-box; transform-origin: 772px 148px; animation: ticksPulse 4.8s ease-in-out infinite; }
+    .mic-group { transform-box: view-box; transform-origin: 450px 390px; animation: micPopLoop 4.8s cubic-bezier(0.34, 1.56, 0.64, 1) infinite; }
+    .pedestal-base { transform-box: view-box; transform-origin: 415px 655px; animation: pedestalLoop 4.8s cubic-bezier(0.34, 1.56, 0.64, 1) infinite; }
+    .grill-pulse { transform-box: view-box; transform-origin: 455px 260px; animation: soundWave 0.6s ease-in-out infinite alternate; }
+    .ribbon-front { transform-box: view-box; transform-origin: 445px 555px; animation: ribbonFrontLoop 4.8s cubic-bezier(0.34, 1.56, 0.64, 1) infinite; }
+    .ribbon-tail-left { transform-box: view-box; transform-origin: 290px 465px; animation: tailLeftLoop 4.8s cubic-bezier(0.34, 1.56, 0.64, 1) infinite; }
+    .ribbon-tail-right { transform-box: view-box; transform-origin: 590px 475px; animation: tailRightLoop 4.8s cubic-bezier(0.34, 1.56, 0.64, 1) infinite; }
+    .char-wave { animation: charWaveLoop 4.8s ease-in-out infinite; }
+
+    @keyframes bgPopLoop { 0%, 3% { opacity: 0; transform: scale(0) rotate(-10deg); } 12% { opacity: 1; transform: scale(1.04) rotate(2deg); } 17%, 85% { opacity: 1; transform: scale(1) rotate(0deg); } 89% { opacity: 1; transform: scale(1.03) rotate(-2deg); } 96%, 100% { opacity: 0; transform: scale(0) rotate(8deg); } }
+    @keyframes crescentLoop { 0%, 7% { opacity: 0; transform: translate(-35px, 25px) scale(0.5); } 16% { opacity: 1; transform: translate(4px, -3px) scale(1.05); } 21%, 84% { opacity: 1; transform: translate(0px, 0px) scale(1); } 94%, 100% { opacity: 0; transform: translate(-30px, 20px) scale(0.4); } }
+    @keyframes floatLoop { 0%, 20% { transform: translateY(0px); } 35% { transform: translateY(-10px); } 50% { transform: translateY(4px); } 65% { transform: translateY(-10px); } 80%, 100% { transform: translateY(0px); } }
+    @keyframes wingLeftFlap { 0%, 11% { opacity: 0; transform: scale(0.1) rotate(-35deg); } 19%, 82% { opacity: 1; transform: rotate(10deg); } 26%, 58% { opacity: 1; transform: rotate(-12deg); } 94%, 100% { opacity: 0; transform: scale(0.1) rotate(-35deg); } }
+    @keyframes wingRightFlap { 0%, 11% { opacity: 0; transform: scale(0.1) rotate(35deg); } 19%, 82% { opacity: 1; transform: rotate(-10deg); } 26%, 58% { opacity: 1; transform: rotate(12deg); } 94%, 100% { opacity: 0; transform: scale(0.1) rotate(35deg); } }
+    @keyframes ticksPulse { 0%, 16%, 90%, 100% { opacity: 0; } 20%, 50%, 80% { opacity: 1; } 35%, 65% { opacity: 0.2; } }
+    @keyframes micPopLoop { 0%, 6% { opacity: 0; transform: translateY(45px) scale(0.2); } 15%, 85% { opacity: 1; transform: translateY(0px) scale(1); } 95%, 100% { opacity: 0; transform: translateY(40px) scale(0.2); } }
+    @keyframes pedestalLoop { 0%, 14% { opacity: 0; } 23%, 84% { opacity: 1; } 93%, 100% { opacity: 0; } }
+    @keyframes soundWave { 0% { transform: scaleX(0.95); } 100% { transform: scaleX(1.04); } }
+    @keyframes ribbonFrontLoop { 0%, 14% { opacity: 0; transform: translateY(35px) scale(0.3, 0.5); } 23%, 85% { opacity: 1; transform: translateY(0px) scale(1, 1); } 95%, 100% { opacity: 0; } }
+    @keyframes tailLeftLoop { 0%, 18% { opacity: 0; } 27%, 84% { opacity: 1; } 93%, 100% { opacity: 0; } }
+    @keyframes tailRightLoop { 0%, 18% { opacity: 0; } 27%, 84% { opacity: 1; } 93%, 100% { opacity: 0; } }
+    @keyframes charWaveLoop { 0%, 21% { opacity: 0; } 28%, 82% { opacity: 1; } 88%, 100% { opacity: 0; } }
+  </style>
+</head>
+<body class="pb-24">
+
+  <!-- PRELOADER INICIAL COM A LOGO ANIMADA -->
+  <div id="preloader" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#EFF2F1] p-6 transition-opacity duration-500">
+    <div class="cacia-card p-6 bg-white flex flex-col items-center max-w-sm w-full text-center relative overflow-hidden">
+      <div class="w-full h-3 bg-pastel-stripes absolute top-0 left-0 border-b-2 border-[#141414]"></div>
+      <div id="preloader-logo" class="w-60 h-44 my-2"></div>
+      <h2 class="font-display-cacia text-4xl font-bold uppercase mt-1">• AQUECENDO O MICROFONE •</h2>
+      <p class="font-sub-cacia text-xs text-[#141414]/80 mt-1">A carregar catálogo do karaokê e programação...</p>
+    </div>
+  </div>
+
+  <!-- TOPO -->
+  <div class="bg-[#141414] text-[#EFF2F1] px-4 py-2 border-b-[3px] border-[#141414] text-xs font-sub-cacia flex justify-between items-center">
+    <div><span class="text-[#DEC949] font-bold">● PALCO ABERTO:</span> Qui a Dom • 18h</div>
+    <button onclick="showPreloaderAgain()" class="underline text-[#ACC8D0]">Rever Animação</button>
+  </div>
+
+  <!-- HERO COM FAIXAS PASTÉIS E LOGO -->
+  <header class="bg-pastel-stripes border-b-[4px] border-[#141414] pt-6 pb-8 px-4 text-center">
+    <div class="max-w-xl mx-auto flex flex-col items-center">
+      <div class="bg-[#EFF2F1] border-[3px] border-[#141414] rounded-3xl shadow-[5px_5px_0px_#141414] px-5 py-3 mb-4">
+        <div id="header-logo" class="w-52 h-40 mx-auto"></div>
+        <span class="font-sub-cacia text-[11px] uppercase bg-[#ACC8D0] px-3 py-0.5 rounded-full border-2 border-[#141414] font-bold">
+          • MÚSICA AO VIVO • KARAOKÊ • BOTECO •
+        </span>
+      </div>
+      <h1 class="font-display-cacia text-4xl sm:text-5xl font-bold uppercase bg-[#EFF2F1] px-5 py-2 border-[3px] border-[#141414] rounded-2xl shadow-[4px_4px_0px_#141414]">
+        • SOLTE A VOZ NO BAR DA CÁCIA •
+      </h1>
+    </div>
+  </header>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main class="max-w-3xl mx-auto px-4 pt-6 space-y-10">
+    <!-- BUSCADOR DE KARAOKÊ -->
+    <section id="karaoke">
+      <div class="inline-block bg-[#DEC949] border-[3px] border-[#141414] px-4 py-1 rounded-xl shadow-[3px_3px_0px_#141414] mb-4">
+        <h2 class="font-display-cacia text-3xl font-bold uppercase">• PESQUISADOR DE MÚSICAS •</h2>
+      </div>
+
+      <div class="cacia-card p-4 bg-white mb-4">
+        <input
+          id="searchInput"
+          type="text"
+          oninput="renderSongs()"
+          placeholder="Digite música, cantor, código ou trecho da letra..."
+          class="w-full px-4 py-3 bg-[#EFF2F1] border-[3px] border-[#141414] rounded-xl font-medium text-sm focus:outline-none"
+        />
+      </div>
+
+      <div id="songsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+    </section>
+
+    <div class="w-full h-3 bg-hatch border-y-2 border-[#141414]"></div>
+
+    <!-- PROGRAMAÇÃO DA SEMANA (MODO NOTURNO) -->
+    <section id="agenda" class="bg-[#141414] text-[#EFF2F1] p-5 rounded-3xl border-[4px] border-[#141414] shadow-[6px_6px_0px_#DEC949]">
+      <h2 class="font-display-cacia text-4xl font-bold uppercase text-[#DEC949] mb-4">• PROGRAMAÇÃO DA SEMANA •</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[#141414]">
+        <div class="bg-[#E5C5BE] border-[3px] border-[#EFF2F1] rounded-2xl p-4">
+          <span class="font-sub-cacia text-xs font-bold bg-[#141414] text-white px-2.5 py-0.5 rounded-full">QUI • 19H</span>
+          <h3 class="font-display-cacia text-3xl font-bold mt-2">• ESQUENTA DO KARAOKÊ •</h3>
+          <p class="text-xs font-medium">Palco livre + Caipirinha em dobro até às 21h.</p>
+        </div>
+        <div class="bg-[#DEC949] border-[3px] border-[#EFF2F1] rounded-2xl p-4">
+          <span class="font-sub-cacia text-xs font-bold bg-[#141414] text-white px-2.5 py-0.5 rounded-full">SEX • 20H</span>
+          <h3 class="font-display-cacia text-3xl font-bold mt-2">• SEXTA NO PALCO •</h3>
+          <p class="text-xs font-medium">Acústico ao vivo + Karaokê liberado e balde promocional.</p>
+        </div>
+        <div class="bg-[#9FCBB8] border-[3px] border-[#EFF2F1] rounded-2xl p-4">
+          <span class="font-sub-cacia text-xs font-bold bg-[#141414] text-white px-2.5 py-0.5 rounded-full">SÁB • 18H</span>
+          <h3 class="font-display-cacia text-3xl font-bold mt-2">• SABADOU DA CÁCIA •</h3>
+          <p class="text-xs font-medium">A noite mais disputada! Petiscos de boteco e karaokê até fechar.</p>
+        </div>
+        <div class="bg-[#9CBBDC] border-[3px] border-[#EFF2F1] rounded-2xl p-4">
+          <span class="font-sub-cacia text-xs font-bold bg-[#141414] text-white px-2.5 py-0.5 rounded-full">DOM • 16H</span>
+          <h3 class="font-display-cacia text-3xl font-bold mt-2">• DOMINGUEIRA BOÊMIA •</h3>
+          <p class="text-xs font-medium">Fim de tarde com samba, MPB, cerveja gelada e microfone aberto.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL MOSTRAR CÓDIGO PRO DJ -->
+  <div id="djModal" class="fixed inset-0 z-50 bg-[#141414]/90 hidden items-center justify-center p-4">
+    <div class="cacia-card bg-[#EFF2F1] max-w-sm w-full p-6 text-center">
+      <span class="font-sub-cacia text-xs font-bold bg-[#DEC949] px-3 py-1 rounded-full border-2 border-[#141414]">• MOSTRAR AO DJ •</span>
+      <div class="my-4 bg-[#DEC949] border-[4px] border-[#141414] rounded-2xl py-5 shadow-[5px_5px_0px_#141414]">
+        <span class="block font-sub-cacia text-xs font-bold">CÓDIGO DA MÚSICA</span>
+        <span id="modalCode" class="font-sub-cacia text-6xl font-bold tracking-widest block mt-1">04122</span>
+      </div>
+      <p id="modalTitle" class="font-sub-cacia font-bold text-lg"></p>
+      <p id="modalArtist" class="text-xs text-[#141414]/70 mb-4"></p>
+      <button onclick="closeModal()" class="cacia-btn bg-[#141414] text-[#DEC949] w-full py-2.5 text-xs">Fechar</button>
+    </div>
+  </div>
+
+  <script>
+    const SVG_LOGO = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 750" width="100%" height="100%">
+      <defs>
+        <clipPath id="mainOvalClip"><path d="M 322 182 C 445 88, 635 90, 742 162 C 832 222, 832 355, 772 458 C 715 555, 580 635, 420 645 C 265 655, 162 560, 165 430 C 168 320, 228 245, 322 182 Z" /></clipPath>
+        <clipPath id="crescentClip"><path d="M 148 352 C 112 450, 118 565, 222 652 C 238 662, 258 656, 245 640 C 155 558, 138 458, 152 356 Z" /></clipPath>
+        <g id="pastelStripes">
+          <polygon points="0,0 1000,0 1000,750 0,750" fill="#e5c5be" />
+          <polygon points="0,285 620,0 1000,0 1000,750 0,750" fill="#e5c899" />
+          <polygon points="0,415 800,35 1000,35 1000,750 0,750" fill="#e3d588" />
+          <polygon points="0,565 920,130 1000,130 1000,750 0,750" fill="#9fcbb8" />
+          <polygon points="80,700 980,260 1000,260 1000,750 80,750" fill="#9cbbdc" />
+          <polygon points="240,750 1000,380 1000,750" fill="#aed49e" />
+        </g>
+      </defs>
+      <g class="bg-main"><g clip-path="url(#mainOvalClip)"><use href="#pastelStripes" /></g></g>
+      <g class="bg-crescent"><g clip-path="url(#crescentClip)"><use href="#pastelStripes" /></g></g>
+      <g class="center-float">
+        <g class="wing-left"><path d="M 365 186 C 340 205, 333 206, 333 206 C 280 170, 220 152, 150 154 C 168 185, 188 210, 197 218 C 202 250, 212 268, 214 270 C 218 305, 236 330, 246 335 C 252 372, 280 400, 325 403 C 326 425, 346 435, 366 431 C 374 452, 388 460, 400 456 L 405 410 Z" fill="#dec949" stroke="#141414" stroke-width="11" stroke-linejoin="round"/></g>
+        <g class="wing-right"><path d="M 562 200 C 575 215, 582 234, 582 234 C 605 192, 665 180, 730 192 C 780 200, 830 195, 874 180 C 860 215, 845 235, 832 243 C 818 290, 795 318, 780 326 C 765 365, 730 392, 695 398 C 680 432, 640 445, 602 433 C 605 455, 590 468, 566 458 L 495 405 Z" fill="#dec949" stroke="#141414" stroke-width="11" stroke-linejoin="round"/></g>
+        <g class="mic-group">
+          <path d="M 366 165 C 374 110, 430 98, 485 118 C 545 110, 574 132, 569 175 L 542 368 C 532 412, 485 418, 440 417 C 375 416, 332 398, 338 336 Z" fill="#acc8d0" stroke="#141414" stroke-width="11"/>
+        </g>
+      </g>
+      <g class="ribbon-front">
+        <path d="M 206 452 C 315 530, 555 532, 676 472 C 684 510, 690 555, 692 594 C 565 668, 310 655, 198 574 Z" fill="#eff2f1" stroke="#141414" stroke-width="11" stroke-linejoin="round"/>
+        <text x="445" y="595" text-anchor="middle" font-family="Amatic SC, cursive" font-size="92" font-weight="700" fill="#141414">• BAR DA CÁCIA •</text>
+      </g>
+    </svg>`;
+
+    document.getElementById("preloader-logo").innerHTML = SVG_LOGO;
+    document.getElementById("header-logo").innerHTML = SVG_LOGO;
+
+    const SONGS = [
+      { code: "04122", title: "Evidências", artist: "Chitãozinho & Xororó", genre: "Sertanejo", snippet: "E nessa loucura de dizer que não te quero...", color: "#E5C5BE" },
+      { code: "03819", title: "Cheia de Manias", artist: "Raça Negra", genre: "Pagode", snippet: "Então me ajude a segurar essa barra...", color: "#E5C899" },
+      { code: "07512", title: "Dormi na Praça", artist: "Bruno & Marrone", genre: "Sertanejo", snippet: "Seu guarda eu não sou vagabundo...", color: "#E3D588" },
+      { code: "09231", title: "Boate Azul", artist: "Joaquim & Manuel", genre: "Sertanejo", snippet: "Doente de amor, procurei remédio na vida noturna...", color: "#9CBBDC" },
+      { code: "05510", title: "Não Quero Dinheiro", artist: "Tim Maia", genre: "MPB", snippet: "A semana inteira fiquei esperando...", color: "#AED49E" },
+      { code: "01944", title: "Anna Júlia", artist: "Los Hermanos", genre: "Rock/Pop", snippet: "Quem te vê passar assim por mim...", color: "#9FCBB8" }
+    ];
+
+    function renderSongs() {
+      const q = document.getElementById("searchInput").value.toLowerCase();
+      const grid = document.getElementById("songsGrid");
+      const filtered = SONGS.filter(s =>
+        s.title.toLowerCase().includes(q) ||
+        s.artist.toLowerCase().includes(q) ||
+        s.code.includes(q) ||
+        s.snippet.toLowerCase().includes(q)
+      );
+
+      grid.innerHTML = filtered.map(s => `
+        <div class="cacia-card p-4 bg-white flex flex-col justify-between relative overflow-hidden">
+          <div class="flex justify-between items-start gap-2">
+            <div>
+              <span style="background:${s.color}" class="font-sub-cacia text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full border-2 border-[#141414]">${s.genre}</span>
+              <h3 class="font-sub-cacia font-bold text-base mt-1">${s.title}</h3>
+              <p class="text-xs text-[#141414]/70">${s.artist}</p>
+            </div>
+            <div class="bg-[#ACC8D0] border-2 border-[#141414] rounded-xl px-2.5 py-1 text-center shadow-[2px_2px_0px_#141414]">
+              <span class="block text-[9px] font-sub-cacia font-bold">CÓD</span>
+              <span class="font-sub-cacia font-bold text-base">${s.code}</span>
+            </div>
+          </div>
+          <p class="text-xs italic bg-[#EFF2F1] p-2 rounded-lg border border-[#141414]/20 my-2">"${s.snippet}"</p>
+          <button onclick="openModal('${s.code}', '${s.title}', '${s.artist}')" class="cacia-btn bg-[#DEC949] py-1.5 text-xs w-full">Mostrar Código ao DJ</button>
+        </div>
+      `).join('');
+    }
+
+    function openModal(code, title, artist) {
+      document.getElementById("modalCode").innerText = code;
+      document.getElementById("modalTitle").innerText = title;
+      document.getElementById("modalArtist").innerText = artist;
+      document.getElementById("djModal").classList.remove("hidden");
+      document.getElementById("djModal").classList.add("flex");
+    }
+
+    function closeModal() {
+      document.getElementById("djModal").classList.add("hidden");
+      document.getElementById("djModal").classList.remove("flex");
+    }
+
+    function showPreloaderAgain() {
+      const pre = document.getElementById("preloader");
+      pre.style.display = "flex";
+      pre.style.opacity = "1";
+      setTimeout(() => {
+        pre.style.opacity = "0";
+        setTimeout(() => pre.style.display = "none", 450);
+      }, 2800);
+    }
+
+    renderSongs();
+    showPreloaderAgain();
+  </script>
+</body>
+</html>
