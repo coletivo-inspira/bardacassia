@@ -164,32 +164,31 @@ async function fetchDeezerMeta(song) {
   if (metaCache.has(key)) return metaCache.get(key);
   if (metaInflight.has(key)) return metaInflight.get(key);
 
-  const query = `artist:"${song.artist.replace(/\.\.\.$/, "")}" track:"${displayTitle(song.title)}"`;
-  const fallbackQ = `${song.artist.replace(/\.\.\.$/, "")} ${displayTitle(song.title)}`;
+  const artist = song.artist.replace(/\.\.\.$/, "").trim();
+  const title = displayTitle(song.title);
+  const simpleQ = `${artist} ${title}`;
+  const structuredQ = `artist:"${artist}" track:"${title}"`;
 
   const promise = (async () => {
     let data = null;
-    try {
-      if (import.meta.env.DEV) {
+
+    async function tryQueries(runner) {
+      for (const q of [simpleQ, structuredQ]) {
         try {
-          data = await deezerFetchProxy(query);
+          const result = await runner(q);
+          if (result?.data?.length) return result;
         } catch {
-          data = await deezerFetchProxy(fallbackQ);
+          /* try next */
         }
       }
-    } catch {
-      /* use jsonp */
+      return null;
+    }
+
+    if (import.meta.env.DEV) {
+      data = await tryQueries(deezerFetchProxy);
     }
     if (!data?.data?.length) {
-      try {
-        data = await deezerJsonp(query);
-      } catch {
-        try {
-          data = await deezerJsonp(fallbackQ);
-        } catch {
-          data = { data: [] };
-        }
-      }
+      data = (await tryQueries(deezerJsonp)) || { data: [] };
     }
 
     const track = data?.data?.[0];
@@ -229,12 +228,10 @@ function colorFromCode(code) {
 
 function songMatchesQuery(song, q) {
   if (!q) return true;
-  return (
-    normalize(song.title).includes(q) ||
-    normalize(song.artist).includes(q) ||
-    normalize(song.code).includes(q) ||
-    normalize(song.lyricStart).includes(q)
-  );
+  const haystack = normalize([song.title, song.artist, song.code, song.lyricStart].join(" "));
+  // Support multi-word queries: every token must appear somewhere in the song fields
+  const tokens = q.split(/\s+/).filter(Boolean);
+  return tokens.every((token) => haystack.includes(token));
 }
 
 function applyFilters() {
@@ -352,13 +349,18 @@ async function enrichRow(row) {
     const coverWrap = row.querySelector(".song-cover");
     if (meta.cover && coverWrap && !coverWrap.querySelector("img")) {
       const img = document.createElement("img");
-      img.src = meta.cover;
       img.alt = "";
-      img.loading = "lazy";
       img.decoding = "async";
-      img.addEventListener("load", () => {
-        coverWrap.replaceChildren(img);
+      img.referrerPolicy = "no-referrer";
+      img.src = meta.cover;
+      const show = () => {
+        if (row.isConnected) coverWrap.replaceChildren(img);
+      };
+      img.addEventListener("error", () => {
+        /* keep initials fallback */
       });
+      if (img.complete && img.naturalWidth > 0) show();
+      else img.addEventListener("load", show, { once: true });
     }
     const previewBtn = row.querySelector(".preview-btn");
     if (meta.previewUrl && previewBtn) {
