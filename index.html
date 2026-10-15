@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="theme-color" content="#141414" />
     <meta
       name="description"
       content="Bar da Cácia: karaokê com catálogo completo, busca estilo Spotify, música ao vivo e programação da semana."
     />
     <title>Bar da Cácia — Solte a voz</title>
-    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%logo.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -22,7 +22,7 @@
 
     <header class="site-header">
       <a class="brand" href="#inicio" aria-label="Bar da Cácia — início">
-        <img src="/logo.svg" alt="" width="48" height="48" />
+        <img src="%BASE_URL%logo_bar_da_cacia_animada.svg" alt="" width="48" height="48" />
         <span class="brand-text">BAR DA <strong>CÁCIA</strong></span>
       </a>
       <nav aria-label="Navegação principal">
@@ -64,7 +64,7 @@
               <input
                 id="song-search"
                 type="search"
-                placeholder="O que você quer ouvir?"
+                placeholder="Música, artista, código ou trecho da letra"
                 autocomplete="off"
                 enterkeyhint="search"
               />
@@ -72,6 +72,17 @@
             </div>
             <p id="results-count" class="results-count" aria-live="polite"></p>
           </div>
+
+          <div class="discovery-tools" aria-label="Descubra e salve músicas">
+            <button id="show-favorites" class="discovery-button" type="button" aria-pressed="false">
+              Minhas favoritas <span id="favorites-count" class="favorite-count">0</span>
+            </button>
+            <button id="spotify-connect" class="discovery-button spotify-button" type="button" hidden>
+              Importar minhas mais ouvidas do Spotify
+            </button>
+          </div>
+          <p id="spotify-status" class="integration-status" role="status" aria-live="polite" hidden></p>
+          <p class="search-help">Toque no nome de um artista para ver suas músicas e descobrir artistas relacionados. As favoritas ficam salvas neste navegador.</p>
 
           <div id="browse-view">
             <h3 class="browse-title">Navegar por tudo</h3>
@@ -83,6 +94,10 @@
               <button type="button" id="back-to-browse" class="text-button">← Voltar às categorias</button>
               <p id="active-filter" class="active-filter"></p>
             </div>
+            <section id="related-artists" class="related-artists" aria-labelledby="related-title" hidden>
+              <h3 id="related-title">Artistas relacionados no catálogo</h3>
+              <div id="related-list" class="related-list"></div>
+            </section>
             <div id="songs-list" class="songs-list" role="list"></div>
             <p id="empty-state" class="empty-state" hidden>
               Nenhuma música encontrada. Tente outro título, artista, código ou trecho da letra.
@@ -140,7 +155,7 @@
       <form method="dialog" class="dialog-card">
         <button class="dialog-close" value="cancel" aria-label="Fechar janela">×</button>
         <p class="eyebrow">Mostre ao DJ</p>
-        <h2 id="dialog-title">Sua música está na fila.</h2>
+        <h2 id="dialog-title">Mostre este código ao DJ.</h2>
         <p id="dialog-song" class="dialog-song"></p>
         <span class="code-label">CÓDIGO DA MÚSICA</span>
         <output id="dialog-code" class="song-code"></output>

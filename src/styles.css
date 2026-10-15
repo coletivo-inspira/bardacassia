@@ -5,10 +5,10 @@
   --text: #ffffff;
   --muted: #b3b3b3;
   --line: rgba(255, 255, 255, 0.08);
-  --amber: #f0c14b;
+  --amber: #dec949;
   --coral: #e85d4c;
-  --ink: #0a0a0a;
-  --paper: #f5f1e8;
+  --ink: #141414;
+  --paper: #eff2f1;
   --font-display: "Bricolage Grotesque", Georgia, serif;
   --font-body: "Outfit", system-ui, sans-serif;
   --header-h: 72px;
@@ -907,5 +907,161 @@ dialog::backdrop {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Descoberta e favoritas — detalhes visuais da identidade Bar da Cácia */
+[hidden] {
+  display: none !important;
+}
+
+.discovery-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.25rem 0 0;
+}
+
+.discovery-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  padding: 0.65rem 1rem;
+  border: 2px solid #acc8d0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.discovery-button:hover,
+.discovery-button.is-active {
+  background: #acc8d0;
+  color: #141414;
+}
+
+.discovery-button:active {
+  transform: translateY(1px);
+}
+
+.favorite-count {
+  min-width: 1.7rem;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  background: #dec949;
+  color: #141414;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.spotify-button {
+  border-color: #dec949;
+}
+
+.spotify-button:hover {
+  background: #dec949;
+}
+
+.integration-status {
+  max-width: 70ch;
+  margin: 0.8rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  background: #acc8d0;
+  color: #141414;
+  line-height: 1.45;
+}
+
+.search-help {
+  max-width: 70ch;
+  margin: 0.75rem 0 1rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.song-info .artist-link {
+  display: block;
+  max-width: 100%;
+  min-height: 28px;
+  padding: 0.2rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+  font-size: 0.86rem;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+}
+
+.song-info .artist-link:hover {
+  color: var(--text);
+  text-decoration-color: currentColor;
+}
+
+.favorite-btn.is-favorite {
+  border-color: #dec949;
+  background: #dec949;
+  color: #141414;
+}
+
+.related-artists {
+  margin: 0.85rem 0 1.5rem;
+  padding: 1rem 1.1rem 1.1rem;
+  border: 2px solid #acc8d0;
+  border-radius: 16px;
+  background: #181818;
+}
+
+.related-artists h3 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.related-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.artist-chip {
+  min-height: 40px;
+  padding: 0.45rem 0.85rem;
+  border: 2px solid #141414;
+  border-radius: 999px;
+  background: #eff2f1;
+  color: #141414;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.artist-chip:hover {
+  background: #dec949;
+}
+
+@media (max-width: 640px) {
+  .discovery-tools {
+    align-items: stretch;
+  }
+
+  .discovery-button {
+    width: 100%;
+  }
+
+  .related-artists {
+    padding: 0.85rem;
   }
 }
