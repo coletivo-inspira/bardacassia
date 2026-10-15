@@ -126,6 +126,7 @@ function persistFavorites() {
   try {
     localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favoriteCodes]));
   } catch {
+    els.spotifyStatus.hidden = false;
     els.spotifyStatus.textContent = "Não foi possível salvar suas favoritas neste navegador.";
   }
 }
@@ -601,6 +602,10 @@ els.clearButton.addEventListener("click", () => {
 els.backToBrowse.addEventListener("click", backToBrowse);
 els.favoritesButton.addEventListener("click", showFavorites);
 els.spotifyButton.hidden = !spotifyConfigured;
+els.spotifyStatus.hidden = !spotifyConfigured;
+if (spotifyConfigured) {
+  els.spotifyStatus.textContent = "O Spotify compartilha suas mais ouvidas com sua autorização. Só as músicas disponíveis no karaokê serão salvas.";
+}
 els.spotifyButton.addEventListener("click", async () => {
   try {
     els.spotifyStatus.textContent = "Redirecionando para o Spotify…";
