@@ -1,7 +1,9 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: process.env.NODE_ENV === "production" ? "/bardacassia/" : "/",
+  // Relative assets work both at the custom-domain root and under
+  // /bardacassia/ on GitHub Pages without producing 404s.
+  base: "./",
   server: {
     proxy: {
       "/api/deezer": {

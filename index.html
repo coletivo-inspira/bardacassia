@@ -2,11 +2,11 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#141414" />
     <meta
       name="description"
-      content="Bar da Cácia: karaokê com catálogo completo, busca estilo Spotify, música ao vivo e programação da semana."
+      content="Bar da Cácia: karaokê com catálogo completo, busca rápida, favoritas e o código pronto para mostrar ao DJ."
     />
     <title>Bar da Cácia — Solte a voz</title>
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%logo.svg" />
@@ -25,7 +25,7 @@
         <img src="%BASE_URL%logo_bar_da_cacia_animada.svg" alt="" width="48" height="48" />
         <span class="brand-text">BAR DA <strong>CÁCIA</strong></span>
       </a>
-      <nav aria-label="Navegação principal">
+      <nav class="desktop-nav" aria-label="Navegação principal">
         <a href="#inicio">Início</a>
         <a href="#buscar" class="nav-active">Buscar</a>
         <a href="#agenda">Agenda</a>
@@ -39,24 +39,29 @@
           <p class="brand-hero">BAR DA CÁCIA</p>
           <h1 id="hero-title">Solte a voz no microfone.</h1>
           <p class="hero-description">
-            Catálogo completo de karaokê, busca rápida e o código pronto pra mostrar ao DJ.
+            Encontre a música, salve suas favoritas e leve o código certo para o DJ.
           </p>
           <div class="hero-cta">
             <a class="button button-light" href="#buscar">Buscar música</a>
-            <a class="button button-ghost" href="#agenda">Ver programação</a>
+            <a class="button button-ghost hero-secondary" href="#agenda">Ver programação</a>
           </div>
         </div>
       </section>
 
       <section class="search-portal" id="buscar" aria-labelledby="search-heading">
         <div class="search-portal-inner">
-          <h2 id="search-heading" class="search-heading">Buscar</h2>
+          <div class="search-title-row">
+            <div>
+              <h2 id="search-heading" class="search-heading">Buscar música</h2>
+              <p class="search-subtitle">No catálogo do karaokê do Bar da Cácia.</p>
+            </div>
+          </div>
 
           <div class="spotify-search">
-            <label class="visually-hidden" for="song-search">O que você quer ouvir?</label>
+            <label class="visually-hidden" for="song-search">Buscar música, artista, código ou trecho da letra</label>
             <div class="spotify-search-control">
               <span class="search-icon" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                   <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2.2" />
                   <path d="M16.5 16.5 21 21" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
                 </svg>
@@ -64,7 +69,7 @@
               <input
                 id="song-search"
                 type="search"
-                placeholder="Música, artista, código ou trecho da letra"
+                placeholder="Música, artista, código ou letra"
                 autocomplete="off"
                 enterkeyhint="search"
               />
@@ -75,23 +80,25 @@
 
           <div class="discovery-tools" aria-label="Descubra e salve músicas">
             <button id="show-favorites" class="discovery-button" type="button" aria-pressed="false">
-              Minhas favoritas <span id="favorites-count" class="favorite-count">0</span>
+              Favoritas <span id="favorites-count" class="favorite-count">0</span>
             </button>
             <button id="spotify-connect" class="discovery-button spotify-button" type="button" hidden>
-              Importar minhas mais ouvidas do Spotify
+              Importar do Spotify
             </button>
           </div>
           <p id="spotify-status" class="integration-status" role="status" aria-live="polite" hidden></p>
-          <p class="search-help">Toque no nome de um artista para ver suas músicas e descobrir artistas relacionados. As favoritas ficam salvas neste navegador.</p>
+          <p class="search-help">
+            Toque no artista para ver outras músicas dele e descobrir nomes relacionados que também estão no catálogo.
+          </p>
 
           <div id="browse-view">
-            <h3 class="browse-title">Navegar por tudo</h3>
+            <h3 class="browse-title">Explore o catálogo</h3>
             <div id="category-grid" class="category-grid" role="list"></div>
           </div>
 
           <div id="results-view" class="results-view" hidden>
             <div class="results-toolbar">
-              <button type="button" id="back-to-browse" class="text-button">← Voltar às categorias</button>
+              <button type="button" id="back-to-browse" class="text-button">Voltar ao catálogo</button>
               <p id="active-filter" class="active-filter"></p>
             </div>
             <section id="related-artists" class="related-artists" aria-labelledby="related-title" hidden>
@@ -111,10 +118,7 @@
 
       <section class="agenda-section" id="agenda" aria-labelledby="agenda-title">
         <div class="section-heading">
-          <div>
-            <p class="eyebrow">Na casa</p>
-            <h2 id="agenda-title">Tem rolê a semana toda.</h2>
-          </div>
+          <h2 id="agenda-title">Tem rolê a semana toda.</h2>
           <p>Chega mais, chama os amigos e escolhe seu lugar no palco.</p>
         </div>
         <div class="agenda-grid">
@@ -148,13 +152,48 @@
     <footer class="site-footer">
       <a class="footer-brand" href="#inicio">BAR DA CÁCIA</a>
       <p>Boa música, gente querida e histórias pra contar.</p>
-      <a href="#inicio" class="back-top">Voltar ao topo ↑</a>
+      <a href="#inicio" class="back-top">Voltar ao topo</a>
     </footer>
+
+    <nav class="mobile-tabbar" aria-label="Navegação móvel">
+      <a class="mobile-tab" href="#inicio">
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M3.5 10.5 12 3.8l8.5 6.7v9.2a.8.8 0 0 1-.8.8H15v-6H9v6H4.3a.8.8 0 0 1-.8-.8z" />
+        </svg>
+        <span>Início</span>
+      </a>
+      <a class="mobile-tab mobile-tab-primary" href="#buscar" aria-current="page">
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="m15.5 15.5 5 5" />
+        </svg>
+        <span>Buscar</span>
+      </a>
+      <button id="mobile-favorites" class="mobile-tab" type="button" aria-pressed="false" aria-controls="results-view">
+        <span class="mobile-tab-icon-wrap">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M12 20.2S4 15.3 4 8.9A4.1 4.1 0 0 1 11.2 6L12 7l.8-1A4.1 4.1 0 0 1 20 8.9c0 6.4-8 11.3-8 11.3z" />
+          </svg>
+          <span id="mobile-favorites-count" class="mobile-tab-badge" hidden>0</span>
+        </span>
+        <span>Favoritas</span>
+      </button>
+      <a class="mobile-tab" href="#agenda">
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <rect x="3.5" y="5.5" width="17" height="15" rx="2" />
+          <path d="M7 3.5v4M17 3.5v4M3.5 10h17" />
+        </svg>
+        <span>Agenda</span>
+      </a>
+    </nav>
 
     <dialog id="dj-dialog" aria-labelledby="dialog-title">
       <form method="dialog" class="dialog-card">
-        <button class="dialog-close" value="cancel" aria-label="Fechar janela">×</button>
-        <p class="eyebrow">Mostre ao DJ</p>
+        <button class="dialog-close" value="cancel" aria-label="Fechar janela">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
         <h2 id="dialog-title">Mostre este código ao DJ.</h2>
         <p id="dialog-song" class="dialog-song"></p>
         <span class="code-label">CÓDIGO DA MÚSICA</span>
