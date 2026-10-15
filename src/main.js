@@ -73,6 +73,8 @@ const els = {
   previewAudio: document.querySelector("#preview-audio"),
   favoritesButton: document.querySelector("#show-favorites"),
   favoritesCount: document.querySelector("#favorites-count"),
+  mobileFavoritesButton: document.querySelector("#mobile-favorites"),
+  mobileFavoritesCount: document.querySelector("#mobile-favorites-count"),
   spotifyButton: document.querySelector("#spotify-connect"),
   spotifyStatus: document.querySelector("#spotify-status"),
   relatedSection: document.querySelector("#related-artists"),
@@ -132,9 +134,19 @@ function persistFavorites() {
 }
 
 function updateFavoriteControls() {
-  els.favoritesCount.textContent = favoriteCodes.size.toLocaleString("pt-BR");
+  const count = favoriteCodes.size.toLocaleString("pt-BR");
+  els.favoritesCount.textContent = count;
   els.favoritesButton.setAttribute("aria-pressed", String(favoritesOnly));
   els.favoritesButton.classList.toggle("is-active", favoritesOnly);
+
+  if (els.mobileFavoritesButton) {
+    els.mobileFavoritesButton.setAttribute("aria-pressed", String(favoritesOnly));
+    els.mobileFavoritesButton.classList.toggle("is-active", favoritesOnly);
+  }
+  if (els.mobileFavoritesCount) {
+    els.mobileFavoritesCount.textContent = count;
+    els.mobileFavoritesCount.hidden = favoriteCodes.size === 0;
+  }
 }
 
 function addFavorites(newSongs) {
@@ -601,6 +613,7 @@ els.clearButton.addEventListener("click", () => {
 });
 els.backToBrowse.addEventListener("click", backToBrowse);
 els.favoritesButton.addEventListener("click", showFavorites);
+els.mobileFavoritesButton?.addEventListener("click", showFavorites);
 els.spotifyButton.hidden = !spotifyConfigured;
 els.spotifyStatus.hidden = !spotifyConfigured;
 if (spotifyConfigured) {
