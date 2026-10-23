@@ -106,12 +106,15 @@
               <input
                 id="song-search"
                 type="search"
-                placeholder="Música, artista, código ou letra"
+                placeholder="Qual música você quer cantar?"
+                aria-describedby="search-guidance"
                 autocomplete="off"
                 enterkeyhint="search"
               />
               <button id="clear-search" class="clear-button" type="button" hidden>Limpar</button>
             </div>
+            <p id="search-guidance" class="search-guidance">Digite o nome da música, do artista, o código ou um pedaço da letra. Não precisa de acentos.</p>
+            <div id="search-suggestions" class="search-suggestions" aria-label="Sugestões de busca"></div>
             <p id="results-count" class="results-count" aria-live="polite"></p>
           </div>
 

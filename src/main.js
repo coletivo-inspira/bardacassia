@@ -900,8 +900,65 @@ function resetNight() {
   if (activeCategory?.type === "discovery") showDiscoveryPicker();
 }
 
-function tileArtLetter(label) {
-  return (label || "?").trim().charAt(0).toUpperCase();
+function categorySongs(id) {
+  if (id.startsWith("lang-")) return songs.filter((song) => song.lang === id.slice(5));
+  if (id.startsWith("az-")) return songs.filter((song) => normalize(cleanArtist(song.artist)).startsWith(normalize(id.slice(3))));
+  const pack = CURATED.find((item) => item.id === id) || CURATED[id === "popular" ? 1 : 0];
+  return pack.artists.flatMap((artist) => songs.filter((song) => normalize(cleanArtist(song.artist)) === normalize(artist)).slice(0, 2));
+}
+
+async function loadCategoryCover(art, candidates) {
+  for (const song of candidates.slice(0, 4)) {
+    const meta = await fetchDeezerMeta(song);
+    if (!meta?.cover || !art.isConnected) continue;
+    const image = new Image();
+    image.alt = "";
+    image.decoding = "async";
+    image.referrerPolicy = "no-referrer";
+    image.onload = () => art.replaceChildren(image);
+    image.src = meta.cover;
+    return;
+  }
+}
+
+const categoryCoverObserver = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    if (!entry.isIntersecting) continue;
+    categoryCoverObserver.unobserve(entry.target);
+    loadCategoryCover(entry.target.querySelector(".category-art"), categorySongs(entry.target.dataset.categoryId));
+  }
+}, { rootMargin: "150px" });
+
+function renderSearchSuggestions() {
+  const container = document.querySelector("#search-suggestions");
+  const q = els.searchInput.value.trim();
+  container.replaceChildren();
+  if (!songs.length) return;
+  const matches = q ? searchCatalog(songs, q) : CURATED[0].artists.flatMap((artist) => songs.filter((song) => normalize(cleanArtist(song.artist)) === normalize(artist)).slice(0, 1));
+  const options = [];
+  if (q) {
+    for (const song of matches) {
+      const artist = cleanArtist(song.artist);
+      if (normalize(artist).includes(normalize(q)) && !options.some((item) => item.artist === artist)) options.push({ artist });
+      if (options.length === 2) break;
+    }
+  }
+  for (const song of matches.slice(0, q ? 3 : 4)) options.push({ song });
+  const label = document.createElement("p");
+  label.textContent = q ? (matches.length ? "Você está procurando…" : "Tente menos palavras ou confira o nome. Você também pode começar por:") : "Experimente buscar:";
+  container.append(label);
+  const examples = options.length ? options : songs.filter((song) => CURATED[0].artists.some((artist) => normalize(artist) === normalize(cleanArtist(song.artist)))).slice(0, 3).map((song) => ({ song }));
+  for (const item of examples) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "search-suggestion";
+    button.textContent = item.artist ? `Artista: ${item.artist}` : `${displayTitle(item.song.title)} · ${cleanArtist(item.song.artist)}`;
+    button.addEventListener("click", () => {
+      if (item.artist) showArtistSongs(item.artist);
+      else showSongToDJ(item.song);
+    });
+    container.append(button);
+  }
 }
 
 function createCategoryTile({ id, title, color, onClick, artLabel }) {
@@ -919,7 +976,7 @@ function createCategoryTile({ id, title, color, onClick, artLabel }) {
   const art = document.createElement("span");
   art.className = "category-art";
   art.setAttribute("aria-hidden", "true");
-  art.textContent = artLabel || tileArtLetter(title);
+  art.innerHTML = '<svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" fill="#24252b"/><circle cx="50" cy="50" r="41" fill="#111216"/><circle cx="50" cy="50" r="32" fill="none" stroke="#42434a"/><circle cx="50" cy="50" r="23" fill="none" stroke="#42434a"/><circle cx="50" cy="50" r="13" fill="var(--tile)"/><circle cx="50" cy="50" r="3" fill="#f7f3e9"/></svg>';
 
   btn.append(name, art);
   btn.addEventListener("click", onClick);
@@ -989,6 +1046,8 @@ function buildCategories() {
   }
 
   els.categoryGrid.replaceChildren(...tiles);
+  tiles.forEach((tile) => categoryCoverObserver.observe(tile));
+  renderSearchSuggestions();
 }
 
 function debounce(fn, ms) {
@@ -1000,6 +1059,10 @@ function debounce(fn, ms) {
 }
 
 const onSearchInput = debounce(() => {
+  renderSearchSuggestions();
+  els.discoveryView.hidden = true;
+  els.popularView.hidden = true;
+  els.songsList.hidden = false;
   const q = els.searchInput.value.trim();
   if (q) {
     setBrowseMode(false);
@@ -1020,6 +1083,7 @@ els.searchInput.addEventListener("input", onSearchInput);
 els.clearButton.addEventListener("click", () => {
   els.searchInput.value = "";
   els.clearButton.hidden = true;
+  renderSearchSuggestions();
   if (activeCategory || favoritesOnly) {
     els.activeFilter.textContent = favoritesOnly ? "Suas favoritas" : activeCategory.label;
     applyFilters();
