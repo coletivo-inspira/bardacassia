@@ -67,3 +67,14 @@ test("recupera estado de descoberta validado contra os códigos ativos", () => {
   assert.deepEqual(state.passed, ["102"]);
   assert.deepEqual(state.history, [{ action: "pass", code: "102", index: 0 }]);
 });
+
+test('combina idioma, artista, favoritas e texto, preservando códigos', async () => {
+  const { filterCatalog } = await import('../src/lib/catalog.js');
+  const options = { language: 'BRA', artist: 'marilia mendonca', favoritesOnly: true, favoriteCodes: new Set(['103']) };
+  assert.deepEqual(filterCatalog(catalog, { ...options, query: 'cor' }).map(s => s.code), ['103']);
+  assert.deepEqual(filterCatalog(catalog, { ...options, query: 'Infiel' }), []);
+  assert.deepEqual(filterCatalog(catalog, { ...options, language: 'EUA' }), []);
+  assert.deepEqual(filterCatalog(catalog, { favoritesOnly: true }), []);
+  assert.deepEqual(filterCatalog(catalog, { query: 'Infiel' }).map(s => s.code), ['101']);
+  assert.equal(filterCatalog([{ ...catalog[0], code: '001' }], { query: '001' })[0].code, '001');
+});

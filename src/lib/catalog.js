@@ -96,3 +96,20 @@ export function curatedArtistSuggestions(catalog, artist, packs, limit = 8) {
   }
   return names.slice(0, limit);
 }
+
+/** One source for results, suggestions and counts. Codes remain strings. */
+export function filterCatalog(catalog, { query = '', language = '', artist = '', favoritesOnly = false, favoriteCodes = new Set(), category = null } = {}) {
+  const list = catalog.filter((song) => {
+    const name = normalizeText(cleanArtist(song.artist));
+    if (language && song.lang !== language) return false;
+    if (artist && name !== normalizeText(artist)) return false;
+    if (favoritesOnly && !favoriteCodes.has(song.code)) return false;
+    if (category?.type === 'letter' && !name.startsWith(normalizeText(category.value))) return false;
+    if (category?.type === 'artists' && !category.value.some((value) => {
+      const key = normalizeText(value);
+      return name === key || name.includes(key) || key.includes(name);
+    })) return false;
+    return true;
+  });
+  return searchCatalog(list, query);
+}

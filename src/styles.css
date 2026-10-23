@@ -1917,3 +1917,25 @@ body {
 .search-suggestion { max-width: 100%; min-height: 44px; padding: .6rem .85rem; border-radius: 12px; border: 1px solid var(--line); color: var(--text); background: var(--bg-soft); text-align: left; font: inherit; font-size: .85rem; cursor: pointer; }
 .search-suggestion:hover { border-color: var(--amber); }
 .search-suggestion:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+
+.hero-artwork img { animation: none; }
+.hero-artwork picture { display: contents; }
+.catalog-filters { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .8rem; padding: 1rem 0; }
+.catalog-filters[hidden] { display: none; }
+.catalog-filters label { display: grid; gap: .4rem; font-size: .9rem; color: var(--text); min-width: 0; }
+.catalog-filters select, .catalog-filters input[type="search"] { width: 100%; min-width: 0; min-height: 44px; padding: .6rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-elev); color: var(--text); font: inherit; }
+.catalog-filters .favorite-filter { display: flex; align-items: center; min-height: 44px; }
+.favorite-filter input { width: 22px; height: 22px; }
+.active-filter-chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.spotify-search-control input { min-width: 0; }
+.spotify-search-control button { min-height: 44px; }
+.night-list-access { top: calc(var(--header-h) + 8px); }
+@media (max-width: 719px) {
+  .spotify-search { position: static; }
+  .catalog-filters { grid-template-columns: 1fr; }
+  .spotify-search-control { flex-wrap: wrap; gap: .4rem; }
+  .spotify-search-control input { flex: 1; width: 0; font-size: 16px; }
+  .hero-inner { padding-top: 1rem; }
+  .discovery-card-content { padding: 1rem; min-height: 300px; }
+  .discovery-card-content > img, .discovery-cover { width: 130px; height: 130px; }
+}

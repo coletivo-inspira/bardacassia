@@ -1,5 +1,5 @@
 import "./styles.css";
-import { searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
+import { filterCatalog, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
 import { fetchDeezerMeta, fetchRelatedArtists } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
 import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState, emptyDiscoveryState } from "./lib/discovery.js";
@@ -319,6 +319,8 @@ function currentDiscoverySong() {
 function renderDiscoveryCard() {
   stopPreview();
   const song = currentDiscoverySong();
+  els.passSong.disabled = !song;
+  els.chooseSong.disabled = !song;
   els.undoDiscovery.disabled = discovery.history.length === 0;
   if (!song) {
     els.discoveryCard.replaceChildren();
@@ -367,7 +369,7 @@ function renderDiscoveryCard() {
 async function enrichDiscoveryCover(cover, song) {
   try {
     const meta = await fetchDeezerMeta(song);
-    if (!meta) return;
+    if (!meta || !cover.isConnected || currentDiscoverySong()?.code !== song.code) return;
     if (meta.cover && cover.isConnected) {
       const img = document.createElement("img");
       img.alt = "";
@@ -402,6 +404,7 @@ function moveDiscovery(action) {
 }
 
 function undoDiscovery() {
+  if (cardAnimating) return;
   const last = discovery.history.pop();
   if (!last) return;
   discovery.index = last.index;
@@ -565,8 +568,11 @@ async function renderRelatedArtists(artist) {
 }
 
 function showArtistSongs(artist) {
-  favoritesOnly = false;
+  selectedArtist = artist;
   activeCategory = { type: "artist", value: artist, label: `Artista: ${artist}` };
+  els.discoveryView.hidden = true;
+  els.popularView.hidden = true;
+  els.songsList.hidden = false;
   els.searchInput.value = "";
   els.clearButton.hidden = true;
   els.activeFilter.textContent = activeCategory.label;
@@ -579,10 +585,14 @@ function showArtistSongs(artist) {
 
 function showFavorites() {
   if (favoritesOnly) {
-    backToBrowse();
+    favoritesOnly = false;
+    refreshFilteredSearch();
     return;
   }
   favoritesOnly = true;
+  els.discoveryView.hidden = true;
+  els.popularView.hidden = true;
+  els.songsList.hidden = false;
   activeCategory = null;
   els.searchInput.value = "";
   els.clearButton.hidden = true;
@@ -606,30 +616,74 @@ function colorFromCode(code) {
   return colors[n % colors.length];
 }
 
-function applyFilters() {
-  const q = els.searchInput.value.trim();
-  let list = favoritesOnly ? songs.filter((s) => favoriteCodes.has(s.code)) : songs;
-
-  if (activeCategory) {
-    if (activeCategory.type === "lang") {
-      list = list.filter((s) => s.lang === activeCategory.value);
-    } else if (activeCategory.type === "letter") {
-      list = list.filter((s) => normalize(s.artist).startsWith(normalize(activeCategory.value)));
-    } else if (activeCategory.type === "artist") {
-      list = list.filter((s) => normalize(cleanArtist(s.artist)) === normalize(activeCategory.value));
-    } else if (activeCategory.type === "artists") {
-      const names = activeCategory.value.map(normalize);
-      list = list.filter((s) => names.some((name) => {
-        const artist = normalize(cleanArtist(s.artist));
-        return artist === name || artist.includes(name) || name.includes(artist);
-      }));
-    }
+let selectedLanguage = "";
+let selectedArtist = "";
+function filteredCatalog(query = "") {
+  return filterCatalog(songs, { query, language: selectedLanguage, artist: selectedArtist, favoritesOnly, favoriteCodes, category: activeCategory });
+}
+function populateArtistFilter() {
+  const select = document.querySelector("#filter-artist");
+  const query = normalize(document.querySelector("#filter-artist-search").value);
+  const names = [...new Set(songs.map((song) => cleanArtist(song.artist)))].sort((a,b) => a.localeCompare(b, "pt-BR"));
+  select.replaceChildren(new Option("Todos os artistas", ""), ...names.filter((name) => name === selectedArtist || normalize(name).includes(query)).map((name) => new Option(name, name)));
+  select.value = selectedArtist;
+}
+function syncFilterControls() {
+  document.querySelector("#filter-language").value = selectedLanguage;
+  document.querySelector("#filter-artist").value = selectedArtist;
+  document.querySelector("#filter-favorites").checked = favoritesOnly;
+  const chips = document.querySelector("#active-filter-chips");
+  chips.replaceChildren();
+  const entries = [
+    selectedLanguage && [LANG_LABELS[selectedLanguage], () => { selectedLanguage = ""; }],
+    selectedArtist && [selectedArtist, () => { selectedArtist = ""; }],
+    favoritesOnly && ["Favoritas", () => { favoritesOnly = false; }],
+    activeCategory && ["letter", "artists"].includes(activeCategory.type) && [activeCategory.label, () => { activeCategory = null; }],
+  ].filter(Boolean);
+  for (const [label, remove] of entries) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "search-suggestion";
+    button.textContent = `${label} ×`;
+    button.setAttribute("aria-label", `Remover filtro ${label}`);
+    button.onclick = () => { remove(); refreshFilteredSearch(); };
+    chips.append(button);
   }
-
-  filtered = searchCatalog(list, q);
+  document.querySelector("#toggle-filters").textContent = entries.length ? `Filtros (${entries.length})` : "Filtros";
+}
+function refreshFilteredSearch() {
+  if (["discovery", "popular"].includes(activeCategory?.type)) activeCategory = null;
+  els.discoveryView.hidden = true;
+  els.popularView.hidden = true;
+  els.songsList.hidden = false;
+  setBrowseMode(false);
+  els.activeFilter.textContent = "Resultados da busca";
+  applyFilters();
+}
+function applyFilters() {
+  filtered = filteredCatalog(els.searchInput.value.trim());
   visibleCount = PAGE_SIZE;
+  syncFilterControls();
+  renderSearchSuggestions();
   renderResults();
 }
+
+const filtersToggle = document.querySelector("#toggle-filters");
+filtersToggle.addEventListener("click", () => {
+  const panel = document.querySelector("#catalog-filters");
+  panel.hidden = !panel.hidden;
+  filtersToggle.setAttribute("aria-expanded", String(!panel.hidden));
+});
+document.querySelector("#filter-language").addEventListener("change", (event) => { selectedLanguage = event.target.value; refreshFilteredSearch(); });
+document.querySelector("#filter-artist-search").addEventListener("input", populateArtistFilter);
+document.querySelector("#filter-artist").addEventListener("change", (event) => { selectedArtist = event.target.value; refreshFilteredSearch(); });
+document.querySelector("#filter-favorites").addEventListener("change", (event) => { favoritesOnly = event.target.checked; refreshFilteredSearch(); });
+document.querySelector("#clear-filters").addEventListener("click", () => {
+  selectedLanguage = ""; selectedArtist = ""; favoritesOnly = false; activeCategory = null;
+  document.querySelector("#filter-artist-search").value = "";
+  populateArtistFilter();
+  refreshFilteredSearch();
+});
 
 function setBrowseMode(browse) {
   els.browseView.hidden = !browse;
@@ -637,10 +691,11 @@ function setBrowseMode(browse) {
 }
 
 function showCategory(category) {
-  favoritesOnly = false;
+  if (category.type === "lang") selectedLanguage = category.value;
+  if (category.type === "artist") selectedArtist = category.value;
   updateFavoriteControls();
   hideRelatedArtists();
-  activeCategory = category;
+  activeCategory = ["lang", "artist"].includes(category.type) ? null : category;
   els.searchInput.value = "";
   els.clearButton.hidden = true;
   setBrowseMode(false);
@@ -654,7 +709,7 @@ function showCategory(category) {
 
 function backToBrowse() {
   activeCategory = null;
-  favoritesOnly = false;
+  syncFilterControls();
   hideRelatedArtists();
   updateFavoriteControls();
   els.searchInput.value = "";
@@ -797,7 +852,7 @@ function renderResults() {
 
   const total = filtered.length;
   const q = els.searchInput.value.trim();
-  if (activeCategory || q) {
+  if (activeCategory || q || selectedLanguage || selectedArtist || favoritesOnly) {
     els.resultsCount.textContent =
       total === 1 ? "1 música encontrada" : `${total.toLocaleString("pt-BR")} músicas encontradas`;
   } else {
@@ -807,7 +862,7 @@ function renderResults() {
   els.emptyState.hidden = total !== 0;
   els.emptyState.textContent = favoritesOnly && !q
     ? "Você ainda não salvou músicas. Volte às categorias e use Favoritar nas que quiser cantar."
-    : "Nenhuma música encontrada. Tente outro título, artista, código ou trecho da letra.";
+    : "Nenhuma música encontrada com esta busca e os filtros ativos. Tente menos palavras ou use Limpar filtros.";
   els.loadMore.hidden = visibleCount >= total;
   els.clearButton.hidden = q.length === 0;
   updateFavoriteControls();
@@ -934,7 +989,7 @@ function renderSearchSuggestions() {
   const q = els.searchInput.value.trim();
   container.replaceChildren();
   if (!songs.length) return;
-  const matches = q ? searchCatalog(songs, q) : CURATED[0].artists.flatMap((artist) => songs.filter((song) => normalize(cleanArtist(song.artist)) === normalize(artist)).slice(0, 1));
+  const matches = filteredCatalog(q);
   const options = [];
   if (q) {
     for (const song of matches) {
@@ -945,9 +1000,9 @@ function renderSearchSuggestions() {
   }
   for (const song of matches.slice(0, q ? 3 : 4)) options.push({ song });
   const label = document.createElement("p");
-  label.textContent = q ? (matches.length ? "Você está procurando…" : "Tente menos palavras ou confira o nome. Você também pode começar por:") : "Experimente buscar:";
+  label.textContent = q ? (matches.length ? "Você está procurando…" : "Tente menos palavras, confira o nome ou remova um filtro.") : "Experimente buscar:";
   container.append(label);
-  const examples = options.length ? options : songs.filter((song) => CURATED[0].artists.some((artist) => normalize(artist) === normalize(cleanArtist(song.artist)))).slice(0, 3).map((song) => ({ song }));
+  const examples = options;
   for (const item of examples) {
     const button = document.createElement("button");
     button.type = "button";
@@ -1047,6 +1102,9 @@ function buildCategories() {
 
   els.categoryGrid.replaceChildren(...tiles);
   tiles.forEach((tile) => categoryCoverObserver.observe(tile));
+  const languageSelect = document.querySelector("#filter-language");
+  languageSelect.replaceChildren(new Option("Todos os idiomas", ""), ...langOrder.filter((lang) => present.has(lang)).map((lang) => new Option(LANG_LABELS[lang], lang)));
+  populateArtistFilter();
   renderSearchSuggestions();
 }
 
@@ -1069,12 +1127,12 @@ const onSearchInput = debounce(() => {
     if (favoritesOnly) els.activeFilter.textContent = `Suas favoritas · “${q}”`;
     else if (!activeCategory) els.activeFilter.textContent = `Busca: “${q}”`;
     else els.activeFilter.textContent = `${activeCategory.label} · “${q}”`;
-  } else if (!activeCategory && !favoritesOnly) {
+  } else if (!activeCategory && !favoritesOnly && !selectedLanguage && !selectedArtist) {
     setBrowseMode(true);
     els.resultsCount.textContent = `${songs.length.toLocaleString("pt-BR")} músicas no catálogo`;
     return;
   } else {
-    els.activeFilter.textContent = favoritesOnly ? "Suas favoritas" : activeCategory.label;
+    els.activeFilter.textContent = favoritesOnly ? "Suas favoritas" : (activeCategory?.label || "Resultados da busca");
   }
   applyFilters();
 }, 160);
@@ -1084,8 +1142,8 @@ els.clearButton.addEventListener("click", () => {
   els.searchInput.value = "";
   els.clearButton.hidden = true;
   renderSearchSuggestions();
-  if (activeCategory || favoritesOnly) {
-    els.activeFilter.textContent = favoritesOnly ? "Suas favoritas" : activeCategory.label;
+  if (activeCategory || favoritesOnly || selectedLanguage || selectedArtist) {
+    els.activeFilter.textContent = favoritesOnly ? "Suas favoritas" : (activeCategory?.label || "Resultados da busca");
     applyFilters();
   } else {
     backToBrowse();
@@ -1111,6 +1169,7 @@ function resetCardDrag() {
 function animateDiscovery(action) {
   if (cardAnimating || !currentDiscoverySong()) return;
   cardAnimating = true;
+  const committedCode = currentDiscoverySong().code;
   stopPreview();
   const direction = action === "choose" ? 1 : -1;
   els.discoveryCard.classList.remove("is-dragging");
@@ -1120,7 +1179,7 @@ function animateDiscovery(action) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   window.setTimeout(() => {
     resetCardDrag();
-    moveDiscovery(action);
+    if (currentDiscoverySong()?.code === committedCode) moveDiscovery(action);
     cardAnimating = false;
   }, reduced ? 0 : 220);
 }
