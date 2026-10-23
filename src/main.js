@@ -306,7 +306,7 @@ function renderArtistSongsDialog(artist) {
     const djBtn = document.createElement("button");
     djBtn.type = "button";
     djBtn.className = "action-btn dj-btn";
-    djBtn.textContent = "Código ao DJ";
+    djBtn.textContent = "Código";
     djBtn.setAttribute("aria-label", `Código ao DJ: ${song.code}`);
     djBtn.addEventListener("click", () => showSongToDJ(song));
     const favoriteBtn = document.createElement("button");
@@ -927,7 +927,7 @@ function createSongRow(song) {
   const djBtn = document.createElement("button");
   djBtn.type = "button";
   djBtn.className = "action-btn dj-btn";
-  djBtn.textContent = "Código ao DJ";
+  djBtn.textContent = "Código";
   djBtn.setAttribute("aria-label", `Código ao DJ: ${song.code}`);
   djBtn.addEventListener("click", () => showSongToDJ(song));
 
