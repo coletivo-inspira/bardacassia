@@ -710,6 +710,218 @@ input:focus-visible {
   color: var(--amber);
 }
 
+/* Instagram / bar info sections */
+.bar-event,
+.bar-info {
+  border-bottom: 1px solid var(--line);
+}
+
+.bar-section-inner {
+  width: min(100%, calc(var(--max) + 2.5rem));
+  margin: 0 auto;
+  padding: clamp(2.5rem, 5vw, 4rem) 1.25rem;
+}
+
+.bar-event {
+  background:
+    radial-gradient(ellipse 42% 70% at 92% 18%, rgba(232, 93, 76, 0.16), transparent 70%),
+    radial-gradient(ellipse 40% 60% at 8% 80%, rgba(222, 201, 73, 0.12), transparent 68%),
+    var(--bg);
+}
+
+.bar-event-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(220px, 0.7fr);
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: center;
+}
+
+.bar-event-copy h2,
+.bar-info-header h2,
+.bar-block-copy h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.bar-event-copy h2 {
+  font-size: clamp(2.2rem, 4.5vw, 3.4rem);
+  max-width: 14ch;
+}
+
+.bar-info-header h2 {
+  font-size: clamp(1.9rem, 3.8vw, 2.8rem);
+  max-width: 18ch;
+}
+
+.bar-block-copy h3 {
+  font-size: clamp(1.45rem, 2.6vw, 1.9rem);
+}
+
+.bar-lead {
+  margin: 0.9rem 0 0;
+  max-width: 42ch;
+  color: var(--muted);
+  line-height: 1.55;
+  font-size: 1.02rem;
+}
+
+.bar-meta {
+  display: grid;
+  gap: 0.85rem;
+  margin: 1.4rem 0 0;
+  padding: 0;
+}
+
+.bar-meta div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.bar-meta dt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.bar-meta dd {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+
+.bar-highlights {
+  margin: 1.35rem 0 1.6rem;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+  max-width: 42ch;
+}
+
+.bar-highlights li {
+  padding-left: 1rem;
+  border-left: 2px solid var(--coral);
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.bar-flyer {
+  margin: 0;
+  width: min(100%, 380px);
+  justify-self: end;
+}
+
+.bar-flyer img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.bar-info {
+  background: var(--bg-elev);
+}
+
+.bar-info-header {
+  margin-bottom: clamp(1.6rem, 3vw, 2.4rem);
+}
+
+.bar-info-grid {
+  display: grid;
+  gap: clamp(2rem, 4vw, 3rem);
+}
+
+.bar-block {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(180px, 0.55fr);
+  gap: clamp(1.2rem, 3vw, 2.2rem);
+  align-items: start;
+  padding-top: clamp(1.2rem, 2vw, 1.8rem);
+  border-top: 1px solid var(--line);
+}
+
+.bar-flyer-side {
+  width: min(100%, 280px);
+  justify-self: end;
+}
+
+.price-list {
+  list-style: none;
+  margin: 1.2rem 0 0;
+  padding: 0;
+  max-width: 28rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.price-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.98rem;
+}
+
+.price-list strong {
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: var(--amber);
+  letter-spacing: 0.01em;
+}
+
+.bar-note {
+  margin: 1rem 0 1.1rem;
+  max-width: 40ch;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--amber);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.text-link:hover {
+  color: var(--coral);
+}
+
+.bar-event .button {
+  margin-top: 0.2rem;
+}
+
+@media (max-width: 860px) {
+  .bar-event-grid,
+  .bar-block {
+    grid-template-columns: 1fr;
+  }
+
+  .bar-flyer,
+  .bar-flyer-side {
+    width: min(100%, 340px);
+    justify-self: start;
+  }
+
+  .bar-event-copy h2 {
+    max-width: none;
+  }
+}
+
 /* Footer */
 .site-footer {
   width: min(100%, var(--max));
@@ -720,6 +932,11 @@ input:focus-visible {
   justify-content: space-between;
   gap: 1rem;
   border-top: 1px solid var(--line);
+}
+
+.footer-main {
+  display: grid;
+  gap: 0.35rem;
 }
 
 .footer-brand {
@@ -734,6 +951,10 @@ input:focus-visible {
   margin: 0;
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.footer-place {
+  font-size: 0.8rem !important;
 }
 
 .instagram-footer {
@@ -970,6 +1191,10 @@ dialog::backdrop {
   }
 
   .instagram-footer { width: 100%; }
+
+  .bar-section-inner {
+    padding-inline: 1rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
