@@ -19,7 +19,9 @@
 - **Pesquisa local:** música, artista, código ou começo da letra, sem diferenciar acentos; correspondências mais relevantes aparecem primeiro.
 - **Descoberta:** clique no nome do artista para filtrar suas músicas e explorar artistas relacionados disponíveis no próprio catálogo.
 - **Favoritas:** salve as músicas para cantar no navegador, sem criar conta.
-- **Spotify opcional:** com autorização do usuário, importa suas **50 mais ouvidas** e salva como favoritas apenas as faixas que existem no catálogo de karaokê.
+- **Spotify opcional:** com autorização do usuário, usa suas **50 mais ouvidas** como sugestões e só as adiciona à lista da noite quando a pessoa escolhe “Quero cantar”.
+- **Descoberta por cartões:** escolha artistas, passe ou selecione músicas e mantenha uma lista da noite salva neste navegador.
+- **Mais populares:** ranking agregado, quando o Supabase está configurado.
 - **Deezer:** capas e trechos de áudio quando disponíveis; o site continua funcional sem a API.
 - **Código ao DJ:** exibe o código para o usuário mostrar ao DJ. **Não envia pedidos automaticamente à fila.**
 
@@ -68,7 +70,11 @@ O botão só aparece quando o Client ID estiver configurado. A autorização usa
 4. No GitHub, crie a variável de Actions `SPOTIFY_CLIENT_ID` para habilitar o recurso no deploy.
 5. Confira as regras atuais de acesso do Spotify, inclusive usuários autorizados e limites do modo de desenvolvimento.
 
-**Mais ouvidas não são as faixas curtidas.** A integração lê as top tracks de um período recente, cruza título e artista com o catálogo e salva somente os códigos correspondentes. Nenhum token é persistido no armazenamento local. Leia os [detalhes, limites e privacidade](./docs/INTEGRACOES.md).
+**Mais ouvidas não são as faixas curtidas.** A integração lê as top tracks de um período recente, cruza título e artista com o catálogo e usa os códigos correspondentes como sugestões. Nenhum token é persistido no armazenamento local. Leia os [detalhes, limites e privacidade](./docs/INTEGRACOES.md).
+
+## Ranking compartilhado (opcional)
+
+Veja [Integrações](./docs/INTEGRACOES.md#supabase-ranking-e-interações-anônimas) para configurar o Supabase, executar a migração e sincronizar os códigos. `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` habilitam o ranking; `SUPABASE_SERVICE_ROLE_KEY` é somente um secret do GitHub Actions para sincronizar o catálogo.
 
 ## Organização do projeto
 

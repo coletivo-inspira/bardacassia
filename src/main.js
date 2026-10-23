@@ -2,9 +2,15 @@ import "./styles.css";
 import { searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
 import { fetchDeezerMeta, fetchRelatedArtists } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
+import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState, emptyDiscoveryState } from "./lib/discovery.js";
+import { fetchPopularSongs, popularityNeedsUpdate, recordSongOpen, setSongFavorite } from "./integrations/popularity.js";
 
 const BASE = import.meta.env.BASE_URL || "/";
 const PAGE_SIZE = 40;
+const DISCOVERY_ENABLED = String(import.meta.env.VITE_ENABLE_DISCOVERY || "true") !== "false";
+const POPULARITY_ENABLED = String(import.meta.env.VITE_ENABLE_POPULARITY || "true") !== "false";
+const FAVORITES_KEY = "bdc-favorites-v1";
+const DISCOVERY_KEY = "bdc-discovery-v1";
 
 const LANG_LABELS = {
   BRA: "Brasileiras",
@@ -80,6 +86,34 @@ const els = {
   relatedSection: document.querySelector("#related-artists"),
   relatedTitle: document.querySelector("#related-title"),
   relatedList: document.querySelector("#related-list"),
+  discoveryView: document.querySelector("#discovery-view"),
+  discoveryTitle: document.querySelector("#discovery-title"),
+  discoveryDescription: document.querySelector("#discovery-description"),
+  artistPicker: document.querySelector("#artist-picker"),
+  artistSearch: document.querySelector("#artist-search"),
+  artistOptions: document.querySelector("#artist-options"),
+  artistSelectionCount: document.querySelector("#artist-selection-count"),
+  startDiscovery: document.querySelector("#start-discovery"),
+  skipArtistPicker: document.querySelector("#skip-artist-picker"),
+  discoveryCards: document.querySelector("#discovery-cards"),
+  discoveryCard: document.querySelector("#discovery-card"),
+  cardPosition: document.querySelector("#card-position"),
+  undoDiscovery: document.querySelector("#undo-discovery"),
+  passSong: document.querySelector("#pass-song"),
+  chooseSong: document.querySelector("#choose-song"),
+  changeArtists: document.querySelector("#change-artists"),
+  restartPassed: document.querySelector("#restart-passed"),
+  popularView: document.querySelector("#popular-view"),
+  popularList: document.querySelector("#popular-list"),
+  nightListAccess: document.querySelector("#open-night-list"),
+  nightListCount: document.querySelector("#night-list-count"),
+  nightListDialog: document.querySelector("#night-list-dialog"),
+  nightListItems: document.querySelector("#night-list-items"),
+  nightListEmpty: document.querySelector("#night-list-empty"),
+  closeNightList: document.querySelector("#close-night-list"),
+  resetNight: document.querySelector("#reset-night"),
+  copyCode: document.querySelector("#copy-song-code"),
+  copyCodeStatus: document.querySelector("#copy-code-status"),
 };
 
 /** @type {Array<{code:string,artist:string,title:string,lyricStart:string,lang:string}>} */
@@ -93,6 +127,13 @@ let favoritesOnly = false;
 let relatedRequest = 0;
 let songByCode = new Map();
 let observer = null;
+let discovery = loadDiscovery();
+let artistOptions = [];
+let popularSongs = [];
+let spotifySuggestions = [];
+let activeSong = null;
+let dialogReturnFocus = null;
+let copyTimer = null;
 
 function normalize(value) {
   return normalizeText(value);
@@ -113,7 +154,290 @@ function spotifySearchUrl(artist, title) {
   return `https://open.spotify.com/search/${encodeURIComponent(`${artist} ${title}`)}`;
 }
 
-const FAVORITES_KEY = "bdc-favorites-v1";
+function loadDiscovery() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DISCOVERY_KEY) || "null");
+    return sanitizeDiscoveryState(saved, saved?.queue || []);
+  } catch {
+    return emptyDiscoveryState();
+  }
+}
+
+function persistDiscovery() {
+  try {
+    localStorage.setItem(DISCOVERY_KEY, JSON.stringify(discovery));
+    els.spotifyStatus.hidden = false;
+    els.spotifyStatus.textContent = "Suas escolhas ficam salvas neste navegador.";
+  } catch {
+    els.spotifyStatus.hidden = false;
+    els.spotifyStatus.textContent = "Não foi possível salvar as escolhas neste navegador. Você ainda pode continuar nesta visita.";
+  }
+  renderNightList();
+}
+
+function renderNightList() {
+  if (!els.nightListItems) return;
+  const items = discovery.list.map((code) => songByCode.get(code) || { code, title: "Música indisponível no catálogo", artist: "Indisponível" });
+  els.nightListCount.textContent = String(items.length);
+  els.nightListItems.replaceChildren(...items.map((song) => {
+    const row = document.createElement("article");
+    row.className = "night-list-item";
+    const text = document.createElement("p");
+    text.textContent = `${displayTitle(song.title)} — ${cleanArtist(song.artist)}`;
+    const code = document.createElement("span");
+    code.className = "night-list-code";
+    code.textContent = `Código ${song.code}`;
+    const actions = document.createElement("div");
+    actions.className = "night-list-item-actions";
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "action-btn dj-btn";
+    open.textContent = song.title === "Música indisponível no catálogo" ? "Indisponível" : "Ver código";
+    open.disabled = song.title === "Música indisponível no catálogo";
+    if (!open.disabled) open.addEventListener("click", () => showSongToDJ(song));
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "action-btn";
+    remove.textContent = "Remover";
+    remove.addEventListener("click", () => {
+      discovery.list = discovery.list.filter((item) => item !== song.code);
+      persistDiscovery();
+    });
+    actions.append(open, remove);
+    row.append(text, code, actions);
+    return row;
+  }));
+  els.nightListEmpty.hidden = items.length > 0;
+  els.resetNight.disabled = items.length === 0;
+}
+
+function renderArtistOptions() {
+  const selected = new Set(discovery.artists.map(normalize));
+  const matches = filterArtists(artistOptions, els.artistSearch.value).slice(0, 100);
+  els.artistOptions.replaceChildren(...matches.map(({ name, key }) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "artist-option";
+    button.textContent = `${selected.has(key) ? "✓ " : "+ "}${name}`;
+    button.setAttribute("aria-pressed", String(selected.has(key)));
+    button.disabled = !selected.has(key) && discovery.artists.length >= 3;
+    button.addEventListener("click", () => {
+      if (selected.has(key)) discovery.artists = discovery.artists.filter((artist) => normalize(artist) !== key);
+      else if (discovery.artists.length < 3) discovery.artists.push(name);
+      discovery.artists = [...new Map(discovery.artists.map((artist) => [normalize(artist), artist])).values()];
+      persistDiscovery();
+      renderArtistOptions();
+    });
+    return button;
+  }));
+  els.artistSelectionCount.textContent = `${discovery.artists.length} de 3 selecionados`;
+  els.startDiscovery.disabled = discovery.artists.length !== 3;
+}
+
+function showDiscoveryPicker() {
+  activeCategory = { type: "discovery", label: "Descobrir o que cantar" };
+  favoritesOnly = false;
+  hideRelatedArtists();
+  updateFavoriteControls();
+  setBrowseMode(false);
+  els.searchInput.value = "";
+  els.clearButton.hidden = true;
+  els.activeFilter.textContent = activeCategory.label;
+  els.discoveryView.hidden = false;
+  els.popularView.hidden = true;
+  els.songsList.hidden = true;
+  els.emptyState.hidden = true;
+  els.loadMore.hidden = true;
+  const hasSavedSession = discovery.queue.length > 0 && discovery.index < discovery.queue.length;
+  els.artistPicker.hidden = hasSavedSession;
+  els.discoveryCards.hidden = !hasSavedSession;
+  els.discoveryDescription.textContent = hasSavedSession ? "Continue escolhendo músicas para cantar." : "Escolha três artistas para receber sugestões do catálogo.";
+  els.discoveryTitle.textContent = "Descobrir o que cantar";
+  renderArtistOptions();
+  if (hasSavedSession) renderDiscoveryCard();
+  els.resultsView.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function startDiscovery(passedArtists = discovery.artists) {
+  discovery.artists = passedArtists.slice(0, 3);
+  if (POPULARITY_ENABLED && !popularSongs.length) popularSongs = (await fetchPopularSongs()).map((entry) => songByCode.get(String(entry.code))).filter(Boolean);
+  if (popularityNeedsUpdate()) {
+    els.spotifyStatus.hidden = false;
+    els.spotifyStatus.textContent = "Ranking exibido com dados salvos; atualização pendente.";
+  }
+  const editorialArtists = CURATED.flatMap((pack) => pack.artists);
+  const queue = buildDiscoveryQueue(songs, discovery.artists, [...spotifySuggestions, ...popularSongs], editorialArtists);
+  const fallback = [...new Set(editorialArtists.map(normalize))];
+  const fallbackSongs = queue.length ? queue : songs.filter((song) => fallback.includes(normalize(cleanArtist(song.artist))))
+    .map((song) => ({ ...song, source: "Sugestão da casa" }));
+  discovery.queue = fallbackSongs.map((song) => String(song.code));
+  discovery.index = 0;
+  discovery.seen = [];
+  discovery.passed = [];
+  discovery.history = [];
+  persistDiscovery();
+  els.artistPicker.hidden = true;
+  els.discoveryCards.hidden = false;
+  if (!queue.length) els.discoveryDescription.textContent = "Sugestões da casa para você começar. Você pode escolher seus artistas quando quiser.";
+  renderDiscoveryCard();
+}
+
+function currentDiscoverySong() {
+  const code = discovery.queue[discovery.index];
+  return code ? songByCode.get(code) : null;
+}
+
+function renderDiscoveryCard() {
+  stopPreview();
+  const song = currentDiscoverySong();
+  els.undoDiscovery.disabled = discovery.history.length === 0;
+  if (!song) {
+    els.discoveryCard.replaceChildren();
+    els.cardPosition.textContent = "Sugestões concluídas";
+    els.discoveryDescription.textContent = discovery.list.length
+      ? `Você já escolheu ${discovery.list.length} música${discovery.list.length === 1 ? "" : "s"} para cantar.`
+      : "Não encontramos mais músicas para estes artistas no catálogo.";
+    els.changeArtists.hidden = false;
+    els.restartPassed.hidden = discovery.seen.length === 0;
+    return;
+  }
+  els.discoveryDescription.textContent = "Deslize ou use os botões: escolha músicas para cantar ou passe para a próxima.";
+  els.cardPosition.textContent = `Sugestão ${discovery.index + 1} de ${discovery.queue.length}`;
+  els.restartPassed.hidden = false;
+  const card = document.createElement("div");
+  card.className = "discovery-card-content";
+  const cover = createCoverFallback(song);
+  cover.className = "cover-fallback discovery-cover";
+  const title = document.createElement("h4");
+  title.textContent = displayTitle(song.title);
+  const artist = document.createElement("p");
+  artist.textContent = cleanArtist(song.artist);
+  const record = document.createElement("span");
+  record.className = "discovery-source";
+  const isSpotify = spotifySuggestions.some((item) => item.code === song.code);
+  record.textContent = isSpotify ? "Do seu Spotify" : popularSongs.some((item) => item.code === song.code) ? "Mais popular" : discovery.artists.some((name) => normalize(name) === normalize(cleanArtist(song.artist))) ? "Artista escolhido" : "Sugestão da casa";
+  const actions = document.createElement("div");
+  actions.className = "discovery-card-links";
+  const details = document.createElement("button");
+  details.type = "button";
+  details.className = "action-btn dj-btn";
+  details.textContent = "Ver código";
+  details.addEventListener("click", () => showSongToDJ(song));
+  const spotify = document.createElement("a");
+  spotify.href = spotifySearchUrl(cleanArtist(song.artist), displayTitle(song.title));
+  spotify.target = "_blank";
+  spotify.rel = "noopener noreferrer";
+  spotify.className = "action-link";
+  spotify.textContent = "Relembrar esta música";
+  actions.append(details, spotify);
+  card.append(cover, title, artist, record, actions);
+  els.discoveryCard.replaceChildren(card);
+  enrichDiscoveryCover(cover, song);
+}
+
+async function enrichDiscoveryCover(cover, song) {
+  try {
+    const meta = await fetchDeezerMeta(song);
+    if (!meta) return;
+    if (meta.cover && cover.isConnected) {
+      const img = document.createElement("img");
+      img.alt = "";
+      img.decoding = "async";
+      img.referrerPolicy = "no-referrer";
+      img.src = meta.cover;
+      img.addEventListener("load", () => cover.replaceWith(img), { once: true });
+    }
+    if (meta.previewUrl) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "action-btn preview-btn";
+      button.textContent = "Ouvir trecho";
+      button.dataset.preview = meta.previewUrl;
+      button.addEventListener("click", () => togglePreview(song, button));
+      els.discoveryCard.querySelector(".discovery-card-links")?.append(button);
+    }
+  } catch { /* O cartão segue funcional sem dados do Deezer. */ }
+}
+
+function moveDiscovery(action) {
+  const song = currentDiscoverySong();
+  if (!song) return;
+  discovery.history.push({ action, code: song.code, index: discovery.index });
+  discovery.history = discovery.history.slice(-1);
+  discovery.seen = [...new Set([...discovery.seen, song.code])];
+  if (action === "pass" && !discovery.passed.includes(song.code)) discovery.passed.push(song.code);
+  if (action === "choose" && !discovery.list.includes(song.code)) discovery.list.push(song.code);
+  discovery.index++;
+  persistDiscovery();
+  renderDiscoveryCard();
+}
+
+function undoDiscovery() {
+  const last = discovery.history.pop();
+  if (!last) return;
+  discovery.index = last.index;
+  discovery.seen = discovery.seen.filter((code) => code !== last.code);
+  if (last.action === "pass") discovery.passed = discovery.passed.filter((code) => code !== last.code);
+  if (last.action === "choose") discovery.list = discovery.list.filter((code) => code !== last.code);
+  persistDiscovery();
+  renderDiscoveryCard();
+}
+
+function renderPopularSongs() {
+  const entries = popularSongs.slice(0, 40);
+  els.popularList.replaceChildren(...entries.map((song) => {
+    const row = document.createElement("article");
+    row.className = "popular-song";
+    const heading = document.createElement("button");
+    heading.type = "button";
+    heading.className = "popular-song-title";
+    heading.textContent = displayTitle(song.title);
+    heading.addEventListener("click", () => showSongToDJ(song));
+    const artist = document.createElement("span");
+    artist.textContent = cleanArtist(song.artist);
+    row.append(heading, artist);
+    return row;
+  }));
+  const noRanking = !entries.length;
+  if (noRanking) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "O ranking está começando. Estas são as Sugestões da casa, selecionadas pela equipe.";
+    const heading = document.createElement("h4");
+    heading.className = "house-suggestions-heading";
+    heading.textContent = "Sugestões da casa";
+    const catalog = songs.filter((song) => CURATED.some((pack) => pack.artists.some((artist) => normalize(artist) === normalize(cleanArtist(song.artist))))).slice(0, 20);
+    els.popularList.append(empty, heading, ...catalog.map((song) => {
+      const row = document.createElement("article");
+      row.className = "popular-song";
+      const title = document.createElement("button");
+      title.type = "button";
+      title.className = "popular-song-title";
+      title.textContent = displayTitle(song.title);
+      title.addEventListener("click", () => showSongToDJ(song));
+      const artist = document.createElement("span");
+      artist.textContent = cleanArtist(song.artist);
+      row.append(title, artist);
+      return row;
+    }));
+  }
+}
+
+function showPopular() {
+  showCategory({ type: "popular", label: "Mais populares" });
+  els.discoveryView.hidden = true;
+  els.popularView.hidden = false;
+  els.songsList.hidden = true;
+  renderPopularSongs();
+  if (POPULARITY_ENABLED) fetchPopularSongs().then((entries) => {
+    popularSongs = entries.map((entry) => songByCode.get(String(entry.code))).filter(Boolean);
+    renderPopularSongs();
+    if (popularityNeedsUpdate()) {
+      els.spotifyStatus.hidden = false;
+      els.spotifyStatus.textContent = "Ranking exibido com dados salvos; atualização pendente.";
+    }
+  });
+}
 
 function loadFavorites() {
   try {
@@ -158,6 +482,7 @@ function addFavorites(newSongs) {
 function toggleFavorite(song) {
   if (favoriteCodes.has(song.code)) favoriteCodes.delete(song.code);
   else favoriteCodes.add(song.code);
+  setSongFavorite(song.code, favoriteCodes.has(song.code));
   persistFavorites();
   if (favoritesOnly) {
     applyFilters();
@@ -290,6 +615,9 @@ function showCategory(category) {
   els.searchInput.value = "";
   els.clearButton.hidden = true;
   setBrowseMode(false);
+  els.discoveryView.hidden = true;
+  els.popularView.hidden = true;
+  els.songsList.hidden = false;
   els.activeFilter.textContent = category.label;
   applyFilters();
   els.resultsView.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -303,6 +631,9 @@ function backToBrowse() {
   els.searchInput.value = "";
   els.clearButton.hidden = true;
   setBrowseMode(true);
+  els.discoveryView.hidden = true;
+  els.popularView.hidden = true;
+  els.songsList.hidden = false;
   els.resultsCount.textContent = `${songs.length.toLocaleString("pt-BR")} músicas no catálogo`;
   els.songsList.replaceChildren();
   stopPreview();
@@ -481,9 +812,63 @@ function togglePreview(song, button) {
 els.previewAudio.addEventListener("ended", stopPreview);
 
 function showSongToDJ(song) {
+  activeSong = song;
+  recordSongOpen(song.code);
+  dialogReturnFocus = document.activeElement;
   document.querySelector("#dialog-song").textContent = `${displayTitle(song.title)} — ${song.artist.replace(/\.\.\.$/, "")}`;
   document.querySelector("#dialog-code").textContent = song.code;
+  els.copyCode.textContent = "Copiar código";
+  els.copyCodeStatus.textContent = "";
+  if (copyTimer) clearTimeout(copyTimer);
+  els.dialog.classList.remove("copy-sticky-visible");
+  if (typeof IntersectionObserver === "function") {
+    const observer = new IntersectionObserver(([entry]) => {
+      els.dialog.classList.toggle("copy-sticky-visible", !entry.isIntersecting);
+    }, { root: els.dialog });
+    observer.observe(els.copyCode);
+    els.dialog.addEventListener("close", () => observer.disconnect(), { once: true });
+  }
   if (typeof els.dialog.showModal === "function") els.dialog.showModal();
+}
+
+els.copyCode.addEventListener("click", async () => {
+  try {
+    if (!activeSong) throw new Error("Código indisponível.");
+    if (!navigator.clipboard?.writeText) throw new Error("A cópia automática não está disponível.");
+    await navigator.clipboard.writeText(String(activeSong.code));
+    els.copyCode.textContent = "Copiado!";
+    els.copyCodeStatus.textContent = "Código copiado. Mostre ao DJ.";
+    if (copyTimer) clearTimeout(copyTimer);
+    copyTimer = setTimeout(() => {
+      els.copyCode.textContent = "Copiar código";
+      els.copyCodeStatus.textContent = "";
+    }, 2000);
+  } catch {
+    els.copyCodeStatus.textContent = "Não foi possível copiar automaticamente. Selecione o código e copie manualmente.";
+  }
+});
+els.dialog.addEventListener("close", () => {
+  activeSong = null;
+  if (dialogReturnFocus?.isConnected) dialogReturnFocus.focus({ preventScroll: true });
+});
+
+function openNightList() {
+  renderNightList();
+  els.nightListDialog.showModal();
+}
+
+function closeNightList() { els.nightListDialog.close(); }
+
+function resetNight() {
+  if (discovery.list.length && !window.confirm("Começar uma nova noite e limpar a lista de músicas?")) return;
+  discovery.list = [];
+  discovery.queue = [];
+  discovery.index = 0;
+  discovery.seen = [];
+  discovery.passed = [];
+  discovery.history = [];
+  persistDiscovery();
+  if (activeCategory?.type === "discovery") showDiscoveryPicker();
 }
 
 function tileArtLetter(label) {
@@ -514,6 +899,9 @@ function createCategoryTile({ id, title, color, onClick, artLabel }) {
 
 function buildCategories() {
   const tiles = [];
+
+  if (DISCOVERY_ENABLED) tiles.push(createCategoryTile({ id: "discover", title: "Descobrir o que cantar", color: "#ba5d07", artLabel: "♫", onClick: showDiscoveryPicker }));
+  if (POPULARITY_ENABLED) tiles.push(createCategoryTile({ id: "popular", title: "Mais populares", color: "#1e3264", artLabel: "★", onClick: showPopular }));
 
   for (const pack of CURATED) {
     tiles.push(
@@ -612,12 +1000,46 @@ els.clearButton.addEventListener("click", () => {
   els.searchInput.focus();
 });
 els.backToBrowse.addEventListener("click", backToBrowse);
+els.artistSearch.addEventListener("input", renderArtistOptions);
+els.startDiscovery.addEventListener("click", () => startDiscovery());
+els.skipArtistPicker.addEventListener("click", () => startDiscovery([]));
+els.changeArtists.addEventListener("click", showDiscoveryPicker);
+els.passSong.addEventListener("click", () => moveDiscovery("pass"));
+els.chooseSong.addEventListener("click", () => moveDiscovery("choose"));
+let cardPointerStart = null;
+els.discoveryCard.addEventListener("pointerdown", (event) => {
+  if (event.target.closest("button,a")) return;
+  cardPointerStart = { x: event.clientX, y: event.clientY };
+});
+els.discoveryCard.addEventListener("pointerup", (event) => {
+  if (!cardPointerStart) return;
+  const dx = event.clientX - cardPointerStart.x;
+  const dy = event.clientY - cardPointerStart.y;
+  cardPointerStart = null;
+  if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.25) moveDiscovery(dx > 0 ? "choose" : "pass");
+});
+els.discoveryCard.addEventListener("pointercancel", () => { cardPointerStart = null; });
+els.undoDiscovery.addEventListener("click", undoDiscovery);
+els.restartPassed.addEventListener("click", () => {
+  if (!discovery.passed.length) return;
+  discovery.queue = [...discovery.passed];
+  discovery.passed = [];
+  discovery.seen = [];
+  discovery.index = 0;
+  discovery.history = [];
+  persistDiscovery();
+  renderDiscoveryCard();
+});
+els.nightListAccess.addEventListener("click", openNightList);
+els.closeNightList.addEventListener("click", closeNightList);
+els.nightListDialog.addEventListener("click", (event) => { if (event.target === els.nightListDialog) closeNightList(); });
+els.resetNight.addEventListener("click", resetNight);
 els.favoritesButton.addEventListener("click", showFavorites);
 els.mobileFavoritesButton?.addEventListener("click", showFavorites);
 els.spotifyButton.hidden = !spotifyConfigured;
 els.spotifyStatus.hidden = !spotifyConfigured;
 if (spotifyConfigured) {
-  els.spotifyStatus.textContent = "O Spotify compartilha suas mais ouvidas com sua autorização. Só as músicas disponíveis no karaokê serão salvas.";
+  els.spotifyStatus.textContent = "Com sua autorização, usamos suas músicas mais ouvidas para sugerir opções disponíveis no karaokê.";
 }
 els.spotifyButton.addEventListener("click", async () => {
   try {
@@ -650,16 +1072,31 @@ async function init() {
   }
 
   buildCategories();
+  const allArtists = catalogArtists(songs);
+  const allByKey = new Map(allArtists.map((artist) => [artist.key, artist]));
+  const preferred = CURATED.flatMap((pack) => pack.artists).map(normalize);
+  const preferredArtists = preferred.map((key) => allByKey.get(key)).filter(Boolean);
+  artistOptions = [...preferredArtists, ...allArtists.filter(({ key }) => !preferred.includes(key))];
+  discovery = sanitizeDiscoveryState(discovery, songs.map((song) => String(song.code)));
+  renderNightList();
   updateFavoriteControls();
   els.resultsCount.textContent = `${songs.length.toLocaleString("pt-BR")} músicas no catálogo`;
 
   try {
-    const topTracks = await completeSpotifyConnection();
+  const topTracks = spotifyConfigured ? await completeSpotifyConnection() : null;
     if (topTracks) {
       const matches = matchSpotifyTracks(songs, topTracks);
-      addFavorites(matches);
-      els.spotifyStatus.textContent = `${matches.length} de ${topTracks.length} músicas mais ouvidas encontradas no karaokê e salvas nas favoritas.`;
-      if (matches.length) showFavorites();
+      spotifySuggestions = matches;
+      els.spotifyStatus.textContent = `${matches.length} de ${topTracks.length} músicas mais ouvidas estão disponíveis para suas sugestões. Escolha “Quero cantar” para adicionar à lista.`;
+      if (discovery.queue.length && discovery.index < discovery.queue.length) {
+        const additions = matches.map((song) => String(song.code)).filter((code) => !discovery.queue.includes(code) && !discovery.seen.includes(code));
+        discovery.queue.splice(discovery.index + 1, 0, ...additions);
+        persistDiscovery();
+        showDiscoveryPicker();
+      } else if (discovery.artists.length === 3) {
+        await startDiscovery();
+        showDiscoveryPicker();
+      } else showDiscoveryPicker();
     }
   } catch (error) {
     els.spotifyStatus.textContent = error.message;

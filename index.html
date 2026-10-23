@@ -83,10 +83,13 @@
               Favoritas <span id="favorites-count" class="favorite-count">0</span>
             </button>
             <button id="spotify-connect" class="discovery-button spotify-button" type="button" hidden>
-              Importar do Spotify
+              Conectar ao Spotify
             </button>
           </div>
           <p id="spotify-status" class="integration-status" role="status" aria-live="polite" hidden></p>
+          <div class="night-list-access">
+            <button id="open-night-list" class="discovery-button" type="button">Minha lista da noite <span id="night-list-count" class="favorite-count">0</span></button>
+          </div>
           <p class="search-help">
             Toque no artista para ver outras músicas dele e descobrir nomes relacionados que também estão no catálogo.
           </p>
@@ -104,6 +107,43 @@
             <section id="related-artists" class="related-artists" aria-labelledby="related-title" hidden>
               <h3 id="related-title">Artistas relacionados no catálogo</h3>
               <div id="related-list" class="related-list"></div>
+            </section>
+            <section id="discovery-view" class="discovery-view" aria-labelledby="discovery-title" hidden>
+              <div class="discovery-heading">
+                <p class="eyebrow">Sua noite, sua trilha</p>
+                <h3 id="discovery-title">Descobrir o que cantar</h3>
+                <p id="discovery-description">Escolha três artistas para receber sugestões do catálogo.</p>
+              </div>
+              <div id="artist-picker" class="artist-picker">
+                <label for="artist-search">Quais artistas você curte?</label>
+                <input id="artist-search" type="search" placeholder="Buscar artista" autocomplete="off" />
+                <p id="artist-selection-count" class="integration-status" aria-live="polite">0 de 3 selecionados</p>
+                <div id="artist-options" class="artist-options" role="group" aria-label="Artistas disponíveis"></div>
+                <div class="discovery-actions">
+                  <button id="start-discovery" class="button button-light" type="button" disabled>Ver sugestões</button>
+                  <button id="skip-artist-picker" class="text-button" type="button">Pular por enquanto</button>
+                </div>
+              </div>
+              <div id="discovery-cards" class="discovery-cards" hidden>
+                <div class="discovery-card-toolbar">
+                  <span id="card-position"></span>
+                  <button id="undo-discovery" class="text-button" type="button" disabled>Desfazer</button>
+                </div>
+                <article id="discovery-card" class="discovery-card" aria-live="polite"></article>
+                <div class="card-actions">
+                  <button id="pass-song" class="button button-ghost" type="button">Passar</button>
+                  <button id="choose-song" class="button button-light" type="button">Quero cantar</button>
+                </div>
+                <div class="discovery-secondary-actions">
+                  <button id="change-artists" class="text-button" type="button">Alterar meus artistas</button>
+                  <button id="restart-passed" class="text-button" type="button" hidden>Ver músicas passadas</button>
+                </div>
+              </div>
+            </section>
+            <section id="popular-view" class="popular-view" aria-labelledby="popular-title" hidden>
+              <h3 id="popular-title">Mais populares</h3>
+              <p>Baseado nas interações no site.</p>
+              <div id="popular-list" class="songs-list" role="list"></div>
             </section>
             <div id="songs-list" class="songs-list" role="list"></div>
             <p id="empty-state" class="empty-state" hidden>
@@ -198,8 +238,21 @@
         <p id="dialog-song" class="dialog-song"></p>
         <span class="code-label">CÓDIGO DA MÚSICA</span>
         <output id="dialog-code" class="song-code"></output>
+        <button id="copy-song-code" class="button button-light copy-code" type="button">Copiar código</button>
+        <p id="copy-code-status" class="copy-code-status" role="status" aria-live="polite"></p>
         <button class="button button-light dialog-done" value="close">Pronto</button>
       </form>
+    </dialog>
+
+    <dialog id="night-list-dialog" aria-labelledby="night-list-title">
+      <section class="dialog-card night-list-card">
+        <button id="close-night-list" class="dialog-close" type="button" aria-label="Fechar lista">×</button>
+        <h2 id="night-list-title">Minha lista da noite</h2>
+        <p class="night-list-note">Sua lista fica salva neste navegador.</p>
+        <div id="night-list-items" class="night-list-items"></div>
+        <p id="night-list-empty" class="empty-state">Ainda não tem músicas na lista. Explore as sugestões e toque em “Quero cantar”.</p>
+        <button id="reset-night" class="button button-ghost reset-night" type="button">Começar nova noite</button>
+      </section>
     </dialog>
 
     <audio id="preview-audio" preload="none"></audio>

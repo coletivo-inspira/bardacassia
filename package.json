@@ -8,7 +8,8 @@
     "build": "vite build",
     "test": "node --test",
     "preview": "vite preview",
-    "import-songs": "node scripts/import-songs.js"
+    "import-songs": "node scripts/import-songs.js",
+    "sync-catalog": "node scripts/sync-catalog.js"
   },
   "devDependencies": {
     "vite": "^7.1.7"

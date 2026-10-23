@@ -30,7 +30,16 @@ jobs:
       - name: Build
         env:
           VITE_SPOTIFY_CLIENT_ID: ${{ vars.SPOTIFY_CLIENT_ID }}
-        run: npm run build
+          VITE_ENABLE_SPOTIFY: ${{ vars.ENABLE_SPOTIFY }}
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          VITE_ENABLE_DISCOVERY: ${{ vars.ENABLE_DISCOVERY }}
+          VITE_ENABLE_POPULARITY: ${{ vars.ENABLE_POPULARITY }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          npm run build
+          npm run sync-catalog
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact

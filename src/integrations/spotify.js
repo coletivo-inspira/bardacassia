@@ -3,10 +3,11 @@
  * A conexão é opcional e requer VITE_SPOTIFY_CLIENT_ID + redirect URI cadastrada.
  */
 const CLIENT_ID = String(import.meta.env.VITE_SPOTIFY_CLIENT_ID || "").trim();
+const SPOTIFY_ENABLED = String(import.meta.env.VITE_ENABLE_SPOTIFY || "true") !== "false";
 const PKCE_KEY = "bdc-spotify-pkce";
 const SCOPE = "user-top-read";
 
-export const spotifyConfigured = Boolean(CLIENT_ID);
+export const spotifyConfigured = Boolean(CLIENT_ID) && SPOTIFY_ENABLED;
 
 function redirectUri() {
   return `${location.origin}${location.pathname}`;

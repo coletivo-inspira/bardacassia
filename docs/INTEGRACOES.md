@@ -8,7 +8,8 @@ O site é estático (Vite + GitHub Pages). O **catálogo de karaokê** em `publi
 | --- | --- | --- | --- |
 | Catálogo local | Títulos, artistas, códigos, início da letra | Nenhuma | Exibir erro de carregamento |
 | Deezer | Capas, previews e artistas relacionados | Sem chave no fluxo atual | Iniciais no lugar da capa, sem preview; sugestões editoriais quando disponíveis |
-| Spotify (opcional) | Importar as 50 faixas mais ouvidas da conta, nos últimos meses | OAuth 2.0 Authorization Code + PKCE, `user-top-read` | Favoritas manuais continuam funcionando |
+| Spotify (opcional) | Sugerir músicas a partir das 50 faixas mais ouvidas da conta | OAuth 2.0 Authorization Code + PKCE, `user-top-read` | Seleção manual de artistas continua funcionando |
+| Supabase (opcional) | Ranking agregado e identidade anônima por navegador | Auth anônima + RPC com RLS | Descoberta, busca e lista local continuam funcionando |
 | Navegador | Favoritas do usuário | Nenhuma | Se armazenamento estiver bloqueado, informar limitação |
 
 ## Deezer
@@ -42,7 +43,7 @@ O adaptador está em `src/integrations/spotify.js`. Ele é **opcional** e o bot�
 - O aplicativo usa **Authorization Code + PKCE**, sem `client_secret` no navegador.
 - Após o retorno, consulta `GET /v1/me/top/tracks?limit=50&time_range=medium_term`.
 - O token fica somente na memória da operação; o verificador PKCE fica temporariamente no `sessionStorage` e é apagado após o retorno. Os parâmetros de autorização são removidos da URL.
-- O navegador compara artista e título com `songs.json`. Apenas **códigos correspondentes do karaokê** entram em favoritas no `localStorage`.
+- O navegador compara artista e título com `songs.json`. Apenas **códigos correspondentes do karaokê** entram nas sugestões. Só “Quero cantar” inclui a música na lista da noite.
 - O aplicativo **não publica playlist**, não altera a biblioteca do Spotify e não armazena o histórico completo de audição.
 
 **Importante:** “mais ouvidas” (top tracks) **não é** a lista de músicas marcadas como “curtidas” no Spotify. Para importar curtidas, seria necessário outro escopo, outro endpoint e nova avaliação de permissões.
@@ -53,6 +54,20 @@ O adaptador está em `src/integrations/spotify.js`. Ele é **opcional** e o bot�
 - Nem toda música ouvida no Spotify existe no catálogo do bar. O resultado informa quantas foram encontradas.
 - O Spotify impõe requisitos de cadastro, permissões, limites de acesso e de requisições, que podem mudar. A disponibilidade para público geral precisa ser confirmada antes do lançamento.
 - Se o Spotify negar acesso, a busca e as favoritas locais continuam utilizáveis.
+
+## Supabase: ranking e interações anônimas
+
+O cliente está em `src/integrations/popularity.js`; a migração inicial está em `supabase/migrations/001_song_popularity.sql`.
+
+1. Crie um projeto Supabase e execute a migração no SQL Editor.
+2. Ative Anonymous Sign-Ins em Authentication > Sign In / Providers.
+3. Configure as variáveis GitHub Actions `SUPABASE_URL` e `SUPABASE_ANON_KEY`, e adicione `SUPABASE_SERVICE_ROLE_KEY` como secret. As duas variáveis Vite são públicas e protegidas por RLS. A service role nunca recebe prefixo `VITE_`.
+4. O workflow sincroniza os códigos ativos do catálogo após o build. Para sincronizar localmente, exporte `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` e execute `npm run sync-catalog`.
+5. Sem as variáveis Vite, o site mostra sugestões da casa e continua funcionando sem ranking compartilhado. Para desativar temporariamente cada recurso no build, use `VITE_ENABLE_DISCOVERY=false`, `VITE_ENABLE_POPULARITY=false` ou `VITE_ENABLE_SPOTIFY=false`; todos ficam ligados por padrão quando omitidos. No GitHub Actions, configure as variáveis de repositório `ENABLE_DISCOVERY`, `ENABLE_POPULARITY` e `ENABLE_SPOTIFY` com o valor `false` para desligá-los.
+
+As RPCs `record_song_open`, `set_song_favorite` e `get_popular_songs` são as interfaces do navegador. RLS bloqueia acesso direto às interações individuais. Cada identidade anônima pode registrar até 120 gravações por minuto. Abrir detalhes conta uma vez por música; um favorito mantido contribui três pontos; removê-lo retira esses pontos. A fila local guarda até 500 mudanças pendentes, consolidadas por música e ação, e tenta enviá-las quando a conexão voltar. O ranking fica em cache por cinco minutos.
+
+Limpar os dados locais pode criar outra identidade anônima. Isso reduz repetições comuns, mas não comprova uma pessoa única.
 
 ## Privacidade e operação
 
