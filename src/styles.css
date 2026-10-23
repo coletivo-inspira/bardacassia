@@ -1890,3 +1890,20 @@ body {
 :root[data-theme="light"] .mobile-tab { color: #59615d; }
 :root[data-theme="light"] .mobile-tab[aria-current="page"],
 :root[data-theme="light"] .mobile-tab.is-active { color: var(--text); }
+
+/* Header shortcuts stay within reach as the page scrolls. */
+.header-actions { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
+.header-instagram { text-decoration: none; }
+.discovery-deck { position: relative; isolation: isolate; margin: .65rem 8px 0; }
+.discovery-deck::before, .discovery-deck::after { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: 20px; background: var(--bg-soft); border: 1px solid var(--line); transform: translateY(8px) rotate(-2deg); }
+.discovery-deck::after { transform: translateY(13px) rotate(2deg); z-index: -2; }
+.discovery-card { position: relative; cursor: grab; user-select: none; transition: transform 220ms cubic-bezier(.2,.8,.2,1); box-shadow: 0 12px 30px rgba(0,0,0,.18); }
+.discovery-card.is-dragging { cursor: grabbing; transition: none; }
+.discovery-card::after { position: absolute; top: 24px; left: 20px; padding: .6rem .9rem; border: 3px solid currentColor; border-radius: 10px; font: 800 1.2rem var(--font-display); opacity: var(--swipe-strength,0); pointer-events: none; transform: rotate(-12deg); }
+.discovery-card[data-direction="choose"]::after { content: "QUERO CANTAR"; color: #16784c; background: #e2ffed; }
+.discovery-card[data-direction="pass"]::after { content: "PASSAR"; color: #ac263d; background: #ffe8ec; left: auto; right: 20px; transform: rotate(12deg); }
+.discovery-cards { overflow: clip; padding: 0 8px; }
+.swipe-hint { display: flex; justify-content: space-between; gap: .5rem; margin: 1.5rem 0 .5rem; color: var(--muted); font-size: .8rem; }
+.swipe-hint span { font-size: .75rem; }
+@media (max-width: 719px) { .header-instagram span { display: none; } .header-actions { gap: .4rem; } .swipe-hint span { display: none; } }
+@media (prefers-reduced-motion: reduce) { .discovery-card { transition: none; } }

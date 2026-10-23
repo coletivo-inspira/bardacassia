@@ -43,11 +43,17 @@
         <a href="#inicio">Início</a>
         <a href="#buscar" class="nav-active">Buscar</a>
       </nav>
+      <div class="header-actions">
+        <a class="header-instagram theme-toggle" href="https://www.instagram.com/bardacaciaoficial/" target="_blank" rel="noopener noreferrer" aria-label="Visitar o Instagram oficial do Bar da Cácia">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle class="instagram-dot" cx="17.6" cy="6.5" r=".8"/></svg>
+          <span>Instagram</span>
+        </a>
       <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Ativar tema claro">
         <svg class="theme-icon-sun" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
         <svg class="theme-icon-moon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.2 15.1A8.4 8.4 0 0 1 8.9 3.8 8.5 8.5 0 1 0 20.2 15.1Z"/></svg>
         <span class="theme-toggle-label">Modo claro</span>
       </button>
+      </div>
     </header>
 
     <main id="conteudo">
@@ -160,7 +166,10 @@
                   <span id="card-position"></span>
                   <button id="undo-discovery" class="text-button" type="button" disabled>Desfazer</button>
                 </div>
-                <article id="discovery-card" class="discovery-card" aria-live="polite"></article>
+                <div class="discovery-deck">
+                  <article id="discovery-card" class="discovery-card" aria-live="polite"></article>
+                </div>
+                <p class="swipe-hint">← Passar <span>Arraste o cartão</span> Quero cantar →</p>
                 <div class="card-actions">
                   <button id="pass-song" class="button button-ghost" type="button">Passar</button>
                   <button id="choose-song" class="button button-light" type="button">Quero cantar</button>

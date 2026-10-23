@@ -1033,21 +1033,65 @@ els.artistSearch.addEventListener("input", renderArtistOptions);
 els.startDiscovery.addEventListener("click", () => startDiscovery());
 els.skipArtistPicker.addEventListener("click", () => startDiscovery([]));
 els.changeArtists.addEventListener("click", showDiscoveryPicker);
-els.passSong.addEventListener("click", () => moveDiscovery("pass"));
-els.chooseSong.addEventListener("click", () => moveDiscovery("choose"));
+els.passSong.addEventListener("click", () => animateDiscovery("pass"));
+els.chooseSong.addEventListener("click", () => animateDiscovery("choose"));
 let cardPointerStart = null;
+let cardAnimating = false;
+function resetCardDrag() {
+  cardPointerStart = null;
+  els.discoveryCard.classList.remove("is-dragging");
+  els.discoveryCard.style.removeProperty("transform");
+  els.discoveryCard.style.removeProperty("--swipe-strength");
+  delete els.discoveryCard.dataset.direction;
+}
+function animateDiscovery(action) {
+  if (cardAnimating || !currentDiscoverySong()) return;
+  cardAnimating = true;
+  stopPreview();
+  const direction = action === "choose" ? 1 : -1;
+  els.discoveryCard.classList.remove("is-dragging");
+  els.discoveryCard.dataset.direction = action;
+  els.discoveryCard.style.setProperty("--swipe-strength", "1");
+  els.discoveryCard.style.transform = `translateX(${direction * (els.discoveryCard.offsetWidth + 80)}px) rotate(${direction * 18}deg)`;
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.setTimeout(() => {
+    resetCardDrag();
+    moveDiscovery(action);
+    cardAnimating = false;
+  }, reduced ? 0 : 220);
+}
 els.discoveryCard.addEventListener("pointerdown", (event) => {
-  if (event.target.closest("button,a")) return;
-  cardPointerStart = { x: event.clientX, y: event.clientY };
+  if (cardAnimating || !event.isPrimary || event.button !== 0 || event.target.closest("button,a") || !currentDiscoverySong()) return;
+  cardPointerStart = { id: event.pointerId, x: event.clientX, y: event.clientY, horizontal: false };
+});
+els.discoveryCard.addEventListener("pointermove", (event) => {
+  const start = cardPointerStart;
+  if (!start || start.id !== event.pointerId) return;
+  const dx = event.clientX - start.x;
+  const dy = event.clientY - start.y;
+  if (!start.horizontal) {
+    if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { resetCardDrag(); return; }
+    if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+    start.horizontal = true;
+    els.discoveryCard.setPointerCapture(event.pointerId);
+    els.discoveryCard.classList.add("is-dragging");
+  }
+  els.discoveryCard.dataset.direction = dx > 0 ? "choose" : "pass";
+  els.discoveryCard.style.setProperty("--swipe-strength", String(Math.min(Math.abs(dx) / 90, 1)));
+  els.discoveryCard.style.transform = `translateX(${dx}px) rotate(${dx / 22}deg)`;
 });
 els.discoveryCard.addEventListener("pointerup", (event) => {
-  if (!cardPointerStart) return;
-  const dx = event.clientX - cardPointerStart.x;
-  const dy = event.clientY - cardPointerStart.y;
+  const start = cardPointerStart;
+  if (!start || start.id !== event.pointerId) return;
+  const dx = event.clientX - start.x;
+  const threshold = Math.min(90, els.discoveryCard.offsetWidth * .24);
   cardPointerStart = null;
-  if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.25) moveDiscovery(dx > 0 ? "choose" : "pass");
+  if (start.horizontal && Math.abs(dx) >= threshold) animateDiscovery(dx > 0 ? "choose" : "pass");
+  else resetCardDrag();
 });
-els.discoveryCard.addEventListener("pointercancel", () => { cardPointerStart = null; });
+els.discoveryCard.addEventListener("pointercancel", resetCardDrag);
+els.discoveryCard.addEventListener("lostpointercapture", () => { if (cardPointerStart) resetCardDrag(); });
+els.discoveryCard.addEventListener("dragstart", (event) => event.preventDefault());
 els.undoDiscovery.addEventListener("click", undoDiscovery);
 els.restartPassed.addEventListener("click", () => {
   if (!discovery.passed.length) return;
