@@ -637,6 +637,7 @@ input:focus-visible {
 
 .song-info h3 {
   margin: 0;
+  color: var(--text);
   font-size: 1rem;
   font-weight: 600;
   line-height: 1.25;
@@ -1971,11 +1972,12 @@ body {
     gap: 0.65rem 0.75rem;
     padding: 0.72rem;
     border-radius: 14px;
-    background: #181818;
+    border: 1px solid var(--line);
+    background: var(--bg-soft);
   }
 
   .song-row:hover {
-    background: #181818;
+    background: var(--bg-soft);
   }
 
   .song-cover {
@@ -2045,8 +2047,8 @@ body {
   .empty-state {
     padding: 1.25rem 1rem;
     border-style: solid;
-    border-color: #343434;
-    background: #181818;
+    border-color: color-mix(in srgb, var(--text) 22%, transparent);
+    background: var(--bg-soft);
   }
 
   .load-more {
@@ -2253,6 +2255,14 @@ body {
 :root[data-theme="light"] .artist-option[aria-pressed="true"] { background: #e5d48a; color: #30270e; }
 :root[data-theme="light"] .discovery-card { border-color: rgba(32, 35, 31, 0.12); background: linear-gradient(145deg, #fffdf7, #f1e8d6 78%); }
 :root[data-theme="light"] .discovery-source { background: rgba(118, 89, 0, 0.1); }
+:root[data-theme="light"] .song-row,
+:root[data-theme="light"] .song-row:hover {
+  border-color: rgba(32, 35, 31, 0.12);
+  background: var(--bg-elev);
+}
+:root[data-theme="light"] .song-cover {
+  background: #d9d2c4;
+}
 :root[data-theme="light"] .action-link,
 :root[data-theme="light"] .action-btn {
   border-color: rgba(32, 35, 31, 0.22);
