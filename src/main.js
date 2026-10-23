@@ -1156,12 +1156,20 @@ function showSongToDJ(song) {
 
   resetDialogListen(song);
   const row = document.querySelector(`.song-row[data-code="${song.code}"]`);
-  const rowCover = row?.querySelector(".song-cover img")?.currentSrc || row?.querySelector(".song-cover img")?.src || null;
-  const rowPreview = row?.querySelector(".preview-btn")?.dataset.preview || null;
-  setDialogCover(song, rowCover);
-  if (rowPreview && els.dialogPreview) {
+  const discoveryMatch = currentDiscoverySong()?.code === song.code;
+  const liveCover =
+    row?.querySelector(".song-cover img")?.currentSrc
+    || row?.querySelector(".song-cover img")?.src
+    || (discoveryMatch ? els.discoveryCard?.querySelector("img")?.currentSrc || els.discoveryCard?.querySelector("img")?.src : null)
+    || null;
+  const livePreview =
+    row?.querySelector(".preview-btn")?.dataset.preview
+    || (discoveryMatch ? els.discoveryCard?.querySelector(".preview-btn")?.dataset.preview : null)
+    || null;
+  setDialogCover(song, liveCover);
+  if (livePreview && els.dialogPreview) {
     els.dialogPreview.hidden = false;
-    els.dialogPreview.dataset.preview = rowPreview;
+    els.dialogPreview.dataset.preview = livePreview;
     if (previewCode === song.code && !els.previewAudio.paused) {
       els.dialogPreview.classList.add("is-playing");
       els.dialogPreview.textContent = "Pausar";
