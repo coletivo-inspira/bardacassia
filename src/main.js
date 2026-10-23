@@ -266,9 +266,12 @@ function renderNightList() {
     const open = document.createElement("button");
     open.type = "button";
     open.className = "action-btn dj-btn";
-    open.textContent = unavailable ? "Indisponível" : "Ver código";
+    open.textContent = unavailable ? "Indisponível" : "Código";
     open.disabled = unavailable;
-    if (!open.disabled) open.addEventListener("click", () => showSongToDJ(song));
+    if (!open.disabled) {
+      open.setAttribute("aria-label", `Código ao DJ: ${song.code}`);
+      open.addEventListener("click", () => showSongToDJ(song));
+    }
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "action-btn";
@@ -452,7 +455,8 @@ function renderDiscoveryCard() {
   const details = document.createElement("button");
   details.type = "button";
   details.className = "action-btn dj-btn";
-  details.textContent = "Ver código";
+  details.textContent = "Código";
+  details.setAttribute("aria-label", `Código ao DJ: ${song.code}`);
   details.addEventListener("click", () => showSongToDJ(song));
   const spotify = document.createElement("a");
   spotify.href = spotifySearchUrl(cleanArtist(song.artist), displayTitle(song.title));
