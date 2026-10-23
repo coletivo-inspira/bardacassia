@@ -760,9 +760,21 @@ input:focus-visible {
 .song-cover {
   width: 56px;
   height: 56px;
+  padding: 0;
+  border: 0;
   border-radius: 6px;
   overflow: hidden;
   background: #282828;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.song-cover:focus-visible {
+  outline: 2px solid var(--accent, #f5c518);
+  outline-offset: 2px;
 }
 
 .song-cover img,
@@ -771,6 +783,7 @@ input:focus-visible {
   height: 100%;
   object-fit: cover;
   display: block;
+  pointer-events: none;
 }
 
 .cover-fallback {

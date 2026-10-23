@@ -891,8 +891,11 @@ function createSongRow(song) {
   row.dataset.metaState = "idle";
   row.setAttribute("role", "listitem");
 
-  const coverWrap = document.createElement("div");
+  const coverWrap = document.createElement("button");
+  coverWrap.type = "button";
   coverWrap.className = "song-cover";
+  coverWrap.setAttribute("aria-label", `Ver código: ${displayTitle(song.title)}`);
+  coverWrap.addEventListener("click", () => showSongToDJ(song));
   coverWrap.append(createCoverFallback(song));
 
   const info = document.createElement("div");
