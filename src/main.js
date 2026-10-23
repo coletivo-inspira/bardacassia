@@ -1,5 +1,5 @@
 import { filterCatalog, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
-import { fetchDeezerMeta, fetchRelatedArtists } from "./integrations/deezer.js";
+import { fetchDeezerMeta, fetchRelatedArtists, cancelPendingDeezerMeta } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
 import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState, emptyDiscoveryState } from "./lib/discovery.js";
 import { fetchPopularSongs, popularityNeedsUpdate, recordSongOpen, setSongFavorite } from "./integrations/popularity.js";
@@ -11,6 +11,8 @@ const DISCOVERY_ENABLED = String(import.meta.env.VITE_ENABLE_DISCOVERY || "true"
 const POPULARITY_ENABLED = String(import.meta.env.VITE_ENABLE_POPULARITY || "true") !== "false";
 const FAVORITES_KEY = "bdc-favorites-v1";
 const DISCOVERY_KEY = "bdc-discovery-v1";
+const RESULTS_VIEW_KEY = "bdc-results-view-v1";
+const META_ROOT_MARGIN = "200px 0px";
 
 const LANG_LABELS = {
   BRA: "Brasileiras",
@@ -115,6 +117,8 @@ const els = {
   resetNight: document.querySelector("#reset-night"),
   copyCode: document.querySelector("#copy-song-code"),
   copyCodeStatus: document.querySelector("#copy-code-status"),
+  viewList: document.querySelector("#view-list"),
+  viewGrid: document.querySelector("#view-grid"),
 };
 
 /** @type {Array<{code:string,artist:string,title:string,lyricStart:string,lang:string}>} */
@@ -135,6 +139,50 @@ let spotifySuggestions = [];
 let activeSong = null;
 let dialogReturnFocus = null;
 let copyTimer = null;
+let resultsView = loadResultsView();
+
+function defaultResultsView() {
+  return window.matchMedia("(max-width: 719px)").matches ? "grid" : "list";
+}
+
+function loadResultsView() {
+  try {
+    const saved = localStorage.getItem(RESULTS_VIEW_KEY);
+    if (saved === "grid" || saved === "list") return saved;
+  } catch {
+    /* private mode */
+  }
+  return defaultResultsView();
+}
+
+function persistResultsView(view) {
+  try {
+    localStorage.setItem(RESULTS_VIEW_KEY, view);
+  } catch {
+    /* private mode */
+  }
+}
+
+function applyResultsView() {
+  const isGrid = resultsView === "grid";
+  els.songsList.classList.toggle("songs-list--grid", isGrid);
+  els.songsList.classList.toggle("songs-list--list", !isGrid);
+  if (els.viewList) {
+    els.viewList.setAttribute("aria-pressed", String(!isGrid));
+    els.viewList.classList.toggle("is-active", !isGrid);
+  }
+  if (els.viewGrid) {
+    els.viewGrid.setAttribute("aria-pressed", String(isGrid));
+    els.viewGrid.classList.toggle("is-active", isGrid);
+  }
+}
+
+function setResultsView(view) {
+  if (view !== "grid" && view !== "list") return;
+  resultsView = view;
+  persistResultsView(view);
+  applyResultsView();
+}
 
 function normalize(value) {
   return normalizeText(value);
@@ -707,6 +755,7 @@ function createSongRow(song) {
   const row = document.createElement("article");
   row.className = "song-row";
   row.dataset.code = song.code;
+  row.dataset.metaState = "idle";
   row.setAttribute("role", "listitem");
 
   const coverWrap = document.createElement("div");
@@ -737,6 +786,7 @@ function createSongRow(song) {
   spotify.target = "_blank";
   spotify.rel = "noopener noreferrer";
   spotify.textContent = "Ouvir no Spotify";
+  spotify.setAttribute("aria-label", `Ouvir no Spotify: ${displayTitle(song.title)}`);
 
   const previewBtn = document.createElement("button");
   previewBtn.type = "button";
@@ -749,6 +799,7 @@ function createSongRow(song) {
   djBtn.type = "button";
   djBtn.className = "action-btn dj-btn";
   djBtn.textContent = "Código ao DJ";
+  djBtn.setAttribute("aria-label", `Código ao DJ: ${song.code}`);
   djBtn.addEventListener("click", () => showSongToDJ(song));
 
   const favoriteBtn = document.createElement("button");
@@ -767,51 +818,85 @@ function createSongRow(song) {
   return row;
 }
 
+function applySongMeta(row, meta) {
+  if (!meta || !row.isConnected) return;
+  const coverWrap = row.querySelector(".song-cover");
+  if (meta.cover && coverWrap && !coverWrap.querySelector("img")) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.decoding = "async";
+    img.loading = "lazy";
+    img.referrerPolicy = "no-referrer";
+    img.src = meta.cover;
+    const show = () => {
+      if (row.isConnected && row.dataset.metaState === "done") coverWrap.replaceChildren(img);
+    };
+    img.addEventListener("error", () => {
+      /* keep initials fallback */
+    });
+    if (img.complete && img.naturalWidth > 0) show();
+    else img.addEventListener("load", show, { once: true });
+  }
+  const previewBtn = row.querySelector(".preview-btn");
+  if (meta.previewUrl && previewBtn) {
+    previewBtn.hidden = false;
+    previewBtn.dataset.preview = meta.previewUrl;
+  }
+}
+
 async function enrichRow(row) {
+  if (!row?.isConnected) return;
+  if (row.dataset.metaState === "done" || row.dataset.metaState === "loading") return;
   const code = row.dataset.code;
   const song = songByCode.get(code);
   if (!song) return;
+
+  const generation = String(Number(row.dataset.metaGen || "0") + 1);
+  row.dataset.metaGen = generation;
+  row.dataset.metaState = "loading";
+
   try {
     const meta = await fetchDeezerMeta(song);
-    if (!meta) return;
-    const coverWrap = row.querySelector(".song-cover");
-    if (meta.cover && coverWrap && !coverWrap.querySelector("img")) {
-      const img = document.createElement("img");
-      img.alt = "";
-      img.decoding = "async";
-      img.referrerPolicy = "no-referrer";
-      img.src = meta.cover;
-      const show = () => {
-        if (row.isConnected) coverWrap.replaceChildren(img);
-      };
-      img.addEventListener("error", () => {
-        /* keep initials fallback */
-      });
-      if (img.complete && img.naturalWidth > 0) show();
-      else img.addEventListener("load", show, { once: true });
+    if (!row.isConnected || row.dataset.metaGen !== generation) return;
+    if (row.dataset.metaState === "cancelled" || !meta) {
+      row.dataset.metaState = "idle";
+      return;
     }
-    const previewBtn = row.querySelector(".preview-btn");
-    if (meta.previewUrl && previewBtn) {
-      previewBtn.hidden = false;
-      previewBtn.dataset.preview = meta.previewUrl;
-    }
+    row.dataset.metaState = "done";
+    applySongMeta(row, meta);
+    observer?.unobserve(row);
   } catch {
-    /* keep fallback */
+    if (row.isConnected && row.dataset.metaGen === generation) {
+      row.dataset.metaState = row.dataset.metaState === "cancelled" ? "idle" : "idle";
+    }
   }
+}
+
+function abandonRowMeta(row) {
+  if (!row || row.dataset.metaState !== "loading") return;
+  row.dataset.metaState = "cancelled";
+  row.dataset.metaGen = String(Number(row.dataset.metaGen || "0") + 1);
+  cancelPendingDeezerMeta(row.dataset.code);
 }
 
 function setupObserver() {
   if (observer) observer.disconnect();
+  if (typeof IntersectionObserver !== "function") {
+    observer = null;
+    return;
+  }
   observer = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
+        const row = entry.target;
         if (entry.isIntersecting) {
-          observer.unobserve(entry.target);
-          enrichRow(entry.target);
+          enrichRow(row);
+        } else {
+          abandonRowMeta(row);
         }
       }
     },
-    { rootMargin: "120px" }
+    { rootMargin: META_ROOT_MARGIN, threshold: 0 }
   );
 }
 
@@ -819,8 +904,10 @@ function renderResults() {
   const slice = filtered.slice(0, visibleCount);
   const rows = slice.map(createSongRow);
   els.songsList.replaceChildren(...rows);
+  applyResultsView();
   setupObserver();
-  rows.forEach((row) => observer.observe(row));
+  if (observer) rows.forEach((row) => observer.observe(row));
+  else rows.forEach((row) => enrichRow(row));
 
   const total = filtered.length;
   const q = els.searchInput.value.trim();
@@ -1222,11 +1309,14 @@ els.loadMore.addEventListener("click", () => {
   visibleCount += PAGE_SIZE;
   renderResults();
 });
+els.viewList?.addEventListener("click", () => setResultsView("list"));
+els.viewGrid?.addEventListener("click", () => setResultsView("grid"));
 els.dialog.addEventListener("click", (event) => {
   if (event.target === els.dialog) els.dialog.close();
 });
 
 async function init() {
+  applyResultsView();
   els.resultsCount.textContent = "Carregando catálogo…";
   try {
     const res = await fetch(`${BASE}data/songs.json`);

@@ -576,10 +576,52 @@ input:focus-visible {
 .results-toolbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.75rem 1rem;
   margin: 1.25rem 0 0.75rem;
+}
+
+.results-toolbar-main {
+  display: flex;
+  flex: 1 1 12rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.results-view-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.18rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-soft);
+}
+
+.view-toggle-btn {
+  min-height: 34px;
+  padding: 0.35rem 0.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.view-toggle-btn.is-active,
+.view-toggle-btn[aria-pressed="true"] {
+  background: var(--amber);
+  color: var(--ink);
+}
+
+.view-toggle-btn:hover:not(.is-active):not([aria-pressed="true"]) {
+  color: var(--text);
 }
 
 .active-filter {
@@ -592,6 +634,111 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+.songs-list--grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+@media (min-width: 720px) {
+  .songs-list--grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.7rem;
+  }
+}
+
+@media (min-width: 1100px) {
+  .songs-list--grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.songs-list--grid .song-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-soft);
+  grid-template-columns: none;
+  grid-template-areas: none;
+}
+
+.songs-list--grid .song-row:hover {
+  background: var(--bg-soft);
+}
+
+.songs-list--grid .song-cover {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  grid-area: auto;
+}
+
+.songs-list--grid .song-info {
+  min-width: 0;
+  grid-area: auto;
+}
+
+.songs-list--grid .song-info h3 {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.songs-list--grid .song-info .artist-link {
+  min-height: 24px;
+  padding: 0.05rem 0;
+  font-size: 0.78rem;
+}
+
+.songs-list--grid .song-meta {
+  font-size: 0.7rem !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.songs-list--grid .song-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
+  justify-content: stretch;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  grid-area: auto;
+}
+
+.songs-list--grid .action-link,
+.songs-list--grid .action-btn {
+  flex: none;
+  width: 100%;
+  min-height: 34px;
+  padding: 0.3rem 0.35rem;
+  border-radius: 8px;
+  font-size: 0.68rem;
+  white-space: normal;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.songs-list--grid .preview-btn[hidden] {
+  display: none !important;
+}
+
+.songs-list--grid .dj-btn {
+  grid-column: 1 / -1;
 }
 
 .song-row {
@@ -2255,8 +2402,22 @@ body {
 :root[data-theme="light"] .artist-option[aria-pressed="true"] { background: #e5d48a; color: #30270e; }
 :root[data-theme="light"] .discovery-card { border-color: rgba(32, 35, 31, 0.12); background: linear-gradient(145deg, #fffdf7, #f1e8d6 78%); }
 :root[data-theme="light"] .discovery-source { background: rgba(118, 89, 0, 0.1); }
+:root[data-theme="light"] .results-view-toggle {
+  border-color: rgba(32, 35, 31, 0.16);
+  background: #fffdf8;
+}
+:root[data-theme="light"] .view-toggle-btn.is-active,
+:root[data-theme="light"] .view-toggle-btn[aria-pressed="true"] {
+  background: var(--amber);
+  color: #fffdf8;
+}
 :root[data-theme="light"] .song-row,
 :root[data-theme="light"] .song-row:hover {
+  border-color: rgba(32, 35, 31, 0.12);
+  background: var(--bg-elev);
+}
+:root[data-theme="light"] .songs-list--grid .song-row,
+:root[data-theme="light"] .songs-list--grid .song-row:hover {
   border-color: rgba(32, 35, 31, 0.12);
   background: var(--bg-elev);
 }

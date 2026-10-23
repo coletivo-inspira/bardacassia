@@ -29,9 +29,9 @@ function persistCache() {
   }
 }
 
-function limited(task) {
+function limited(task, code = null) {
   return new Promise((resolve, reject) => {
-    queue.push({ task, resolve, reject });
+    queue.push({ task, resolve, reject, code });
     drain();
   });
 }
@@ -45,6 +45,20 @@ function drain() {
       drain();
     });
   }
+}
+
+/** Cancela buscas ainda na fila (não iniciadas). Retorna true se removeu da fila. */
+export function cancelPendingDeezerMeta(code) {
+  const key = String(code);
+  let removed = false;
+  for (let i = queue.length - 1; i >= 0; i--) {
+    if (String(queue[i].code) !== key) continue;
+    const [job] = queue.splice(i, 1);
+    job.resolve(null);
+    removed = true;
+  }
+  if (removed) pending.delete(key);
+  return removed;
 }
 
 function jsonp(path, params = {}) {
@@ -127,7 +141,7 @@ export async function fetchDeezerMeta(song) {
     } catch {
       return { cover: null, previewUrl: null };
     }
-  });
+  }, song.code);
   pending.set(song.code, promise);
   try {
     return await promise;

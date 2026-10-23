@@ -78,3 +78,8 @@ test('combina idioma, artista, favoritas e texto, preservando códigos', async (
   assert.deepEqual(filterCatalog(catalog, { query: 'Infiel' }).map(s => s.code), ['101']);
   assert.equal(filterCatalog([{ ...catalog[0], code: '001' }], { query: '001' })[0].code, '001');
 });
+
+test("cancelPendingDeezerMeta ignora códigos que não estão na fila", async () => {
+  const { cancelPendingDeezerMeta } = await import("../src/integrations/deezer.js");
+  assert.equal(cancelPendingDeezerMeta("codigo-inexistente"), false);
+});

@@ -151,8 +151,18 @@
 
           <div id="results-view" class="results-view" hidden>
             <div class="results-toolbar">
-              <button type="button" id="back-to-browse" class="text-button">Voltar ao catálogo</button>
-              <p id="active-filter" class="active-filter"></p>
+              <div class="results-toolbar-main">
+                <button type="button" id="back-to-browse" class="text-button">Voltar ao catálogo</button>
+                <p id="active-filter" class="active-filter"></p>
+              </div>
+              <div class="results-view-toggle" role="group" aria-label="Visualização dos resultados">
+                <button type="button" id="view-list" class="view-toggle-btn" aria-pressed="false" title="Lista">
+                  Lista
+                </button>
+                <button type="button" id="view-grid" class="view-toggle-btn" aria-pressed="false" title="Quadrados">
+                  Quadrados
+                </button>
+              </div>
             </div>
             <section id="related-artists" class="related-artists" aria-labelledby="related-title" hidden>
               <h3 id="related-title">Artistas relacionados no catálogo</h3>
