@@ -490,6 +490,7 @@ async function enrichDiscoveryCover(cover, song) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "action-btn preview-btn";
+      button.dataset.idleLabel = "Ouvir trecho";
       button.textContent = "Ouvir trecho";
       button.dataset.preview = meta.previewUrl;
       button.addEventListener("click", () => togglePreview(song, button));
