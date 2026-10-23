@@ -18,7 +18,7 @@ const assert=require('node:assert/strict');
  await page.locator('#song-search').fill('infiel'); await page.waitForTimeout(300); await page.locator('#clear-filters').click(); assert.equal(await page.locator('#song-search').inputValue(),'infiel');
  await page.locator('#filter-favorites').check(); assert.equal(await page.locator('#songs-list').locator('.song-row').count(),0); assert.equal(await page.locator('.search-suggestion').filter({hasText:'Infiel'}).count(),0);
  await page.locator('#clear-filters').click(); await page.locator('#clear-search').click();
- await page.emulateMedia({reducedMotion:'reduce'}); assert((await page.locator('.hero-artwork img').evaluate(el=>el.currentSrc)).endsWith('logo_bar_da_cacia.svg'));
+ await page.emulateMedia({reducedMotion:'reduce'}); assert((await page.locator('.hero-artwork img').evaluate(el=>el.currentSrc)).endsWith('logo_bar_da_cacia_animada.svg'));
  assert((await page.locator('.brand img').getAttribute('src')).endsWith('logo_bar_da_cacia.svg'));
  
  assert.deepEqual(errors,[]);console.log(name+': themes/widths, filters, suggestions, logo, runtime PASS');await browser.close();
