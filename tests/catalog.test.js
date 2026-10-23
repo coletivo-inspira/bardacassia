@@ -88,21 +88,17 @@ test("seleção de artista limpa idioma/favoritas/query que esconderiam o catál
   assert.equal(next.artist, "Queen");
   assert.equal(next.category?.type, "artist");
   assert.deepEqual(filterCatalog(catalog, next).map((s) => s.code), ["102"]);
-  assert.equal(countActiveFilterChips(next), 0);
-  assert.equal(filtersToggleLabel(0), "Filtros");
 });
 
-test("contagem de chips ignora artista em navegação por artista e zera o rótulo Filtros", () => {
-  assert.equal(countActiveFilterChips({ language: "BRA", artist: "Queen", favoritesOnly: true }), 3);
-  assert.equal(filtersToggleLabel(3), "Filtros (3)");
-  assert.equal(countActiveFilterChips({
-    language: "",
-    artist: "Queen",
-    favoritesOnly: false,
-    category: { type: "artist", value: "Queen", label: "Artista: Queen" },
-  }), 0);
+test("botão Filtros zera a contagem ao selecionar artista e ignora chip de browse", () => {
+  assert.equal(countActiveFilterChips({ language: "BRA", favoritesOnly: true }), 2);
+  assert.equal(filtersToggleLabel(2), "Filtros (2)");
+  const next = filtersForArtistSelection("Queen");
+  assert.equal(countActiveFilterChips(next), 0);
+  assert.equal(filtersToggleLabel(countActiveFilterChips(next)), "Filtros");
   assert.equal(countActiveFilterChips({ artist: "Queen", category: null }), 1);
   assert.equal(countActiveFilterChips({ category: { type: "letter", value: "Q", label: "Artistas · Q" } }), 1);
+  assert.equal(filtersToggleLabel(0), "Filtros");
 });
 
 test("cancelPendingDeezerMeta ignora códigos que não estão na fila", async () => {
