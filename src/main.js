@@ -1,9 +1,9 @@
-import "./styles.css";
 import { filterCatalog, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
 import { fetchDeezerMeta, fetchRelatedArtists } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
 import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState, emptyDiscoveryState } from "./lib/discovery.js";
 import { fetchPopularSongs, popularityNeedsUpdate, recordSongOpen, setSongFavorite } from "./integrations/popularity.js";
+import { hideExpiredEventNav, initializeTheme } from "./site.js";
 
 const BASE = import.meta.env.BASE_URL || "/";
 const PAGE_SIZE = 40;
@@ -11,7 +11,6 @@ const DISCOVERY_ENABLED = String(import.meta.env.VITE_ENABLE_DISCOVERY || "true"
 const POPULARITY_ENABLED = String(import.meta.env.VITE_ENABLE_POPULARITY || "true") !== "false";
 const FAVORITES_KEY = "bdc-favorites-v1";
 const DISCOVERY_KEY = "bdc-discovery-v1";
-const THEME_KEY = "bdc-theme-v1";
 
 const LANG_LABELS = {
   BRA: "Brasileiras",
@@ -136,33 +135,6 @@ let spotifySuggestions = [];
 let activeSong = null;
 let dialogReturnFocus = null;
 let copyTimer = null;
-let manualThemeChoice = false;
-
-function applyTheme(theme, save = false) {
-  document.documentElement.dataset.theme = theme;
-  const nextLabel = theme === "dark" ? "Modo claro" : "Modo noturno";
-  const nextAction = theme === "dark" ? "Ativar tema claro" : "Ativar modo noturno";
-  els.themeToggle.querySelector(".theme-toggle-label").textContent = nextLabel;
-  els.themeToggle.setAttribute("aria-label", nextAction);
-  document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#141414" : "#f7f3e9";
-  if (save) {
-    try { localStorage.setItem(THEME_KEY, theme); } catch { /* funciona enquanto a página estiver aberta */ }
-  }
-}
-
-function initializeTheme() {
-  let saved = null;
-  try { saved = localStorage.getItem(THEME_KEY); } catch { /* usa a preferência do aparelho */ }
-  manualThemeChoice = saved === "light" || saved === "dark";
-  const media = window.matchMedia("(prefers-color-scheme: dark)");
-  const systemTheme = media.matches ? "dark" : "light";
-  applyTheme(manualThemeChoice ? saved : (document.documentElement.dataset.theme || systemTheme));
-  const followSystem = (event) => {
-    if (!manualThemeChoice) applyTheme(event.matches ? "dark" : "light");
-  };
-  if (media.addEventListener) media.addEventListener("change", followSystem);
-  else media.addListener(followSystem);
-}
 
 function normalize(value) {
   return normalizeText(value);
@@ -1233,10 +1205,6 @@ els.resetNight.addEventListener("click", resetNight);
 els.favoritesButton.addEventListener("click", showFavorites);
 els.mobileFavoritesButton?.addEventListener("click", showFavorites);
 initializeTheme();
-els.themeToggle.addEventListener("click", () => {
-  manualThemeChoice = true;
-  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
-});
 els.spotifyButton.hidden = !spotifyConfigured;
 els.spotifyStatus.hidden = !spotifyConfigured;
 if (spotifyConfigured) {
@@ -1315,20 +1283,5 @@ async function init() {
   }
 }
 
-function hideExpiredEventSections() {
-  const today = new Date();
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  document.querySelectorAll("[data-expires]").forEach((el) => {
-    const expires = el.getAttribute("data-expires");
-    if (!expires || todayKey < expires) return;
-    el.hidden = true;
-    const id = el.id;
-    if (!id) return;
-    document.querySelectorAll(`a[href="#${id}"]`).forEach((link) => {
-      link.hidden = true;
-    });
-  });
-}
-
-hideExpiredEventSections();
+hideExpiredEventNav();
 init();
