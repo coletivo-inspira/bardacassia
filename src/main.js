@@ -11,6 +11,7 @@ const DISCOVERY_ENABLED = String(import.meta.env.VITE_ENABLE_DISCOVERY || "true"
 const POPULARITY_ENABLED = String(import.meta.env.VITE_ENABLE_POPULARITY || "true") !== "false";
 const FAVORITES_KEY = "bdc-favorites-v1";
 const DISCOVERY_KEY = "bdc-discovery-v1";
+const THEME_KEY = "bdc-theme-v1";
 
 const LANG_LABELS = {
   BRA: "Brasileiras",
@@ -82,6 +83,7 @@ const els = {
   mobileFavoritesButton: document.querySelector("#mobile-favorites"),
   mobileFavoritesCount: document.querySelector("#mobile-favorites-count"),
   spotifyButton: document.querySelector("#spotify-connect"),
+  themeToggle: document.querySelector("#theme-toggle"),
   spotifyStatus: document.querySelector("#spotify-status"),
   relatedSection: document.querySelector("#related-artists"),
   relatedTitle: document.querySelector("#related-title"),
@@ -134,6 +136,33 @@ let spotifySuggestions = [];
 let activeSong = null;
 let dialogReturnFocus = null;
 let copyTimer = null;
+let manualThemeChoice = false;
+
+function applyTheme(theme, save = false) {
+  document.documentElement.dataset.theme = theme;
+  const nextLabel = theme === "dark" ? "Modo claro" : "Modo noturno";
+  const nextAction = theme === "dark" ? "Ativar tema claro" : "Ativar modo noturno";
+  els.themeToggle.querySelector(".theme-toggle-label").textContent = nextLabel;
+  els.themeToggle.setAttribute("aria-label", nextAction);
+  document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#141414" : "#f7f3e9";
+  if (save) {
+    try { localStorage.setItem(THEME_KEY, theme); } catch { /* funciona enquanto a página estiver aberta */ }
+  }
+}
+
+function initializeTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch { /* usa a preferência do aparelho */ }
+  manualThemeChoice = saved === "light" || saved === "dark";
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  const systemTheme = media.matches ? "dark" : "light";
+  applyTheme(manualThemeChoice ? saved : (document.documentElement.dataset.theme || systemTheme));
+  const followSystem = (event) => {
+    if (!manualThemeChoice) applyTheme(event.matches ? "dark" : "light");
+  };
+  if (media.addEventListener) media.addEventListener("change", followSystem);
+  else media.addListener(followSystem);
+}
 
 function normalize(value) {
   return normalizeText(value);
@@ -1036,6 +1065,11 @@ els.nightListDialog.addEventListener("click", (event) => { if (event.target === 
 els.resetNight.addEventListener("click", resetNight);
 els.favoritesButton.addEventListener("click", showFavorites);
 els.mobileFavoritesButton?.addEventListener("click", showFavorites);
+initializeTheme();
+els.themeToggle.addEventListener("click", () => {
+  manualThemeChoice = true;
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
+});
 els.spotifyButton.hidden = !spotifyConfigured;
 els.spotifyStatus.hidden = !spotifyConfigured;
 if (spotifyConfigured) {
