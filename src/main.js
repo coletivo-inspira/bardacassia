@@ -1318,11 +1318,11 @@ async function init() {
 function hideExpiredEventSections() {
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  document.querySelectorAll("[data-expires]").forEach((section) => {
-    const expires = section.getAttribute("data-expires");
+  document.querySelectorAll("[data-expires]").forEach((el) => {
+    const expires = el.getAttribute("data-expires");
     if (!expires || todayKey < expires) return;
-    section.hidden = true;
-    const id = section.id;
+    el.hidden = true;
+    const id = el.id;
     if (!id) return;
     document.querySelectorAll(`a[href="#${id}"]`).forEach((link) => {
       link.hidden = true;

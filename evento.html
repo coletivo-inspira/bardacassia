@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#141414" />
+    <script>
+      (() => {
+        try {
+          const saved = localStorage.getItem("bdc-theme-v1");
+          const theme = saved === "light" || saved === "dark"
+            ? saved
+            : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          document.documentElement.dataset.theme = theme;
+          document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#141414" : "#f7f3e9";
+        } catch {
+          document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+      })();
+    </script>
+    <meta
+      name="description"
+      content="Halloween no Bar da Cácia: 31 de outubro a partir das 22h, com Louis DJ e Evellyn Loren."
+    />
+    <title>Halloween — Bar da Cácia</title>
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Outfit:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="event-page">
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Bar da Cácia — início">
+        <img src="%BASE_URL%logo_bar_da_cacia.svg" alt="" width="48" height="48" />
+        <span class="brand-text">BAR DA <strong>CÁCIA</strong></span>
+      </a>
+      <nav class="desktop-nav" aria-label="Navegação principal">
+        <a href="index.html">Início</a>
+        <a href="evento.html" class="nav-active" data-expires="2026-11-01" aria-current="page">Evento</a>
+        <a href="index.html#o-bar">O bar</a>
+        <a href="index.html#buscar">Buscar</a>
+      </nav>
+      <div class="header-actions">
+        <a class="header-instagram theme-toggle" href="https://www.instagram.com/bardacaciaoficial/" target="_blank" rel="noopener noreferrer" aria-label="Visitar o Instagram oficial do Bar da Cácia">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle class="instagram-dot" cx="17.6" cy="6.5" r=".8"/></svg>
+          <span>Instagram</span>
+        </a>
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Ativar tema claro">
+          <svg class="theme-icon-sun" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg class="theme-icon-moon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.2 15.1A8.4 8.4 0 0 1 8.9 3.8 8.5 8.5 0 1 0 20.2 15.1Z"/></svg>
+          <span class="theme-toggle-label">Modo claro</span>
+        </button>
+      </div>
+    </header>
+
+    <main id="conteudo">
+      <section class="bar-event event-page-main" id="evento" aria-labelledby="evento-title" data-expires="2026-11-01">
+        <div class="bar-section-inner bar-event-grid">
+          <div class="bar-event-copy">
+            <p class="brand-hero event-page-brand">BAR DA CÁCIA</p>
+            <p class="eyebrow">Especial · 31 de outubro</p>
+            <h1 id="evento-title">Halloween no Bar da Cácia</h1>
+            <p class="bar-lead">
+              Prepare sua melhor fantasia, reúna os amigos e venha viver uma noite arrepiante e inesquecível.
+            </p>
+            <dl class="bar-meta">
+              <div>
+                <dt>Data</dt>
+                <dd>31 de outubro</dd>
+              </div>
+              <div>
+                <dt>Horário</dt>
+                <dd>A partir das 22h</dd>
+              </div>
+              <div>
+                <dt>Local</dt>
+                <dd>Rua Rio de Janeiro, 1411 — Belo Horizonte/MG</dd>
+              </div>
+            </dl>
+            <ul class="bar-highlights">
+              <li><strong>Na pista:</strong> Louis DJ com funk e eletrônica.</li>
+              <li><strong>Intervenção:</strong> Evellyn Loren.</li>
+              <li><strong>Prêmio:</strong> melhor produção de Halloween.</li>
+            </ul>
+            <div class="event-page-cta">
+              <a
+                class="button button-ghost"
+                href="https://www.instagram.com/p/DePS3-txujO/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Ver no Instagram
+              </a>
+              <a class="button button-light" href="index.html#buscar">
+                Escolher música
+              </a>
+            </div>
+          </div>
+          <figure class="bar-flyer">
+            <img
+              src="%BASE_URL%halloween-2026.jpg"
+              alt="Flyer do Halloween no Bar da Cácia com Louis DJ e Evellyn Loren"
+              width="920"
+              height="1624"
+              fetchpriority="high"
+            />
+          </figure>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-main">
+        <a class="footer-brand" href="index.html">BAR DA CÁCIA</a>
+        <p>Boa música, gente querida e histórias pra contar.</p>
+        <p class="footer-place">Rua Rio de Janeiro, 1411 — Centro, BH · Aberto das 18h às 3h30</p>
+      </div>
+      <a class="instagram-footer" href="https://www.instagram.com/bardacaciaoficial/" target="_blank" rel="noopener noreferrer" aria-label="Visitar o Instagram oficial do Bar da Cácia">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle class="instagram-dot" cx="17.6" cy="6.5" r=".8"/></svg>
+        Siga no Instagram
+      </a>
+    </footer>
+
+    <script type="module" src="/src/evento.js"></script>
+  </body>
+</html>
