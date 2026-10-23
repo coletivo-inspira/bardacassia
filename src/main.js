@@ -149,7 +149,6 @@ let copyTimer = null;
 let resultsView = loadResultsView();
 /** When artist songs dialog was opened from the night list, closing it returns there. */
 let artistDialogFromNightList = false;
-let artistDialogArtist = "";
 
 function defaultResultsView() {
   return window.matchMedia("(max-width: 719px)").matches ? "grid" : "list";
@@ -288,7 +287,6 @@ function renderNightList() {
 
 function renderArtistSongsDialog(artist) {
   if (!els.artistSongsItems) return;
-  artistDialogArtist = artist;
   els.artistSongsTitle.textContent = artist;
   els.artistSongsNote.textContent = `Músicas de ${artist} no catálogo do karaokê.`;
   const matches = filterCatalog(songs, { artist }).slice().sort((a, b) =>
