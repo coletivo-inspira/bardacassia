@@ -1325,20 +1325,23 @@ dialog::backdrop {
   margin: 0.85rem 0 0.15rem;
 }
 
-#dj-dialog .dialog-listen .action-link,
-#dj-dialog .dialog-listen .action-btn {
+/* Paper dialog: beat mobile .action-btn --bg-soft (#202020) so dark text stays readable. */
+#dj-dialog .dialog-card .dialog-listen .action-link,
+#dj-dialog .dialog-card .dialog-listen .action-btn {
   color: var(--ink);
   border-color: rgba(20, 20, 20, 0.22);
+  background: #fff;
 }
 
-#dj-dialog .dialog-listen .action-link:hover,
-#dj-dialog .dialog-listen .action-btn:hover {
+#dj-dialog .dialog-card .dialog-listen .action-link:hover,
+#dj-dialog .dialog-card .dialog-listen .action-btn:hover {
   background: rgba(20, 20, 20, 0.06);
   border-color: rgba(20, 20, 20, 0.4);
 }
 
-#dj-dialog .dialog-listen .preview-btn.is-playing {
+#dj-dialog .dialog-card .dialog-listen .preview-btn.is-playing {
   border-color: #a84235;
+  background: #fff;
   color: #a84235;
 }
 
