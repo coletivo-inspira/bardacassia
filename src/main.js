@@ -1,4 +1,4 @@
-import { filterCatalog, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
+import { filterCatalog, filtersForArtistSelection, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
 import { fetchDeezerMeta, fetchRelatedArtists, cancelPendingDeezerMeta } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
 import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState, emptyDiscoveryState } from "./lib/discovery.js";
@@ -668,14 +668,20 @@ async function renderRelatedArtists(artist) {
 }
 
 function showArtistSongs(artist) {
-  selectedArtist = artist;
-  activeCategory = { type: "artist", value: artist, label: `Artista: ${artist}` };
+  const next = filtersForArtistSelection(artist);
+  selectedArtist = next.artist;
+  selectedLanguage = next.language;
+  favoritesOnly = next.favoritesOnly;
+  activeCategory = next.category;
   els.discoveryView.hidden = true;
   els.popularView.hidden = true;
   els.songsList.hidden = false;
-  els.searchInput.value = "";
+  els.searchInput.value = next.query;
   els.clearButton.hidden = true;
-  els.activeFilter.textContent = activeCategory.label;
+  els.activeFilter.textContent = activeCategory?.label || `Artista: ${selectedArtist}`;
+  const artistSearch = document.querySelector("#filter-artist-search");
+  if (artistSearch) artistSearch.value = "";
+  populateArtistFilter();
   setBrowseMode(false);
   updateFavoriteControls();
   applyFilters();
@@ -792,7 +798,15 @@ function setBrowseMode(browse) {
 
 function showCategory(category) {
   if (category.type === "lang") selectedLanguage = category.value;
-  if (category.type === "artist") selectedArtist = category.value;
+  if (category.type === "artist") {
+    const next = filtersForArtistSelection(category.value);
+    selectedArtist = next.artist;
+    selectedLanguage = next.language;
+    favoritesOnly = next.favoritesOnly;
+    const artistSearch = document.querySelector("#filter-artist-search");
+    if (artistSearch) artistSearch.value = "";
+    populateArtistFilter();
+  }
   updateFavoriteControls();
   hideRelatedArtists();
   activeCategory = ["lang", "artist"].includes(category.type) ? null : category;

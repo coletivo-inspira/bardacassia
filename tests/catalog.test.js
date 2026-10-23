@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  normalizeText, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions,
+  normalizeText, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, filtersForArtistSelection, filterCatalog,
 } from "../src/lib/catalog.js";
 import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState } from "../src/lib/discovery.js";
 
@@ -68,8 +68,7 @@ test("recupera estado de descoberta validado contra os códigos ativos", () => {
   assert.deepEqual(state.history, [{ action: "pass", code: "102", index: 0 }]);
 });
 
-test('combina idioma, artista, favoritas e texto, preservando códigos', async () => {
-  const { filterCatalog } = await import('../src/lib/catalog.js');
+test('combina idioma, artista, favoritas e texto, preservando códigos', () => {
   const options = { language: 'BRA', artist: 'marilia mendonca', favoritesOnly: true, favoriteCodes: new Set(['103']) };
   assert.deepEqual(filterCatalog(catalog, { ...options, query: 'cor' }).map(s => s.code), ['103']);
   assert.deepEqual(filterCatalog(catalog, { ...options, query: 'Infiel' }), []);
@@ -77,6 +76,17 @@ test('combina idioma, artista, favoritas e texto, preservando códigos', async (
   assert.deepEqual(filterCatalog(catalog, { favoritesOnly: true }), []);
   assert.deepEqual(filterCatalog(catalog, { query: 'Infiel' }).map(s => s.code), ['101']);
   assert.equal(filterCatalog([{ ...catalog[0], code: '001' }], { query: '001' })[0].code, '001');
+});
+
+test("seleção de artista limpa idioma/favoritas/query que esconderiam o catálogo do artista", () => {
+  assert.deepEqual(filterCatalog(catalog, { language: "BRA", artist: "Queen" }), []);
+  const next = filtersForArtistSelection("Queen");
+  assert.equal(next.language, "");
+  assert.equal(next.favoritesOnly, false);
+  assert.equal(next.query, "");
+  assert.equal(next.artist, "Queen");
+  assert.equal(next.category?.type, "artist");
+  assert.deepEqual(filterCatalog(catalog, next).map((s) => s.code), ["102"]);
 });
 
 test("cancelPendingDeezerMeta ignora códigos que não estão na fila", async () => {

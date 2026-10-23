@@ -97,6 +97,21 @@ export function curatedArtistSuggestions(catalog, artist, packs, limit = 8) {
   return names.slice(0, limit);
 }
 
+/**
+ * Artist navigation replaces other catalog filters so the chosen artist is not hidden
+ * by a prior language, favorites-only, letter/pack category, or text query.
+ */
+export function filtersForArtistSelection(artist) {
+  const name = cleanArtist(artist);
+  return {
+    language: "",
+    artist: name,
+    favoritesOnly: false,
+    query: "",
+    category: name ? { type: "artist", value: name, label: `Artista: ${name}` } : null,
+  };
+}
+
 /** One source for results, suggestions and counts. Codes remain strings. */
 export function filterCatalog(catalog, { query = '', language = '', artist = '', favoritesOnly = false, favoriteCodes = new Set(), category = null } = {}) {
   const list = catalog.filter((song) => {
