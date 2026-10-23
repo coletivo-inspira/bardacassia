@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#141414" />
+    <script>
+      (() => {
+        try {
+          const saved = localStorage.getItem("bdc-theme-v1");
+          const theme = saved === "light" || saved === "dark"
+            ? saved
+            : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          document.documentElement.dataset.theme = theme;
+          document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#141414" : "#f7f3e9";
+        } catch {
+          document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+      })();
+    </script>
+    <meta
+      name="description"
+      content="Valores de entrada, promoção de aniversariante, endereço e horário do Bar da Cácia em Belo Horizonte."
+    />
+    <title>O bar — Bar da Cácia</title>
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Outfit:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="event-page">
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Bar da Cácia — início">
+        <img src="%BASE_URL%logo_bar_da_cacia.svg" alt="" width="48" height="48" />
+        <span class="brand-text">BAR DA <strong>CÁCIA</strong></span>
+      </a>
+      <nav class="desktop-nav" aria-label="Navegação principal">
+        <a href="index.html">Início</a>
+        <a href="evento.html" data-expires="2026-11-01">Evento</a>
+        <a href="o-bar.html" class="nav-active" aria-current="page">O bar</a>
+        <a href="index.html#buscar">Buscar</a>
+      </nav>
+      <div class="header-actions">
+        <a class="header-instagram theme-toggle" href="https://www.instagram.com/bardacaciaoficial/" target="_blank" rel="noopener noreferrer" aria-label="Visitar o Instagram oficial do Bar da Cácia">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle class="instagram-dot" cx="17.6" cy="6.5" r=".8"/></svg>
+          <span>Instagram</span>
+        </a>
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Ativar tema claro">
+          <svg class="theme-icon-sun" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg class="theme-icon-moon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.2 15.1A8.4 8.4 0 0 1 8.9 3.8 8.5 8.5 0 1 0 20.2 15.1Z"/></svg>
+          <span class="theme-toggle-label">Modo claro</span>
+        </button>
+      </div>
+    </header>
+
+    <main id="conteudo">
+      <section class="bar-info event-page-main" id="o-bar" aria-labelledby="obar-title">
+        <div class="bar-section-inner">
+          <header class="bar-info-header">
+            <p class="brand-hero event-page-brand">BAR DA CÁCIA</p>
+            <p class="eyebrow">Informações do bar</p>
+            <h1 id="obar-title">Valores, aniversário e funcionamento</h1>
+            <p class="bar-lead">
+              Entrada por dia da semana, benefício para aniversariante e horário de funcionamento — direto do Instagram oficial.
+            </p>
+          </header>
+
+          <div class="bar-info-grid">
+            <article class="bar-block bar-block-text" aria-labelledby="valores-title">
+              <div class="bar-block-copy">
+                <h2 id="valores-title">Valores de entrada</h2>
+                <p class="bar-lead">Todo dia é dia de Bar da Cácia.</p>
+                <ul class="price-list">
+                  <li><span>Segunda</span><strong>R$&nbsp;5,00</strong></li>
+                  <li><span>Terça</span><strong>R$&nbsp;5,00</strong></li>
+                  <li><span>Quarta</span><strong>R$&nbsp;5,00</strong></li>
+                  <li><span>Quinta</span><strong>R$&nbsp;10,00</strong></li>
+                  <li><span>Sexta</span><strong>R$&nbsp;20,00</strong></li>
+                  <li><span>Sábado</span><strong>R$&nbsp;20,00</strong></li>
+                  <li><span>Domingo</span><strong>R$&nbsp;10,00</strong></li>
+                  <li><span>Véspera de feriado</span><strong>R$&nbsp;20,00</strong></li>
+                </ul>
+                <p class="bar-note">
+                  Sextas, sábados e vésperas de feriado: após as 2h, entrada R$&nbsp;30,00.
+                </p>
+                <a
+                  class="text-link"
+                  href="https://www.instagram.com/p/DMVuljvJ0HN/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Ver post no Instagram
+                </a>
+              </div>
+            </article>
+
+            <article class="bar-block" aria-labelledby="aniversario-title">
+              <div class="bar-block-copy">
+                <h2 id="aniversario-title">Comemore na Cácia</h2>
+                <p class="bar-lead">
+                  Aniversariante do dia não paga entrada e ganha 1 drink.
+                </p>
+                <dl class="bar-meta">
+                  <div>
+                    <dt>Endereço</dt>
+                    <dd>Rua Rio de Janeiro, 1411 — Centro, Belo Horizonte/MG</dd>
+                  </div>
+                  <div>
+                    <dt>Horário</dt>
+                    <dd>Bar aberto das 18h às 3h30</dd>
+                  </div>
+                </dl>
+                <a
+                  class="text-link"
+                  href="https://www.instagram.com/p/DWfFfX9DXIy/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Ver post no Instagram
+                </a>
+              </div>
+              <figure class="bar-flyer bar-flyer-side">
+                <img
+                  src="%BASE_URL%aniversariante.jpg"
+                  alt="Promoção de aniversariante no Bar da Cácia: entrada grátis e 1 drink"
+                  width="1370"
+                  height="1700"
+                  loading="lazy"
+                />
+              </figure>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-main">
+        <a class="footer-brand" href="index.html">BAR DA CÁCIA</a>
+        <p>Boa música, gente querida e histórias pra contar.</p>
+        <p class="footer-place">Rua Rio de Janeiro, 1411 — Centro, BH · Aberto das 18h às 3h30</p>
+        <nav class="footer-nav" aria-label="Links do site">
+          <a href="evento.html" data-expires="2026-11-01">Evento</a>
+          <a href="o-bar.html">O bar</a>
+          <a href="index.html#buscar">Buscar</a>
+        </nav>
+      </div>
+      <a class="instagram-footer" href="https://www.instagram.com/bardacaciaoficial/" target="_blank" rel="noopener noreferrer" aria-label="Visitar o Instagram oficial do Bar da Cácia">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle class="instagram-dot" cx="17.6" cy="6.5" r=".8"/></svg>
+        Siga no Instagram
+      </a>
+    </footer>
+
+    <script type="module" src="/src/o-bar.js"></script>
+  </body>
+</html>

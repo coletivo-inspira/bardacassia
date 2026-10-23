@@ -1,8 +1,5 @@
-import { defineConfig } from "vite";
 import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const root = fileURLToPath(new URL(".", import.meta.url));
+import { defineConfig } from "vite";
 
 export default defineConfig({
   // Relative assets work both at the custom-domain root and under
@@ -11,8 +8,9 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        main: resolve(root, "index.html"),
-        evento: resolve(root, "evento.html"),
+        main: resolve(__dirname, "index.html"),
+        evento: resolve(__dirname, "evento.html"),
+        oBar: resolve(__dirname, "o-bar.html"),
       },
     },
   },
