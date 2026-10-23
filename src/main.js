@@ -115,6 +115,13 @@ const els = {
   nightListEmpty: document.querySelector("#night-list-empty"),
   closeNightList: document.querySelector("#close-night-list"),
   resetNight: document.querySelector("#reset-night"),
+  artistSongsDialog: document.querySelector("#artist-songs-dialog"),
+  artistSongsTitle: document.querySelector("#artist-songs-title"),
+  artistSongsNote: document.querySelector("#artist-songs-note"),
+  artistSongsItems: document.querySelector("#artist-songs-items"),
+  artistSongsEmpty: document.querySelector("#artist-songs-empty"),
+  closeArtistSongs: document.querySelector("#close-artist-songs"),
+  backToNightList: document.querySelector("#back-to-night-list"),
   copyCode: document.querySelector("#copy-song-code"),
   copyCodeStatus: document.querySelector("#copy-code-status"),
   viewList: document.querySelector("#view-list"),
@@ -140,6 +147,9 @@ let activeSong = null;
 let dialogReturnFocus = null;
 let copyTimer = null;
 let resultsView = loadResultsView();
+/** When artist songs dialog was opened from the night list, closing it returns there. */
+let artistDialogFromNightList = false;
+let artistDialogArtist = "";
 
 function defaultResultsView() {
   return window.matchMedia("(max-width: 719px)").matches ? "grid" : "list";
@@ -231,8 +241,24 @@ function renderNightList() {
   els.nightListItems.replaceChildren(...items.map((song) => {
     const row = document.createElement("article");
     row.className = "night-list-item";
-    const text = document.createElement("p");
-    text.textContent = `${displayTitle(song.title)} — ${cleanArtist(song.artist)}`;
+    const unavailable = song.title === "Música indisponível no catálogo";
+    const artistName = cleanArtist(song.artist);
+    const heading = document.createElement("p");
+    heading.className = "night-list-heading";
+    const title = document.createElement("span");
+    title.textContent = displayTitle(song.title);
+    heading.append(title, document.createTextNode(" — "));
+    const artist = document.createElement("button");
+    artist.type = "button";
+    artist.className = "artist-link night-list-artist";
+    artist.textContent = artistName;
+    artist.title = `Ver músicas de ${artistName}`;
+    artist.setAttribute("aria-label", `Ver músicas de ${artistName}`);
+    artist.disabled = unavailable || !artistName || artistName === "Indisponível";
+    if (!artist.disabled) {
+      artist.addEventListener("click", () => openArtistSongsDialog(artistName, { fromNightList: true }));
+    }
+    heading.append(artist);
     const code = document.createElement("span");
     code.className = "night-list-code";
     code.textContent = `Código ${song.code}`;
@@ -241,8 +267,8 @@ function renderNightList() {
     const open = document.createElement("button");
     open.type = "button";
     open.className = "action-btn dj-btn";
-    open.textContent = song.title === "Música indisponível no catálogo" ? "Indisponível" : "Ver código";
-    open.disabled = song.title === "Música indisponível no catálogo";
+    open.textContent = unavailable ? "Indisponível" : "Ver código";
+    open.disabled = unavailable;
     if (!open.disabled) open.addEventListener("click", () => showSongToDJ(song));
     const remove = document.createElement("button");
     remove.type = "button";
@@ -253,11 +279,67 @@ function renderNightList() {
       persistDiscovery();
     });
     actions.append(open, remove);
-    row.append(text, code, actions);
+    row.append(heading, code, actions);
     return row;
   }));
   els.nightListEmpty.hidden = items.length > 0;
   els.resetNight.disabled = items.length === 0;
+}
+
+function renderArtistSongsDialog(artist) {
+  if (!els.artistSongsItems) return;
+  artistDialogArtist = artist;
+  els.artistSongsTitle.textContent = artist;
+  els.artistSongsNote.textContent = `Músicas de ${artist} no catálogo do karaokê.`;
+  const matches = filterCatalog(songs, { artist }).slice().sort((a, b) =>
+    displayTitle(a.title).localeCompare(displayTitle(b.title), "pt-BR")
+  );
+  els.artistSongsItems.replaceChildren(...matches.map((song) => {
+    const row = document.createElement("article");
+    row.className = "night-list-item artist-songs-item";
+    const title = document.createElement("p");
+    title.className = "night-list-heading";
+    title.textContent = displayTitle(song.title);
+    const code = document.createElement("span");
+    code.className = "night-list-code";
+    code.textContent = `Código ${song.code} · ${LANG_LABELS[song.lang] || song.lang}`;
+    const actions = document.createElement("div");
+    actions.className = "night-list-item-actions";
+    const djBtn = document.createElement("button");
+    djBtn.type = "button";
+    djBtn.className = "action-btn dj-btn";
+    djBtn.textContent = "Código ao DJ";
+    djBtn.setAttribute("aria-label", `Código ao DJ: ${song.code}`);
+    djBtn.addEventListener("click", () => showSongToDJ(song));
+    const favoriteBtn = document.createElement("button");
+    favoriteBtn.type = "button";
+    favoriteBtn.className = "action-btn favorite-btn";
+    favoriteBtn.dataset.code = song.code;
+    const isFavorite = favoriteCodes.has(song.code);
+    favoriteBtn.textContent = isFavorite ? "Salva" : "Favoritar";
+    favoriteBtn.classList.toggle("is-favorite", isFavorite);
+    favoriteBtn.setAttribute("aria-pressed", String(isFavorite));
+    favoriteBtn.setAttribute("aria-label", `${isFavorite ? "Remover das favoritas" : "Adicionar às favoritas"}: ${displayTitle(song.title)}`);
+    favoriteBtn.addEventListener("click", () => toggleFavorite(song));
+    actions.append(djBtn, favoriteBtn);
+    row.append(title, code, actions);
+    return row;
+  }));
+  els.artistSongsEmpty.hidden = matches.length > 0;
+  if (els.backToNightList) els.backToNightList.hidden = !artistDialogFromNightList;
+}
+
+function openArtistSongsDialog(artist, { fromNightList = false } = {}) {
+  const name = cleanArtist(artist);
+  if (!name || !els.artistSongsDialog) return;
+  artistDialogFromNightList = fromNightList;
+  if (fromNightList && els.nightListDialog?.open) closeNightList();
+  renderArtistSongsDialog(name);
+  if (typeof els.artistSongsDialog.showModal === "function") els.artistSongsDialog.showModal();
+}
+
+function closeArtistSongsDialog() {
+  if (els.artistSongsDialog?.open) els.artistSongsDialog.close();
 }
 
 function renderArtistOptions() {
@@ -1289,6 +1371,16 @@ els.nightListAccess.addEventListener("click", openNightList);
 els.closeNightList.addEventListener("click", closeNightList);
 els.nightListDialog.addEventListener("click", (event) => { if (event.target === els.nightListDialog) closeNightList(); });
 els.resetNight.addEventListener("click", resetNight);
+els.closeArtistSongs?.addEventListener("click", closeArtistSongsDialog);
+els.backToNightList?.addEventListener("click", closeArtistSongsDialog);
+els.artistSongsDialog?.addEventListener("click", (event) => {
+  if (event.target === els.artistSongsDialog) closeArtistSongsDialog();
+});
+els.artistSongsDialog?.addEventListener("close", () => {
+  if (!artistDialogFromNightList) return;
+  artistDialogFromNightList = false;
+  queueMicrotask(() => openNightList());
+});
 els.favoritesButton.addEventListener("click", showFavorites);
 els.mobileFavoritesButton?.addEventListener("click", showFavorites);
 initializeTheme();

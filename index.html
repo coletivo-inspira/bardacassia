@@ -291,6 +291,17 @@
       </section>
     </dialog>
 
+    <dialog id="artist-songs-dialog" aria-labelledby="artist-songs-title">
+      <section class="dialog-card night-list-card artist-songs-card">
+        <button id="close-artist-songs" class="dialog-close" type="button" aria-label="Fechar músicas do artista">×</button>
+        <h2 id="artist-songs-title">Artista</h2>
+        <p id="artist-songs-note" class="night-list-note">Músicas deste artista no catálogo do karaokê.</p>
+        <div id="artist-songs-items" class="night-list-items artist-songs-items"></div>
+        <p id="artist-songs-empty" class="empty-state" hidden>Nenhuma música deste artista no catálogo.</p>
+        <button id="back-to-night-list" class="button button-ghost reset-night" type="button" hidden>Voltar à lista da noite</button>
+      </section>
+    </dialog>
+
     <audio id="preview-audio" preload="none"></audio>
     <script type="module" src="/src/main.js"></script>
   </body>

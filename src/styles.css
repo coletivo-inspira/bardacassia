@@ -1566,11 +1566,44 @@ dialog::backdrop {
 .night-list-note { color: #4f5957; }
 .night-list-items { display: grid; gap: .6rem; }
 .night-list-item { padding: .75rem; border: 1px solid rgba(20,20,20,.12); border-radius: 12px; }
-.night-list-item > p { margin: 0 0 .25rem; font-weight: 700; }
+.night-list-item > p,
+.night-list-heading { margin: 0 0 .25rem; font-weight: 700; color: var(--ink); }
+.night-list-artist {
+  display: inline;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.night-list-artist:hover,
+.night-list-artist:focus-visible {
+  color: var(--text);
+  text-decoration-color: currentColor;
+}
+.night-list-artist:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.night-list-artist:disabled {
+  cursor: default;
+  text-decoration: none;
+  opacity: 0.7;
+}
 .night-list-code { color: #59615f; font-size: .85rem; }
-.night-list-item-actions { display: flex; gap: .45rem; margin-top: .65rem; }
+.night-list-item-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .65rem; }
 .night-list-item .action-btn { color: var(--ink); border-color: rgba(20,20,20,.22); }
 .night-list-item .dj-btn { color: #fff; }
+.artist-songs-card .night-list-note { margin-top: 0; }
+.artist-songs-item .favorite-btn.is-favorite { color: #141414; }
 .reset-night { width: 100%; margin-top: .85rem; color: var(--ink); border-color: rgba(20,20,20,.25); }
 .reset-night:disabled { opacity: .45; cursor: not-allowed; }
 .copy-code { width: 100%; margin: .3rem 0 .5rem; background: var(--ink); color: white; }
