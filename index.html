@@ -270,7 +270,12 @@
             <path d="m6 6 12 12M18 6 6 18" />
           </svg>
         </button>
+        <div id="dialog-cover" class="dialog-cover" aria-hidden="true"></div>
         <p id="dialog-song" class="dialog-song"></p>
+        <div class="dialog-listen">
+          <button id="dialog-preview" class="action-btn preview-btn" type="button" data-idle-label="Ouvir trecho" hidden>Ouvir trecho</button>
+          <a id="dialog-spotify" class="action-link" href="#" target="_blank" rel="noopener noreferrer">Ouvir no Spotify</a>
+        </div>
         <span class="code-label">CÓDIGO DA MÚSICA</span>
         <output id="dialog-code" class="song-code"></output>
         <button id="copy-song-code" class="button button-light copy-code" type="button">Copiar código</button>

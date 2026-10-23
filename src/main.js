@@ -124,6 +124,9 @@ const els = {
   backToNightList: document.querySelector("#back-to-night-list"),
   copyCode: document.querySelector("#copy-song-code"),
   copyCodeStatus: document.querySelector("#copy-code-status"),
+  dialogCover: document.querySelector("#dialog-cover"),
+  dialogPreview: document.querySelector("#dialog-preview"),
+  dialogSpotify: document.querySelector("#dialog-spotify"),
   viewList: document.querySelector("#view-list"),
   viewGrid: document.querySelector("#view-grid"),
 };
@@ -134,6 +137,7 @@ let filtered = [];
 let visibleCount = PAGE_SIZE;
 let activeCategory = null;
 let previewCode = null;
+let dialogMetaGen = 0;
 let favoriteCodes = loadFavorites();
 let favoritesOnly = false;
 let relatedRequest = 0;
@@ -1069,8 +1073,56 @@ function stopPreview() {
   previewCode = null;
   document.querySelectorAll(".preview-btn.is-playing").forEach((btn) => {
     btn.classList.remove("is-playing");
-    btn.textContent = "Preview";
+    btn.textContent = btn.dataset.idleLabel || "Preview";
   });
+}
+
+function setDialogCover(song, coverUrl = null) {
+  if (!els.dialogCover) return;
+  if (coverUrl) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.decoding = "async";
+    img.referrerPolicy = "no-referrer";
+    img.src = coverUrl;
+    img.addEventListener("error", () => {
+      if (activeSong?.code === song.code && els.dialogCover) {
+        els.dialogCover.replaceChildren(createCoverFallback(song));
+      }
+    }, { once: true });
+    els.dialogCover.replaceChildren(img);
+    return;
+  }
+  els.dialogCover.replaceChildren(createCoverFallback(song));
+}
+
+function resetDialogListen(song) {
+  if (els.dialogPreview) {
+    els.dialogPreview.hidden = true;
+    delete els.dialogPreview.dataset.preview;
+    els.dialogPreview.classList.remove("is-playing");
+    els.dialogPreview.textContent = els.dialogPreview.dataset.idleLabel || "Ouvir trecho";
+  }
+  if (els.dialogSpotify) {
+    const artist = song.artist.replace(/\.\.\.$/, "");
+    const title = displayTitle(song.title);
+    els.dialogSpotify.href = spotifySearchUrl(artist, title);
+    els.dialogSpotify.setAttribute("aria-label", `Ouvir no Spotify: ${title}`);
+    els.dialogSpotify.hidden = false;
+  }
+}
+
+function applyDialogMeta(song, meta) {
+  if (!meta || activeSong?.code !== song.code) return;
+  if (meta.cover) setDialogCover(song, meta.cover);
+  if (meta.previewUrl && els.dialogPreview) {
+    els.dialogPreview.hidden = false;
+    els.dialogPreview.dataset.preview = meta.previewUrl;
+    if (previewCode === song.code && !els.previewAudio.paused) {
+      els.dialogPreview.classList.add("is-playing");
+      els.dialogPreview.textContent = "Pausar";
+    }
+  }
 }
 
 function togglePreview(song, button) {
@@ -1100,6 +1152,27 @@ function showSongToDJ(song) {
   els.copyCodeStatus.textContent = "";
   if (copyTimer) clearTimeout(copyTimer);
   els.dialog.classList.remove("copy-sticky-visible");
+
+  resetDialogListen(song);
+  const row = document.querySelector(`.song-row[data-code="${song.code}"]`);
+  const rowCover = row?.querySelector(".song-cover img")?.currentSrc || row?.querySelector(".song-cover img")?.src || null;
+  const rowPreview = row?.querySelector(".preview-btn")?.dataset.preview || null;
+  setDialogCover(song, rowCover);
+  if (rowPreview && els.dialogPreview) {
+    els.dialogPreview.hidden = false;
+    els.dialogPreview.dataset.preview = rowPreview;
+    if (previewCode === song.code && !els.previewAudio.paused) {
+      els.dialogPreview.classList.add("is-playing");
+      els.dialogPreview.textContent = "Pausar";
+    }
+  }
+
+  const gen = ++dialogMetaGen;
+  fetchDeezerMeta(song).then((meta) => {
+    if (gen !== dialogMetaGen || activeSong?.code !== song.code) return;
+    applyDialogMeta(song, meta);
+  }).catch(() => { /* Dialog follows without Deezer meta. */ });
+
   if (typeof IntersectionObserver === "function") {
     const observer = new IntersectionObserver(([entry]) => {
       els.dialog.classList.toggle("copy-sticky-visible", !entry.isIntersecting);
@@ -1126,7 +1199,12 @@ els.copyCode.addEventListener("click", async () => {
     els.copyCodeStatus.textContent = "Não foi possível copiar automaticamente. Selecione o código e copie manualmente.";
   }
 });
+els.dialogPreview?.addEventListener("click", () => {
+  if (activeSong) togglePreview(activeSong, els.dialogPreview);
+});
 els.dialog.addEventListener("close", () => {
+  dialogMetaGen++;
+  stopPreview();
   activeSong = null;
   if (dialogReturnFocus?.isConnected) dialogReturnFocus.focus({ preventScroll: true });
 });
