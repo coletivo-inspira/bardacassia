@@ -1,4 +1,4 @@
-import { filterCatalog, filtersForArtistSelection, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
+import { filterCatalog, filtersForArtistSelection, countActiveFilterChips, filtersToggleLabel, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
 import { fetchDeezerMeta, fetchRelatedArtists, cancelPendingDeezerMeta } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
 import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState, emptyDiscoveryState } from "./lib/discovery.js";
@@ -741,9 +741,10 @@ function syncFilterControls() {
   document.querySelector("#filter-favorites").checked = favoritesOnly;
   const chips = document.querySelector("#active-filter-chips");
   chips.replaceChildren();
+  const browsingArtist = activeCategory?.type === "artist";
   const entries = [
     selectedLanguage && [LANG_LABELS[selectedLanguage], () => { selectedLanguage = ""; }],
-    selectedArtist && [selectedArtist, () => { selectedArtist = ""; }],
+    selectedArtist && !browsingArtist && [selectedArtist, () => { selectedArtist = ""; }],
     favoritesOnly && ["Favoritas", () => { favoritesOnly = false; }],
     activeCategory && ["letter", "artists"].includes(activeCategory.type) && [activeCategory.label, () => { activeCategory = null; }],
   ].filter(Boolean);
@@ -756,7 +757,13 @@ function syncFilterControls() {
     button.onclick = () => { remove(); refreshFilteredSearch(); };
     chips.append(button);
   }
-  document.querySelector("#toggle-filters").textContent = entries.length ? `Filtros (${entries.length})` : "Filtros";
+  const count = countActiveFilterChips({
+    language: selectedLanguage,
+    artist: selectedArtist,
+    favoritesOnly,
+    category: activeCategory,
+  });
+  document.querySelector("#toggle-filters").textContent = filtersToggleLabel(count);
 }
 function refreshFilteredSearch() {
   if (["discovery", "popular"].includes(activeCategory?.type)) activeCategory = null;
@@ -820,20 +827,25 @@ function setBrowseMode(browse) {
 }
 
 function showCategory(category) {
-  if (category.type === "lang") selectedLanguage = category.value;
-  if (category.type === "artist") {
+  if (category.type === "lang") {
+    selectedLanguage = category.value;
+    activeCategory = null;
+  } else if (category.type === "artist") {
     const next = filtersForArtistSelection(category.value);
     selectedArtist = next.artist;
     selectedLanguage = next.language;
     favoritesOnly = next.favoritesOnly;
+    activeCategory = next.category;
+    els.searchInput.value = next.query;
     const artistSearch = document.querySelector("#filter-artist-search");
     if (artistSearch) artistSearch.value = "";
     populateArtistFilter();
+  } else {
+    activeCategory = category;
   }
   updateFavoriteControls();
   hideRelatedArtists();
-  activeCategory = ["lang", "artist"].includes(category.type) ? null : category;
-  els.searchInput.value = "";
+  if (category.type !== "artist") els.searchInput.value = "";
   els.clearButton.hidden = true;
   setBrowseMode(false);
   els.discoveryView.hidden = true;

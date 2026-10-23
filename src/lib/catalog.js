@@ -112,6 +112,24 @@ export function filtersForArtistSelection(artist) {
   };
 }
 
+/**
+ * Active filter chips for the Filters button. Artist-browse context (category.type
+ * === "artist") is shown in the results header, not as a chip, so the toggle can
+ * return to plain "Filtros" after selecting an artist.
+ */
+export function countActiveFilterChips({ language = "", artist = "", favoritesOnly = false, category = null } = {}) {
+  let count = 0;
+  if (language) count += 1;
+  if (artist && category?.type !== "artist") count += 1;
+  if (favoritesOnly) count += 1;
+  if (category && ["letter", "artists"].includes(category.type)) count += 1;
+  return count;
+}
+
+export function filtersToggleLabel(count) {
+  return count > 0 ? `Filtros (${count})` : "Filtros";
+}
+
 /** One source for results, suggestions and counts. Codes remain strings. */
 export function filterCatalog(catalog, { query = '', language = '', artist = '', favoritesOnly = false, favoriteCodes = new Set(), category = null } = {}) {
   const list = catalog.filter((song) => {
