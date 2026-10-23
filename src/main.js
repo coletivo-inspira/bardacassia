@@ -685,6 +685,7 @@ function showArtistSongs(artist) {
   setBrowseMode(false);
   updateFavoriteControls();
   applyFilters();
+  collapseFiltersPanel();
   renderRelatedArtists(artist);
   els.resultsView.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -775,20 +776,42 @@ function applyFilters() {
 }
 
 const filtersToggle = document.querySelector("#toggle-filters");
+const catalogFiltersPanel = document.querySelector("#catalog-filters");
+
+function setFiltersPanelOpen(open) {
+  catalogFiltersPanel.hidden = !open;
+  filtersToggle.setAttribute("aria-expanded", String(open));
+}
+
+function collapseFiltersPanel() {
+  setFiltersPanelOpen(false);
+}
+
 filtersToggle.addEventListener("click", () => {
-  const panel = document.querySelector("#catalog-filters");
-  panel.hidden = !panel.hidden;
-  filtersToggle.setAttribute("aria-expanded", String(!panel.hidden));
+  setFiltersPanelOpen(catalogFiltersPanel.hidden);
 });
-document.querySelector("#filter-language").addEventListener("change", (event) => { selectedLanguage = event.target.value; refreshFilteredSearch(); });
+document.querySelector("#filter-language").addEventListener("change", (event) => {
+  selectedLanguage = event.target.value;
+  refreshFilteredSearch();
+  collapseFiltersPanel();
+});
 document.querySelector("#filter-artist-search").addEventListener("input", populateArtistFilter);
-document.querySelector("#filter-artist").addEventListener("change", (event) => { selectedArtist = event.target.value; refreshFilteredSearch(); });
-document.querySelector("#filter-favorites").addEventListener("change", (event) => { favoritesOnly = event.target.checked; refreshFilteredSearch(); });
+document.querySelector("#filter-artist").addEventListener("change", (event) => {
+  selectedArtist = event.target.value;
+  refreshFilteredSearch();
+  collapseFiltersPanel();
+});
+document.querySelector("#filter-favorites").addEventListener("change", (event) => {
+  favoritesOnly = event.target.checked;
+  refreshFilteredSearch();
+  collapseFiltersPanel();
+});
 document.querySelector("#clear-filters").addEventListener("click", () => {
   selectedLanguage = ""; selectedArtist = ""; favoritesOnly = false; activeCategory = null;
   document.querySelector("#filter-artist-search").value = "";
   populateArtistFilter();
   refreshFilteredSearch();
+  collapseFiltersPanel();
 });
 
 function setBrowseMode(browse) {
