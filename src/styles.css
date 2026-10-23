@@ -772,11 +772,6 @@ input:focus-visible {
   -webkit-appearance: none;
 }
 
-.song-cover:focus-visible {
-  outline: 2px solid var(--accent, #f5c518);
-  outline-offset: 2px;
-}
-
 .song-cover img,
 .cover-fallback {
   width: 100%;
