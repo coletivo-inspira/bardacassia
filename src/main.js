@@ -1578,6 +1578,7 @@ function lockCardHorizontal(start, pointerId) {
 function paintCardDrag(dx) {
   els.discoveryCard.dataset.direction = swipeActionFromDx(dx);
   els.discoveryCard.style.setProperty("--swipe-strength", String(swipeStrength(dx)));
+  // translate3d keeps iOS Safari on the compositor during drag
   els.discoveryCard.style.transform = `translate3d(${dx}px, 0, 0) rotate(${dx / 22}deg)`;
 }
 
@@ -1606,6 +1607,14 @@ function endCardSwipe(clientX, clientY, pointerId) {
   const { dx } = swipeDelta(start, clientX, clientY);
   const elapsedMs = performance.now() - start.t;
   const horizontal = start.horizontal;
+  const suppress = Boolean(start.fromInteractive && horizontal);
+  if (start.captured && start.id != null) {
+    try {
+      if (els.discoveryCard.hasPointerCapture?.(start.id)) {
+        els.discoveryCard.releasePointerCapture(start.id);
+      }
+    } catch { /* capture may already be gone */ }
+  }
   cardPointerStart = null;
   cardTouchFallbackId = null;
   els.discoveryCard.classList.remove("is-dragging");
@@ -1614,7 +1623,10 @@ function endCardSwipe(clientX, clientY, pointerId) {
     animateDiscovery(swipeActionFromDx(dx));
     return;
   }
-  resetCardDrag({ keepSuppress: cardSuppressClick });
+  cardSuppressClick = suppress;
+  els.discoveryCard.style.removeProperty("transform");
+  els.discoveryCard.style.removeProperty("--swipe-strength");
+  delete els.discoveryCard.dataset.direction;
 }
 
 els.discoveryCard.addEventListener("pointerdown", (event) => {
