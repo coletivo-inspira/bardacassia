@@ -806,10 +806,12 @@ function applyFilters() {
 
 const filtersToggle = document.querySelector("#toggle-filters");
 const catalogFiltersPanel = document.querySelector("#catalog-filters");
+const searchChrome = document.querySelector(".spotify-search-chrome");
 
 function setFiltersPanelOpen(open) {
   catalogFiltersPanel.hidden = !open;
   filtersToggle.setAttribute("aria-expanded", String(open));
+  searchChrome?.classList.toggle("is-filters-open", open);
 }
 
 function collapseFiltersPanel() {
