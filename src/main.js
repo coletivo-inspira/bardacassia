@@ -484,7 +484,12 @@ async function enrichDiscoveryCover(cover, song) {
       img.decoding = "async";
       img.referrerPolicy = "no-referrer";
       img.src = meta.cover;
-      img.addEventListener("load", () => cover.replaceWith(img), { once: true });
+      img.addEventListener("error", () => {
+        if (cover.isConnected && currentDiscoverySong()?.code === song.code) {
+          cover.replaceWith(createCoverFallback(song));
+        }
+      }, { once: true });
+      cover.replaceWith(img);
     }
     if (meta.previewUrl) {
       const button = document.createElement("button");
@@ -962,27 +967,36 @@ function createSongRow(song) {
 function applySongMeta(row, meta) {
   if (!meta || !row.isConnected) return;
   const coverWrap = row.querySelector(".song-cover");
+  // Mirror the dialog: put the <img> in the DOM immediately. Waiting for load on an
+  // off-DOM (or lazy) image left the search list stuck on initials while the modal worked.
   if (meta.cover && coverWrap && !coverWrap.querySelector("img")) {
+    const song = songByCode.get(row.dataset.code);
     const img = document.createElement("img");
     img.alt = "";
     img.decoding = "async";
-    img.loading = "lazy";
     img.referrerPolicy = "no-referrer";
     img.src = meta.cover;
-    const show = () => {
-      if (row.isConnected && row.dataset.metaState === "done") coverWrap.replaceChildren(img);
-    };
     img.addEventListener("error", () => {
-      /* keep initials fallback */
-    });
-    if (img.complete && img.naturalWidth > 0) show();
-    else img.addEventListener("load", show, { once: true });
+      if (row.isConnected && song) coverWrap.replaceChildren(createCoverFallback(song));
+    }, { once: true });
+    coverWrap.replaceChildren(img);
   }
   const previewBtn = row.querySelector(".preview-btn");
   if (meta.previewUrl && previewBtn) {
     previewBtn.hidden = false;
     previewBtn.dataset.preview = meta.previewUrl;
   }
+}
+
+/** Applies cached/fetched Deezer meta to every visible search row for this code. */
+function syncSongMetaToList(song, meta) {
+  if (!song?.code || !meta) return;
+  document.querySelectorAll(`.song-row[data-code="${CSS.escape(String(song.code))}"]`).forEach((row) => {
+    if (!row.isConnected) return;
+    row.dataset.metaState = "done";
+    applySongMeta(row, meta);
+    observer?.unobserve(row);
+  });
 }
 
 async function enrichRow(row) {
@@ -998,7 +1012,15 @@ async function enrichRow(row) {
 
   try {
     const meta = await fetchDeezerMeta(song);
-    if (!row.isConnected || row.dataset.metaGen !== generation) return;
+    if (!row.isConnected) return;
+    // Request finished after scroll-away cancel: recover if the row is still mounted.
+    if (row.dataset.metaGen !== generation) {
+      if (row.dataset.metaState === "cancelled" && meta) {
+        row.dataset.metaState = "idle";
+        queueMicrotask(() => enrichRow(row));
+      }
+      return;
+    }
     if (row.dataset.metaState === "cancelled" || !meta) {
       row.dataset.metaState = "idle";
       return;
@@ -1008,7 +1030,7 @@ async function enrichRow(row) {
     observer?.unobserve(row);
   } catch {
     if (row.isConnected && row.dataset.metaGen === generation) {
-      row.dataset.metaState = row.dataset.metaState === "cancelled" ? "idle" : "idle";
+      row.dataset.metaState = "idle";
     }
   }
 }
@@ -1122,6 +1144,24 @@ function applyDialogMeta(song, meta) {
     if (previewCode === song.code && !els.previewAudio.paused) {
       els.dialogPreview.classList.add("is-playing");
       els.dialogPreview.textContent = "Pausar";
+    }
+  }
+  // Keep search results in sync when the dialog is the first place the cover arrives.
+  syncSongMetaToList(song, meta);
+  if (meta.cover && currentDiscoverySong()?.code === song.code) {
+    const fallback = els.discoveryCard?.querySelector(".cover-fallback, .discovery-cover");
+    if (fallback && !els.discoveryCard.querySelector("img")) {
+      const img = document.createElement("img");
+      img.alt = "";
+      img.decoding = "async";
+      img.referrerPolicy = "no-referrer";
+      img.src = meta.cover;
+      img.addEventListener("error", () => {
+        if (fallback.isConnected && currentDiscoverySong()?.code === song.code) {
+          fallback.replaceWith(createCoverFallback(song));
+        }
+      }, { once: true });
+      fallback.replaceWith(img);
     }
   }
 }
