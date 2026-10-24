@@ -927,16 +927,16 @@ function createSongRow(song) {
   actions.className = "song-actions";
 
   const spotify = document.createElement("a");
-  spotify.className = "action-link";
+  spotify.className = "action-link action-secondary";
   spotify.href = spotifySearchUrl(song.artist.replace(/\.\.\.$/, ""), displayTitle(song.title));
   spotify.target = "_blank";
   spotify.rel = "noopener noreferrer";
-  spotify.textContent = "Ouvir no Spotify";
+  spotify.textContent = "Spotify";
   spotify.setAttribute("aria-label", `Ouvir no Spotify: ${displayTitle(song.title)}`);
 
   const previewBtn = document.createElement("button");
   previewBtn.type = "button";
-  previewBtn.className = "action-btn preview-btn";
+  previewBtn.className = "action-btn preview-btn action-secondary";
   previewBtn.textContent = "Preview";
   previewBtn.hidden = true;
   previewBtn.addEventListener("click", () => togglePreview(song, previewBtn));
@@ -959,27 +959,35 @@ function createSongRow(song) {
   favoriteBtn.setAttribute("aria-label", `${isFavorite ? "Remover das favoritas" : "Adicionar às favoritas"}: ${displayTitle(song.title)}`);
   favoriteBtn.addEventListener("click", () => toggleFavorite(song));
 
-  actions.append(favoriteBtn, spotify, previewBtn, djBtn);
+  // Código + Favoritar lead; Spotify/Preview secondary (also in DJ dialog).
+  actions.append(djBtn, favoriteBtn, previewBtn, spotify);
   row.append(coverWrap, info, actions);
   return row;
+}
+
+function setCoverImage(coverWrap, song, coverUrl) {
+  if (!coverWrap || !coverUrl) return;
+  const existing = coverWrap.querySelector("img");
+  if (existing?.dataset?.coverUrl === coverUrl) return;
+  const img = document.createElement("img");
+  img.alt = "";
+  img.decoding = "async";
+  img.referrerPolicy = "no-referrer";
+  img.dataset.coverUrl = coverUrl;
+  img.src = coverUrl;
+  img.addEventListener("error", () => {
+    if (coverWrap.isConnected && song) coverWrap.replaceChildren(createCoverFallback(song));
+  }, { once: true });
+  coverWrap.replaceChildren(img);
 }
 
 function applySongMeta(row, meta) {
   if (!meta || !row.isConnected) return;
   const coverWrap = row.querySelector(".song-cover");
-  // Mirror the dialog: put the <img> in the DOM immediately. Waiting for load on an
-  // off-DOM (or lazy) image left the search list stuck on initials while the modal worked.
-  if (meta.cover && coverWrap && !coverWrap.querySelector("img")) {
-    const song = songByCode.get(row.dataset.code);
-    const img = document.createElement("img");
-    img.alt = "";
-    img.decoding = "async";
-    img.referrerPolicy = "no-referrer";
-    img.src = meta.cover;
-    img.addEventListener("error", () => {
-      if (row.isConnected && song) coverWrap.replaceChildren(createCoverFallback(song));
-    }, { once: true });
-    coverWrap.replaceChildren(img);
+  // Mirror the dialog: insert <img> immediately. Replace when URL changes so dialog
+  // sync can repair a missing/failed list cover.
+  if (meta.cover && coverWrap) {
+    setCoverImage(coverWrap, songByCode.get(row.dataset.code), meta.cover);
   }
   const previewBtn = row.querySelector(".preview-btn");
   if (meta.previewUrl && previewBtn) {
@@ -993,10 +1001,21 @@ function syncSongMetaToList(song, meta) {
   if (!song?.code || !meta) return;
   document.querySelectorAll(`.song-row[data-code="${CSS.escape(String(song.code))}"]`).forEach((row) => {
     if (!row.isConnected) return;
-    row.dataset.metaState = "done";
+    if (meta.cover || meta.previewUrl) row.dataset.metaState = "done";
     applySongMeta(row, meta);
-    observer?.unobserve(row);
+    if (meta.cover) observer?.unobserve(row);
   });
+}
+
+function finishRowMeta(row, meta) {
+  if (!row?.isConnected || !meta) return;
+  applySongMeta(row, meta);
+  if (meta.cover || meta.previewUrl) {
+    row.dataset.metaState = "done";
+    if (meta.cover) observer?.unobserve(row);
+  } else {
+    row.dataset.metaState = "idle";
+  }
 }
 
 async function enrichRow(row) {
@@ -1013,21 +1032,22 @@ async function enrichRow(row) {
   try {
     const meta = await fetchDeezerMeta(song);
     if (!row.isConnected) return;
-    // Request finished after scroll-away cancel: recover if the row is still mounted.
+    // After scroll-away cancel, still paint useful meta onto the mounted row.
     if (row.dataset.metaGen !== generation) {
-      if (row.dataset.metaState === "cancelled" && meta) {
-        row.dataset.metaState = "idle";
-        queueMicrotask(() => enrichRow(row));
-      }
+      if (meta && (meta.cover || meta.previewUrl)) finishRowMeta(row, meta);
+      else if (row.dataset.metaState === "cancelled") row.dataset.metaState = "idle";
       return;
     }
-    if (row.dataset.metaState === "cancelled" || !meta) {
+    if (row.dataset.metaState === "cancelled") {
+      if (meta && (meta.cover || meta.previewUrl)) finishRowMeta(row, meta);
+      else row.dataset.metaState = "idle";
+      return;
+    }
+    if (!meta) {
       row.dataset.metaState = "idle";
       return;
     }
-    row.dataset.metaState = "done";
-    applySongMeta(row, meta);
-    observer?.unobserve(row);
+    finishRowMeta(row, meta);
   } catch {
     if (row.isConnected && row.dataset.metaGen === generation) {
       row.dataset.metaState = "idle";
