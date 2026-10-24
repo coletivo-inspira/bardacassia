@@ -2,6 +2,14 @@ import { filterCatalog, filtersForArtistSelection, countActiveFilterChips, filte
 import { fetchDeezerMeta, fetchRelatedArtists, cancelPendingDeezerMeta } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
 import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState, emptyDiscoveryState } from "./lib/discovery.js";
+import {
+  resolveSwipeAxis,
+  shouldCommitSwipe,
+  swipeActionFromDx,
+  swipeDelta,
+  swipeStrength,
+  isInteractiveSwipeTarget,
+} from "./lib/discovery-swipe.js";
 import { fetchPopularSongs, popularityNeedsUpdate, recordSongOpen, setSongFavorite } from "./integrations/popularity.js";
 import { hideExpiredEventNav, initializeTheme } from "./site.js";
 
@@ -484,7 +492,12 @@ async function enrichDiscoveryCover(cover, song) {
       img.decoding = "async";
       img.referrerPolicy = "no-referrer";
       img.src = meta.cover;
-      img.addEventListener("load", () => cover.replaceWith(img), { once: true });
+      img.addEventListener("error", () => {
+        if (cover.isConnected && currentDiscoverySong()?.code === song.code) {
+          cover.replaceWith(createCoverFallback(song));
+        }
+      }, { once: true });
+      cover.replaceWith(img);
     }
     if (meta.previewUrl) {
       const button = document.createElement("button");
@@ -922,16 +935,16 @@ function createSongRow(song) {
   actions.className = "song-actions";
 
   const spotify = document.createElement("a");
-  spotify.className = "action-link";
+  spotify.className = "action-link action-secondary";
   spotify.href = spotifySearchUrl(song.artist.replace(/\.\.\.$/, ""), displayTitle(song.title));
   spotify.target = "_blank";
   spotify.rel = "noopener noreferrer";
-  spotify.textContent = "Ouvir no Spotify";
+  spotify.textContent = "Spotify";
   spotify.setAttribute("aria-label", `Ouvir no Spotify: ${displayTitle(song.title)}`);
 
   const previewBtn = document.createElement("button");
   previewBtn.type = "button";
-  previewBtn.className = "action-btn preview-btn";
+  previewBtn.className = "action-btn preview-btn action-secondary";
   previewBtn.textContent = "Preview";
   previewBtn.hidden = true;
   previewBtn.addEventListener("click", () => togglePreview(song, previewBtn));
@@ -954,34 +967,63 @@ function createSongRow(song) {
   favoriteBtn.setAttribute("aria-label", `${isFavorite ? "Remover das favoritas" : "Adicionar às favoritas"}: ${displayTitle(song.title)}`);
   favoriteBtn.addEventListener("click", () => toggleFavorite(song));
 
-  actions.append(favoriteBtn, spotify, previewBtn, djBtn);
+  // Código + Favoritar lead; Spotify/Preview are secondary (dialog also has listen actions).
+  actions.append(djBtn, favoriteBtn, previewBtn, spotify);
   row.append(coverWrap, info, actions);
   return row;
+}
+
+function setCoverImage(coverWrap, song, coverUrl) {
+  if (!coverWrap || !coverUrl) return;
+  const existing = coverWrap.querySelector("img");
+  if (existing?.dataset?.coverUrl === coverUrl) return;
+  const img = document.createElement("img");
+  img.alt = "";
+  img.decoding = "async";
+  img.referrerPolicy = "no-referrer";
+  img.dataset.coverUrl = coverUrl;
+  img.src = coverUrl;
+  img.addEventListener("error", () => {
+    if (coverWrap.isConnected && song) coverWrap.replaceChildren(createCoverFallback(song));
+  }, { once: true });
+  coverWrap.replaceChildren(img);
 }
 
 function applySongMeta(row, meta) {
   if (!meta || !row.isConnected) return;
   const coverWrap = row.querySelector(".song-cover");
-  if (meta.cover && coverWrap && !coverWrap.querySelector("img")) {
-    const img = document.createElement("img");
-    img.alt = "";
-    img.decoding = "async";
-    img.loading = "lazy";
-    img.referrerPolicy = "no-referrer";
-    img.src = meta.cover;
-    const show = () => {
-      if (row.isConnected && row.dataset.metaState === "done") coverWrap.replaceChildren(img);
-    };
-    img.addEventListener("error", () => {
-      /* keep initials fallback */
-    });
-    if (img.complete && img.naturalWidth > 0) show();
-    else img.addEventListener("load", show, { once: true });
+  // Mirror the dialog: put the <img> in the DOM immediately. Waiting for load on an
+  // off-DOM (or lazy) image left the search list stuck on initials while the modal worked.
+  // Replace whenever the URL changes so dialog sync can repair a missing/failed cover.
+  if (meta.cover && coverWrap) {
+    setCoverImage(coverWrap, songByCode.get(row.dataset.code), meta.cover);
   }
   const previewBtn = row.querySelector(".preview-btn");
   if (meta.previewUrl && previewBtn) {
     previewBtn.hidden = false;
     previewBtn.dataset.preview = meta.previewUrl;
+  }
+}
+
+/** Applies cached/fetched Deezer meta to every visible search row for this code. */
+function syncSongMetaToList(song, meta) {
+  if (!song?.code || !meta) return;
+  document.querySelectorAll(`.song-row[data-code="${CSS.escape(String(song.code))}"]`).forEach((row) => {
+    if (!row.isConnected) return;
+    if (meta.cover || meta.previewUrl) row.dataset.metaState = "done";
+    applySongMeta(row, meta);
+    if (meta.cover) observer?.unobserve(row);
+  });
+}
+
+function finishRowMeta(row, meta) {
+  if (!row?.isConnected || !meta) return;
+  applySongMeta(row, meta);
+  if (meta.cover || meta.previewUrl) {
+    row.dataset.metaState = "done";
+    if (meta.cover) observer?.unobserve(row);
+  } else {
+    row.dataset.metaState = "idle";
   }
 }
 
@@ -998,17 +1040,26 @@ async function enrichRow(row) {
 
   try {
     const meta = await fetchDeezerMeta(song);
-    if (!row.isConnected || row.dataset.metaGen !== generation) return;
-    if (row.dataset.metaState === "cancelled" || !meta) {
+    if (!row.isConnected) return;
+    // After scroll-away cancel, still paint useful meta onto the mounted row.
+    if (row.dataset.metaGen !== generation) {
+      if (meta && (meta.cover || meta.previewUrl)) finishRowMeta(row, meta);
+      else if (row.dataset.metaState === "cancelled") row.dataset.metaState = "idle";
+      return;
+    }
+    if (row.dataset.metaState === "cancelled") {
+      if (meta && (meta.cover || meta.previewUrl)) finishRowMeta(row, meta);
+      else row.dataset.metaState = "idle";
+      return;
+    }
+    if (!meta) {
       row.dataset.metaState = "idle";
       return;
     }
-    row.dataset.metaState = "done";
-    applySongMeta(row, meta);
-    observer?.unobserve(row);
+    finishRowMeta(row, meta);
   } catch {
     if (row.isConnected && row.dataset.metaGen === generation) {
-      row.dataset.metaState = row.dataset.metaState === "cancelled" ? "idle" : "idle";
+      row.dataset.metaState = "idle";
     }
   }
 }
@@ -1122,6 +1173,24 @@ function applyDialogMeta(song, meta) {
     if (previewCode === song.code && !els.previewAudio.paused) {
       els.dialogPreview.classList.add("is-playing");
       els.dialogPreview.textContent = "Pausar";
+    }
+  }
+  // Keep search results in sync when the dialog is the first place the cover arrives.
+  syncSongMetaToList(song, meta);
+  if (meta.cover && currentDiscoverySong()?.code === song.code) {
+    const fallback = els.discoveryCard?.querySelector(".cover-fallback, .discovery-cover");
+    if (fallback && !els.discoveryCard.querySelector("img")) {
+      const img = document.createElement("img");
+      img.alt = "";
+      img.decoding = "async";
+      img.referrerPolicy = "no-referrer";
+      img.src = meta.cover;
+      img.addEventListener("error", () => {
+        if (fallback.isConnected && currentDiscoverySong()?.code === song.code) {
+          fallback.replaceWith(createCoverFallback(song));
+        }
+      }, { once: true });
+      fallback.replaceWith(img);
     }
   }
 }
@@ -1441,13 +1510,28 @@ els.passSong.addEventListener("click", () => animateDiscovery("pass"));
 els.chooseSong.addEventListener("click", () => animateDiscovery("choose"));
 let cardPointerStart = null;
 let cardAnimating = false;
-function resetCardDrag() {
+let cardSuppressClick = false;
+let cardTouchFallbackId = null;
+const supportsPointer = typeof window.PointerEvent === "function";
+
+function resetCardDrag({ keepSuppress = false } = {}) {
+  const start = cardPointerStart;
   cardPointerStart = null;
+  cardTouchFallbackId = null;
+  if (!keepSuppress) cardSuppressClick = false;
   els.discoveryCard.classList.remove("is-dragging");
   els.discoveryCard.style.removeProperty("transform");
   els.discoveryCard.style.removeProperty("--swipe-strength");
   delete els.discoveryCard.dataset.direction;
+  if (start?.captured && start.id != null) {
+    try {
+      if (els.discoveryCard.hasPointerCapture?.(start.id)) {
+        els.discoveryCard.releasePointerCapture(start.id);
+      }
+    } catch { /* capture may already be gone */ }
+  }
 }
+
 function animateDiscovery(action) {
   if (cardAnimating || !currentDiscoverySong()) return;
   cardAnimating = true;
@@ -1465,37 +1549,154 @@ function animateDiscovery(action) {
     cardAnimating = false;
   }, reduced ? 0 : 220);
 }
+
+function beginCardSwipe(event, { clientX, clientY, pointerId, pointerType }) {
+  if (cardAnimating || !currentDiscoverySong()) return false;
+  cardSuppressClick = false;
+  cardPointerStart = {
+    id: pointerId,
+    x: clientX,
+    y: clientY,
+    t: performance.now(),
+    horizontal: false,
+    captured: false,
+    fromInteractive: isInteractiveSwipeTarget(event.target),
+    pointerType: pointerType || "unknown",
+  };
+  return true;
+}
+
+function lockCardHorizontal(start, pointerId) {
+  start.horizontal = true;
+  start.captured = true;
+  els.discoveryCard.classList.add("is-dragging");
+  if (pointerId != null && els.discoveryCard.setPointerCapture) {
+    try { els.discoveryCard.setPointerCapture(pointerId); } catch { /* older WebViews */ }
+  }
+}
+
+function paintCardDrag(dx) {
+  els.discoveryCard.dataset.direction = swipeActionFromDx(dx);
+  els.discoveryCard.style.setProperty("--swipe-strength", String(swipeStrength(dx)));
+  els.discoveryCard.style.transform = `translate3d(${dx}px, 0, 0) rotate(${dx / 22}deg)`;
+}
+
+function moveCardSwipe(clientX, clientY, pointerId, event) {
+  const start = cardPointerStart;
+  if (!start || (pointerId != null && start.id !== pointerId)) return;
+  const { dx, dy } = swipeDelta(start, clientX, clientY);
+  if (!start.horizontal) {
+    const axis = resolveSwipeAxis(dx, dy);
+    if (axis === "vertical") {
+      resetCardDrag();
+      return;
+    }
+    if (axis !== "horizontal") return;
+    lockCardHorizontal(start, pointerId ?? start.id);
+  }
+  if (start.fromInteractive) cardSuppressClick = true;
+  // Block page scroll once horizontal intent is locked (needs non-passive touch listeners).
+  if (event?.cancelable) event.preventDefault();
+  paintCardDrag(dx);
+}
+
+function endCardSwipe(clientX, clientY, pointerId) {
+  const start = cardPointerStart;
+  if (!start || (pointerId != null && start.id !== pointerId)) return;
+  const { dx } = swipeDelta(start, clientX, clientY);
+  const elapsedMs = performance.now() - start.t;
+  const horizontal = start.horizontal;
+  cardPointerStart = null;
+  cardTouchFallbackId = null;
+  els.discoveryCard.classList.remove("is-dragging");
+  if (horizontal && shouldCommitSwipe({ dx, elapsedMs, cardWidth: els.discoveryCard.offsetWidth })) {
+    cardSuppressClick = true;
+    animateDiscovery(swipeActionFromDx(dx));
+    return;
+  }
+  resetCardDrag({ keepSuppress: cardSuppressClick });
+}
+
 els.discoveryCard.addEventListener("pointerdown", (event) => {
-  if (cardAnimating || !event.isPrimary || event.button !== 0 || event.target.closest("button,a") || !currentDiscoverySong()) return;
-  cardPointerStart = { id: event.pointerId, x: event.clientX, y: event.clientY, horizontal: false };
+  if (!supportsPointer) return;
+  if (!event.isPrimary || event.button !== 0) return;
+  beginCardSwipe(event, {
+    clientX: event.clientX,
+    clientY: event.clientY,
+    pointerId: event.pointerId,
+    pointerType: event.pointerType,
+  });
 });
 els.discoveryCard.addEventListener("pointermove", (event) => {
-  const start = cardPointerStart;
-  if (!start || start.id !== event.pointerId) return;
-  const dx = event.clientX - start.x;
-  const dy = event.clientY - start.y;
-  if (!start.horizontal) {
-    if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { resetCardDrag(); return; }
-    if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
-    start.horizontal = true;
-    els.discoveryCard.setPointerCapture(event.pointerId);
-    els.discoveryCard.classList.add("is-dragging");
-  }
-  els.discoveryCard.dataset.direction = dx > 0 ? "choose" : "pass";
-  els.discoveryCard.style.setProperty("--swipe-strength", String(Math.min(Math.abs(dx) / 90, 1)));
-  els.discoveryCard.style.transform = `translateX(${dx}px) rotate(${dx / 22}deg)`;
+  if (!supportsPointer) return;
+  moveCardSwipe(event.clientX, event.clientY, event.pointerId, event);
 });
 els.discoveryCard.addEventListener("pointerup", (event) => {
-  const start = cardPointerStart;
-  if (!start || start.id !== event.pointerId) return;
-  const dx = event.clientX - start.x;
-  const threshold = Math.min(90, els.discoveryCard.offsetWidth * .24);
-  cardPointerStart = null;
-  if (start.horizontal && Math.abs(dx) >= threshold) animateDiscovery(dx > 0 ? "choose" : "pass");
-  else resetCardDrag();
+  if (!supportsPointer) return;
+  endCardSwipe(event.clientX, event.clientY, event.pointerId);
 });
-els.discoveryCard.addEventListener("pointercancel", resetCardDrag);
-els.discoveryCard.addEventListener("lostpointercapture", () => { if (cardPointerStart) resetCardDrag(); });
+els.discoveryCard.addEventListener("pointercancel", () => {
+  if (!supportsPointer) return;
+  resetCardDrag({ keepSuppress: cardSuppressClick });
+});
+// Do not reset on lostpointercapture: some WebViews fire it around pointerup and
+// would cancel a valid swipe before commit. pointerup/pointercancel own teardown.
+
+// Touch fallback + non-passive preventDefault for iOS/Android WebViews that still
+// scroll during pointermove, and for environments without Pointer Events.
+els.discoveryCard.addEventListener("touchstart", (event) => {
+  if (event.touches.length !== 1) {
+    resetCardDrag();
+    return;
+  }
+  if (supportsPointer) {
+    // Pointer path owns state; remember touch id only for preventDefault pairing.
+    cardTouchFallbackId = event.touches[0].identifier;
+    return;
+  }
+  const touch = event.touches[0];
+  cardTouchFallbackId = touch.identifier;
+  beginCardSwipe(event, {
+    clientX: touch.clientX,
+    clientY: touch.clientY,
+    pointerId: touch.identifier,
+    pointerType: "touch",
+  });
+}, { passive: true });
+els.discoveryCard.addEventListener("touchmove", (event) => {
+  const touch = [...event.changedTouches].find((item) => item.identifier === cardTouchFallbackId)
+    || (event.touches.length === 1 ? event.touches[0] : null);
+  if (!touch) return;
+  if (supportsPointer) {
+    // Still prevent scroll after horizontal lock when pointer events are active.
+    if (cardPointerStart?.horizontal && event.cancelable) event.preventDefault();
+    return;
+  }
+  moveCardSwipe(touch.clientX, touch.clientY, touch.identifier, event);
+}, { passive: false });
+els.discoveryCard.addEventListener("touchend", (event) => {
+  const touch = [...event.changedTouches].find((item) => item.identifier === cardTouchFallbackId);
+  if (!touch) return;
+  if (supportsPointer) {
+    cardTouchFallbackId = null;
+    return;
+  }
+  endCardSwipe(touch.clientX, touch.clientY, touch.identifier);
+}, { passive: true });
+els.discoveryCard.addEventListener("touchcancel", () => {
+  if (supportsPointer) {
+    cardTouchFallbackId = null;
+    return;
+  }
+  resetCardDrag({ keepSuppress: cardSuppressClick });
+}, { passive: true });
+
+els.discoveryCard.addEventListener("click", (event) => {
+  if (!cardSuppressClick) return;
+  event.preventDefault();
+  event.stopPropagation();
+  cardSuppressClick = false;
+}, true);
 els.discoveryCard.addEventListener("dragstart", (event) => event.preventDefault());
 els.undoDiscovery.addEventListener("click", undoDiscovery);
 els.restartPassed.addEventListener("click", () => {
