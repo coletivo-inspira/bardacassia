@@ -1,5 +1,5 @@
 import { filterCatalog, filtersForArtistSelection, countActiveFilterChips, filtersToggleLabel, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
-import { fetchDeezerMeta, fetchRelatedArtists, cancelPendingDeezerMeta } from "./integrations/deezer.js";
+import { fetchDeezerMeta, fetchRelatedArtists, cancelPendingDeezerMeta, metaFromCatalog } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
 import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState, emptyDiscoveryState } from "./lib/discovery.js";
 import {
@@ -452,8 +452,21 @@ function renderDiscoveryCard() {
   els.restartPassed.hidden = false;
   const card = document.createElement("div");
   card.className = "discovery-card-content";
-  const cover = createCoverFallback(song);
+  let cover = createCoverFallback(song);
   cover.className = "cover-fallback discovery-cover";
+  const catalogMeta = metaFromCatalog(song);
+  if (catalogMeta.cover) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.decoding = "async";
+    img.referrerPolicy = "no-referrer";
+    img.className = "discovery-cover";
+    img.src = catalogMeta.cover;
+    img.addEventListener("error", () => {
+      if (img.isConnected) img.replaceWith(createCoverFallback(song));
+    }, { once: true });
+    cover = img;
+  }
   const title = document.createElement("h4");
   title.textContent = displayTitle(song.title);
   const artist = document.createElement("p");
@@ -477,9 +490,19 @@ function renderDiscoveryCard() {
   spotify.className = "action-link";
   spotify.textContent = "Relembrar esta música";
   actions.append(details, spotify);
+  if (catalogMeta.previewUrl) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "action-btn preview-btn";
+    button.dataset.idleLabel = "Ouvir trecho";
+    button.textContent = "Ouvir trecho";
+    button.dataset.preview = catalogMeta.previewUrl;
+    button.addEventListener("click", () => togglePreview(song, button));
+    actions.append(button);
+  }
   card.append(cover, title, artist, record, actions);
   els.discoveryCard.replaceChildren(card);
-  enrichDiscoveryCover(cover, song);
+  if (!catalogMeta.cover) enrichDiscoveryCover(cover, song);
 }
 
 async function enrichDiscoveryCover(cover, song) {
@@ -916,7 +939,14 @@ function createSongRow(song) {
   coverWrap.className = "song-cover";
   coverWrap.setAttribute("aria-label", `Ver código: ${displayTitle(song.title)}`);
   coverWrap.addEventListener("click", () => showSongToDJ(song));
-  coverWrap.append(createCoverFallback(song));
+  const catalogMeta = metaFromCatalog(song);
+  if (catalogMeta.cover) {
+    coverWrap.append(createCoverFallback(song));
+    setCoverImage(coverWrap, song, catalogMeta.cover);
+    row.dataset.metaState = "done";
+  } else {
+    coverWrap.append(createCoverFallback(song));
+  }
 
   const info = document.createElement("div");
   info.className = "song-info";
@@ -949,6 +979,10 @@ function createSongRow(song) {
   previewBtn.className = "action-btn preview-btn action-secondary";
   previewBtn.textContent = "Preview";
   previewBtn.hidden = true;
+  if (catalogMeta.previewUrl) {
+    previewBtn.hidden = false;
+    previewBtn.dataset.preview = catalogMeta.previewUrl;
+  }
   previewBtn.addEventListener("click", () => togglePreview(song, previewBtn));
 
   const djBtn = document.createElement("button");
@@ -1035,6 +1069,13 @@ async function enrichRow(row) {
   const code = row.dataset.code;
   const song = songByCode.get(code);
   if (!song) return;
+
+  // Catalog already has cover linked to this karaoke code — skip Deezer.
+  const catalogMeta = metaFromCatalog(song);
+  if (catalogMeta.cover) {
+    finishRowMeta(row, catalogMeta);
+    return;
+  }
 
   const generation = String(Number(row.dataset.metaGen || "0") + 1);
   row.dataset.metaGen = generation;
@@ -1228,13 +1269,16 @@ function showSongToDJ(song) {
   resetDialogListen(song);
   const row = document.querySelector(`.song-row[data-code="${song.code}"]`);
   const discoveryMatch = currentDiscoverySong()?.code === song.code;
+  const catalogMeta = metaFromCatalog(song);
   const liveCover =
-    row?.querySelector(".song-cover img")?.currentSrc
+    catalogMeta.cover
+    || row?.querySelector(".song-cover img")?.currentSrc
     || row?.querySelector(".song-cover img")?.src
     || (discoveryMatch ? els.discoveryCard?.querySelector("img")?.currentSrc || els.discoveryCard?.querySelector("img")?.src : null)
     || null;
   const livePreview =
-    row?.querySelector(".preview-btn")?.dataset.preview
+    catalogMeta.previewUrl
+    || row?.querySelector(".preview-btn")?.dataset.preview
     || (discoveryMatch ? els.discoveryCard?.querySelector(".preview-btn")?.dataset.preview : null)
     || null;
   setDialogCover(song, liveCover);
@@ -1247,11 +1291,16 @@ function showSongToDJ(song) {
     }
   }
 
-  const gen = ++dialogMetaGen;
-  fetchDeezerMeta(song).then((meta) => {
-    if (gen !== dialogMetaGen || activeSong?.code !== song.code) return;
-    applyDialogMeta(song, meta);
-  }).catch(() => { /* Dialog follows without Deezer meta. */ });
+  // Skip network when the catalog already has the cover for this code.
+  if (!catalogMeta.cover) {
+    const gen = ++dialogMetaGen;
+    fetchDeezerMeta(song).then((meta) => {
+      if (gen !== dialogMetaGen || activeSong?.code !== song.code) return;
+      applyDialogMeta(song, meta);
+    }).catch(() => { /* Dialog follows without Deezer meta. */ });
+  } else if (catalogMeta.previewUrl || catalogMeta.cover) {
+    applyDialogMeta(song, catalogMeta);
+  }
 
   if (typeof IntersectionObserver === "function") {
     const observer = new IntersectionObserver(([entry]) => {
@@ -1317,7 +1366,8 @@ function categorySongs(id) {
 
 async function loadCategoryCover(art, candidates) {
   for (const song of candidates.slice(0, 4)) {
-    const meta = await fetchDeezerMeta(song);
+    const catalog = metaFromCatalog(song);
+    const meta = catalog.cover ? catalog : await fetchDeezerMeta(song);
     if (!meta?.cover || !art.isConnected) continue;
     const image = new Image();
     image.alt = "";

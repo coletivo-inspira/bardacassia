@@ -78,14 +78,56 @@ function parseCsvLine(line) {
   return out;
 }
 
+function optionalUrl(value) {
+  const s = String(value ?? "").trim();
+  return s || undefined;
+}
+
 function normalizeSong(raw) {
-  return {
+  const song = {
     code: String(raw.code ?? "").trim(),
     artist: String(raw.artist ?? "").trim(),
     title: String(raw.title ?? "").trim(),
     lyricStart: String(raw.lyricStart ?? "").trim(),
     lang: String(raw.lang ?? "").trim().toUpperCase(),
   };
+  const coverUrl = optionalUrl(raw.coverUrl ?? raw.cover_url ?? raw.cover);
+  const previewUrl = optionalUrl(raw.previewUrl ?? raw.preview_url ?? raw.preview);
+  if (coverUrl) song.coverUrl = coverUrl;
+  if (previewUrl) song.previewUrl = previewUrl;
+  return song;
+}
+
+/** Keep Deezer enrichment linked by code when reimporting from PDF/base CSV. */
+function mergeEnrichment(songs, previousByCode) {
+  if (!previousByCode?.size) return songs;
+  return songs.map((song) => {
+    const prev = previousByCode.get(song.code);
+    if (!prev) return song;
+    const next = { ...song };
+    if (!next.coverUrl && prev.coverUrl) next.coverUrl = prev.coverUrl;
+    if (!next.previewUrl && prev.previewUrl) next.previewUrl = prev.previewUrl;
+    return next;
+  });
+}
+
+function loadPreviousByCode() {
+  const map = new Map();
+  for (const path of [outJson, defaultCsv]) {
+    if (!existsSync(path)) continue;
+    try {
+      if (path.endsWith(".json")) {
+        const list = JSON.parse(readFileSync(path, "utf8"));
+        for (const item of list) {
+          const song = normalizeSong(item);
+          if (song.code) map.set(song.code, song);
+        }
+      }
+    } catch {
+      /* ignore corrupt previous catalog */
+    }
+  }
+  return map;
 }
 
 function isValidSong(song) {
@@ -177,6 +219,8 @@ async function loadCsv(csvPath) {
       title: row.title ?? row.titulo ?? row.título,
       lyricStart: row.lyricstart ?? row.lyric_start ?? row["inicio da letra"] ?? row.inicio,
       lang: row.lang ?? row.idioma,
+      coverUrl: row.coverurl ?? row.cover_url ?? row.cover,
+      previewUrl: row.previewurl ?? row.preview_url ?? row.preview,
     });
     if (isValidSong(song)) songs.push(song);
   }
@@ -185,10 +229,12 @@ async function loadCsv(csvPath) {
 
 function writeCsv(songs, csvPath) {
   mkdirSync(dirname(csvPath), { recursive: true });
-  const header = "code,artist,title,lyricStart,lang";
+  const header = "code,artist,title,lyricStart,lang,coverUrl,previewUrl";
   const lines = songs.map(
     (s) =>
-      [s.code, s.artist, s.title, s.lyricStart, s.lang].map(csvEscape).join(",")
+      [s.code, s.artist, s.title, s.lyricStart, s.lang, s.coverUrl || "", s.previewUrl || ""]
+        .map(csvEscape)
+        .join(",")
   );
   writeFileSync(csvPath, `${header}\n${lines.join("\n")}\n`, "utf8");
 }
@@ -231,7 +277,7 @@ async function main() {
     }
   }
 
-  // Dedupe by code (keep first)
+  // Dedupe by code (keep first), then keep any prior cover/preview linked to that code.
   const seen = new Set();
   const unique = [];
   for (const song of songs) {
@@ -239,19 +285,22 @@ async function main() {
     seen.add(song.code);
     unique.push(song);
   }
+  const enriched = mergeEnrichment(unique, loadPreviousByCode());
 
-  writeCsv(unique, csvPath);
-  writeJson(unique, outJson);
+  writeCsv(enriched, csvPath);
+  writeJson(enriched, outJson);
 
   const bytes = Buffer.byteLength(readFileSync(outJson));
-  const langCounts = unique.reduce((acc, s) => {
+  const langCounts = enriched.reduce((acc, s) => {
     acc[s.lang] = (acc[s.lang] || 0) + 1;
     return acc;
   }, {});
+  const withCover = enriched.filter((s) => s.coverUrl).length;
 
-  console.log(`Imported ${unique.length} songs from ${source}`);
+  console.log(`Imported ${enriched.length} songs from ${source}`);
   console.log(`Wrote ${csvPath}`);
   console.log(`Wrote ${outJson} (${(bytes / (1024 * 1024)).toFixed(2)} MB)`);
+  console.log(`Songs with coverUrl: ${withCover}`);
   console.log("Languages:", langCounts);
 }
 

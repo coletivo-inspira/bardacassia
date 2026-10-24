@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test",
+    "test": "node --test tests/*.test.js",
     "preview": "vite preview",
     "import-songs": "node scripts/import-songs.js",
+    "enrich-covers": "node scripts/enrich-covers.js",
     "sync-catalog": "node scripts/sync-catalog.js"
   },
   "devDependencies": {

@@ -1,4 +1,12 @@
 import { cleanArtist, normalizeText } from "../lib/catalog.js";
+import {
+  metaFromCatalog,
+  metaFromDeezerTrack,
+  pickBestDeezerTrack,
+  scoreDeezerCandidate,
+} from "../lib/deezer-match.js";
+
+export { scoreDeezerCandidate, metaFromCatalog } from "../lib/deezer-match.js";
 
 const META_KEY = "bdc-deezer-meta-v2";
 const META_TTL = 7 * 24 * 60 * 60 * 1000;
@@ -105,65 +113,14 @@ async function request(path, params = {}) {
   return jsonp(path, params);
 }
 
-/** Strip remaster/live/parenthetical noise so "The Kill (Bury Me)" ≈ "The Kill". */
-function coreTitle(value) {
-  return normalizeText(String(value || "")
-    .replace(/\s*[([][^)\]]*[)\]]/g, " ")
-    .replace(/\s+[-–—]\s+(?:remaster(?:ed)?|live|ao vivo|radio edit|album version).*$/i, ""));
-}
-
-const ONES = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-  "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
-const TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
-
-function numberToWords(n) {
-  const num = Number(n);
-  if (!Number.isFinite(num) || num < 0 || num > 99) return String(n);
-  if (num < 20) return ONES[num];
-  const ten = TENS[Math.floor(num / 10)];
-  const one = num % 10;
-  return one ? `${ten} ${ONES[one]}` : ten;
-}
-
-/** "30 seconds to mars" ↔ "thirty seconds to mars" for Deezer artist spelling. */
-function expandNumberWords(value) {
-  return normalizeText(value).replace(/\b\d{1,2}\b/g, (digits) => numberToWords(digits));
-}
-
-function titlesMatch(trackTitle, songTitle) {
-  const a = coreTitle(trackTitle);
-  const b = coreTitle(songTitle);
-  if (!a || !b) return false;
-  if (a === b) return true;
-  return a.length > 3 && b.length > 3 && (a.includes(b) || b.includes(a));
-}
-
-function artistsMatch(trackArtist, songArtist) {
-  const a = normalizeText(trackArtist);
-  const b = normalizeText(cleanArtist(songArtist));
-  if (!a || !b) return false;
-  if (a === b) return true;
-  if (a.length > 3 && b.length > 3 && (a.includes(b) || b.includes(a))) return true;
-  const ea = expandNumberWords(a);
-  const eb = expandNumberWords(b);
-  return ea === eb || (ea.length > 3 && eb.length > 3 && (ea.includes(eb) || eb.includes(ea)));
-}
-
-/** Exported for unit tests. */
-export function scoreDeezerCandidate(track, song) {
-  return matchScore(track, song);
-}
-
-function matchScore(track, song) {
-  const titleExact = coreTitle(track.title) === coreTitle(song.title);
-  const artistExact = normalizeText(track.artist?.name) === normalizeText(cleanArtist(song.artist))
-    || expandNumberWords(track.artist?.name) === expandNumberWords(cleanArtist(song.artist));
-  const titleOk = titlesMatch(track.title, song.title);
-  const artistOk = artistsMatch(track.artist?.name, song.artist);
-  return titleOk && artistOk ? (titleExact ? 2 : 1) + (artistExact ? 2 : 1) : 0;
-}
-
+/**
+ * Prefer cover/preview already linked to the karaoke code in songs.json.
+ * Only hits Deezer when the catalog song has no coverUrl.
+ */
 export async function fetchDeezerMeta(song) {
+  const fromCatalog = metaFromCatalog(song);
+  if (fromCatalog.cover) return fromCatalog;
+
   const cached = metaCache.get(song.code);
   if (cached?.expires > Date.now()) return cached.value;
   if (pending.has(song.code)) return pending.get(song.code);
@@ -172,15 +129,8 @@ export async function fetchDeezerMeta(song) {
     const query = `${cleanArtist(song.artist)} ${song.title}`;
     try {
       const response = await request("/search", { q: query, limit: "8" });
-      const candidates = Array.isArray(response?.data) ? response.data : [];
-      const best = candidates
-        .map((track) => ({ track, score: matchScore(track, song) }))
-        .sort((a, b) => b.score - a.score)[0];
-      const track = best?.score > 0 ? best.track : null;
-      const value = {
-        cover: track?.album?.cover_medium || track?.album?.cover || track?.album?.cover_big || null,
-        previewUrl: track?.preview || null,
-      };
+      const track = pickBestDeezerTrack(response?.data, song);
+      const value = metaFromDeezerTrack(track);
       metaCache.set(song.code, { value, expires: Date.now() + (track ? META_TTL : EMPTY_TTL) });
       persistCache();
       return value;
