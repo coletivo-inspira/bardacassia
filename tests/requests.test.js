@@ -1,9 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  aheadLabel, firstName, formatClock, formatPhone, nextOccurrence, readCustomer, requestErrorMessage,
-  requestStatusLabel, roundSlotsLeft, roundSummary, saveCustomer, validateCustomer,
+  aheadLabel, filterStaffRequests, firstName, formatClock, formatPhone, nextOccurrence, readCustomer,
+  requestErrorMessage, requestStatusLabel, roundSlotsLeft, roundSummary, saveCustomer, splitStaffRequests,
+  validateCustomer,
 } from "../src/lib/requests.js";
+
+const staffRequests = [
+  { id: 3, status: "na_fila", paid_at: "2026-10-31T02:10:00Z", created_at: "2026-10-31T02:00:00Z", customer_name: "Bruno", customer_phone: "31911112222", code: "19019", title: "Talking to the Moon", artist: "Bruno Mars" },
+  { id: 1, status: "aguardando_pagamento", created_at: "2026-10-31T02:05:00Z", customer_name: "Alice Souza", customer_phone: "31987654321", code: "1234", title: "Infiel", artist: "Marília Mendonça" },
+  { id: 2, status: "na_fila", paid_at: "2026-10-31T02:01:00Z", created_at: "2026-10-31T01:50:00Z", customer_name: "Cássia", customer_phone: "31933334444", code: "5678", title: "Evidências", artist: "Chitãozinho & Xororó" },
+];
 
 function memoryStorage() {
   const data = new Map();
@@ -91,4 +98,18 @@ test("saveCustomer e readCustomer guardam os dados do cliente", () => {
   assert.deepEqual(readCustomer(storage), { name: "", phone: "" });
   saveCustomer({ name: " Alice ", phone: "(11) 98765-4321" }, storage);
   assert.deepEqual(readCustomer(storage), { name: "Alice", phone: "11987654321" });
+});
+
+test("splitStaffRequests ordena a fila pelo pagamento e os pendentes pela chegada", () => {
+  const { queue, pending } = splitStaffRequests(staffRequests);
+  assert.deepEqual(queue.map((request) => request.id), [2, 3]);
+  assert.deepEqual(pending.map((request) => request.id), [1]);
+});
+
+test("filterStaffRequests busca por nome sem acento, telefone e código", () => {
+  assert.deepEqual(filterStaffRequests(staffRequests, "cassia").map((request) => request.id), [2]);
+  assert.deepEqual(filterStaffRequests(staffRequests, "4321").map((request) => request.id), [1]);
+  assert.deepEqual(filterStaffRequests(staffRequests, "19019").map((request) => request.id), [3]);
+  assert.deepEqual(filterStaffRequests(staffRequests, "bruno mars").map((request) => request.id), [3]);
+  assert.equal(filterStaffRequests(staffRequests, "  ").length, 3);
 });

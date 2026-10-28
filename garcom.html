@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#141414" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Painel do garçom — Bar da Cácia</title>
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Outfit:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="staff-page">
+    <header class="staff-header">
+      <a class="staff-brand" href="index.html">
+        <img src="%BASE_URL%logo_bar_da_cacia.svg" alt="" width="36" height="36" />
+        <span>Painel do garçom</span>
+      </a>
+      <button id="staff-logout" class="staff-link" type="button" hidden>Sair</button>
+    </header>
+
+    <main class="staff-main">
+      <p id="staff-unconfigured" class="staff-notice" hidden>
+        O Supabase não está configurado neste site. Veja a seção “Pedidos de música” em docs/INTEGRACOES.md.
+      </p>
+
+      <form id="login-view" class="staff-card staff-login" hidden>
+        <h1>Entrar</h1>
+        <label for="staff-email">E-mail</label>
+        <input id="staff-email" type="email" autocomplete="username" required />
+        <label for="staff-password">Senha</label>
+        <input id="staff-password" type="password" autocomplete="current-password" required />
+        <button id="staff-login" class="staff-button staff-primary" type="submit">Entrar</button>
+        <p id="login-status" class="staff-status" role="status" aria-live="polite"></p>
+      </form>
+
+      <section id="panel-view" hidden>
+        <p id="staff-round" class="staff-round" aria-live="polite"></p>
+        <div class="staff-tabs" role="tablist" aria-label="Seções do painel">
+          <button id="tab-queue" class="staff-tab" type="button" role="tab" aria-selected="true" aria-controls="panel-queue">Fila <span id="queue-count">0</span></button>
+          <button id="tab-pending" class="staff-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-pending">A pagar <span id="pending-count">0</span></button>
+          <button id="tab-round" class="staff-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-round">Rodada</button>
+        </div>
+        <p id="staff-status" class="staff-status" role="status" aria-live="polite"></p>
+
+        <section id="panel-queue" class="staff-panel" role="tabpanel" aria-labelledby="tab-queue">
+          <article id="next-card" class="staff-card next-card" hidden>
+            <p class="next-label">Próxima música · digite no controle</p>
+            <p id="next-code" class="next-code"></p>
+            <p id="next-song" class="next-song"></p>
+            <p id="next-customer" class="next-customer"></p>
+            <div class="staff-actions">
+              <button id="next-played" class="staff-button staff-primary" type="button">Tocou ✓</button>
+              <button id="next-cancel" class="staff-button staff-ghost" type="button">Cancelar</button>
+            </div>
+          </article>
+          <p id="queue-empty" class="staff-empty">Nenhuma música paga na fila.</p>
+          <h2 id="queue-rest-title" class="staff-subtitle" hidden>Depois</h2>
+          <ol id="queue-rest" class="staff-list"></ol>
+        </section>
+
+        <section id="panel-pending" class="staff-panel" role="tabpanel" aria-labelledby="tab-pending" hidden>
+          <label class="visually-hidden" for="pending-search">Buscar por nome, telefone ou código</label>
+          <input id="pending-search" class="staff-search" type="search" placeholder="Buscar nome, telefone ou código" autocomplete="off" />
+          <ul id="pending-list" class="staff-list"></ul>
+          <p id="pending-empty" class="staff-empty">Nenhum pedido aguardando pagamento.</p>
+        </section>
+
+        <section id="panel-round" class="staff-panel" role="tabpanel" aria-labelledby="tab-round" hidden>
+          <form id="round-form" class="staff-card staff-round-form">
+            <label class="staff-check"><input id="round-open" type="checkbox" /> Fila aberta para novos pedidos</label>
+            <label for="round-limit">Músicas por rodada (0 = sem limite)</label>
+            <input id="round-limit" type="number" min="0" max="200" inputmode="numeric" />
+            <label for="round-next">Horário da próxima rodada</label>
+            <input id="round-next" type="time" />
+            <label for="round-message">Aviso para os clientes (opcional)</label>
+            <input id="round-message" type="text" maxlength="200" placeholder="Ex.: fila reabre às 2h em ponto" />
+            <button class="staff-button staff-primary" type="submit">Salvar</button>
+            <button id="round-new" class="staff-button staff-ghost" type="button">Começar nova rodada (zera vagas e abre a fila)</button>
+          </form>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="/src/garcom.js"></script>
+  </body>
+</html>

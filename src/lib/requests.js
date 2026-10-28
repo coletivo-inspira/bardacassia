@@ -1,3 +1,5 @@
+import { normalizeText } from "./catalog.js";
+
 export const CUSTOMER_KEY = "bdc-customer-v1";
 
 export function normalizePhone(raw) {
@@ -83,6 +85,24 @@ export function nextOccurrence(time, now = new Date()) {
   date.setHours(hours, minutes, 0, 0);
   if (date <= now) date.setDate(date.getDate() + 1);
   return date;
+}
+
+const byTime = (key) => (a, b) => String(a[key] || "").localeCompare(String(b[key] || "")) || Number(a.id) - Number(b.id);
+
+export function splitStaffRequests(requests = []) {
+  return {
+    queue: requests.filter((request) => request.status === "na_fila").sort(byTime("paid_at")),
+    pending: requests.filter((request) => request.status === "aguardando_pagamento").sort(byTime("created_at")),
+  };
+}
+
+export function filterStaffRequests(requests, query) {
+  const needle = normalizeText(query);
+  const digits = normalizePhone(query);
+  if (!needle) return requests;
+  return requests.filter((request) => normalizeText(request.customer_name).includes(needle)
+    || normalizeText(`${request.title} ${request.artist}`).includes(needle)
+    || (digits && (String(request.customer_phone).includes(digits) || String(request.code).startsWith(digits))));
 }
 
 const ERROR_MESSAGES = {
