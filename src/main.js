@@ -11,7 +11,7 @@ import {
   isInteractiveSwipeTarget,
 } from "./lib/discovery-swipe.js";
 import { fetchPopularSongs, popularityNeedsUpdate, recordSongOpen, setSongFavorite } from "./integrations/popularity.js";
-import { hideExpiredEventNav, initializeTheme } from "./site.js";
+import { hideExpiredEventNav, initializeAccountMenu, initializeTheme } from "./site.js";
 
 const BASE = import.meta.env.BASE_URL || "/";
 const PAGE_SIZE = 40;
@@ -1872,4 +1872,5 @@ async function init() {
 }
 
 hideExpiredEventNav();
+void initializeAccountMenu();
 init();
