@@ -144,7 +144,6 @@
           </div>
           <p id="spotify-status" class="integration-status" role="status" aria-live="polite" hidden></p>
           <div class="night-list-access">
-            <button id="open-night-list" class="discovery-button" type="button">Minha lista da noite <span id="night-list-count" class="favorite-count">0</span></button>
             <button id="open-requests" class="discovery-button" type="button" hidden>Meus pedidos <span id="requests-count" class="favorite-count">0</span></button>
           </div>
           <div id="round-banner" class="round-banner" hidden>
@@ -175,44 +174,18 @@
                 </button>
               </div>
             </div>
+            <section id="favorite-tabs" class="favorite-tabs" aria-label="Abas das favoritas" hidden>
+              <div id="favorite-tab-list" class="favorite-tab-list" role="tablist" aria-label="Suas abas"></div>
+              <div class="favorite-tab-actions">
+                <button id="new-favorite-tab" class="text-button" type="button">+ Nova aba</button>
+                <button id="rename-favorite-tab" class="text-button" type="button">Renomear aba</button>
+                <button id="clear-favorite-tab" class="text-button" type="button">Limpar aba</button>
+                <button id="delete-favorite-tab" class="text-button" type="button">Apagar aba</button>
+              </div>
+            </section>
             <section id="related-artists" class="related-artists" aria-labelledby="related-title" hidden>
               <h3 id="related-title">Artistas relacionados no catálogo</h3>
               <div id="related-list" class="related-list"></div>
-            </section>
-            <section id="discovery-view" class="discovery-view" aria-labelledby="discovery-title" hidden>
-              <div class="discovery-heading">
-                <p class="eyebrow">Sua noite, sua trilha</p>
-                <h3 id="discovery-title">Descobrir o que cantar</h3>
-                <p id="discovery-description">Escolha três artistas para receber sugestões do catálogo.</p>
-              </div>
-              <div id="artist-picker" class="artist-picker">
-                <label for="artist-search">Quais artistas você curte?</label>
-                <input id="artist-search" type="search" placeholder="Buscar artista" autocomplete="off" />
-                <p id="artist-selection-count" class="integration-status" aria-live="polite">0 de 3 selecionados</p>
-                <div id="artist-options" class="artist-options" role="group" aria-label="Artistas disponíveis"></div>
-                <div class="discovery-actions">
-                  <button id="start-discovery" class="button button-light" type="button" disabled>Ver sugestões</button>
-                  <button id="skip-artist-picker" class="text-button" type="button">Pular por enquanto</button>
-                </div>
-              </div>
-              <div id="discovery-cards" class="discovery-cards" hidden>
-                <div class="discovery-card-toolbar">
-                  <span id="card-position"></span>
-                  <button id="undo-discovery" class="text-button" type="button" disabled>Desfazer</button>
-                </div>
-                <div class="discovery-deck">
-                  <article id="discovery-card" class="discovery-card" aria-live="polite"></article>
-                </div>
-                <p class="swipe-hint">← Passar <span>Arraste o cartão</span> Quero cantar →</p>
-                <div class="card-actions">
-                  <button id="pass-song" class="button button-ghost" type="button">Passar</button>
-                  <button id="choose-song" class="button button-light" type="button">Quero cantar</button>
-                </div>
-                <div class="discovery-secondary-actions">
-                  <button id="change-artists" class="text-button" type="button">Alterar meus artistas</button>
-                  <button id="restart-passed" class="text-button" type="button" hidden>Ver músicas passadas</button>
-                </div>
-              </div>
             </section>
             <section id="popular-view" class="popular-view" aria-labelledby="popular-title" hidden>
               <h3 id="popular-title">Mais populares</h3>
@@ -311,15 +284,77 @@
       </form>
     </dialog>
 
-    <dialog id="night-list-dialog" aria-labelledby="night-list-title">
-      <section class="dialog-card night-list-card">
-        <button id="close-night-list" class="dialog-close" type="button" aria-label="Fechar lista">×</button>
-        <h2 id="night-list-title">Minha lista da noite</h2>
-        <p class="night-list-note">Sua lista fica salva neste navegador.</p>
-        <div id="night-list-items" class="night-list-items"></div>
-        <p id="night-list-empty" class="empty-state">Ainda não tem músicas na lista. Explore as sugestões e toque em “Quero cantar”.</p>
-        <button id="reset-night" class="button button-ghost reset-night" type="button">Começar nova noite</button>
-      </section>
+    <button id="open-discover" class="discover-fab" type="button" aria-haspopup="dialog" aria-controls="discover-dialog">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 18V5.5l11-2.2V16" /><circle cx="6.5" cy="18" r="2.5" /><circle cx="17.5" cy="16" r="2.5" /></svg>
+      <span>Descobrir minha música</span>
+    </button>
+
+    <dialog id="discover-dialog" class="discover-screen" aria-labelledby="discovery-title">
+      <div class="discover-screen-inner">
+        <header class="discover-screen-header">
+          <button id="discover-back" class="discover-nav-btn" type="button" aria-label="Voltar ao passo anterior" hidden>
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" /></svg>
+          </button>
+          <ol class="discover-steps" aria-label="Etapas">
+            <li data-step="genres">Estilos</li>
+            <li data-step="artists">Artistas</li>
+            <li data-step="cards">Músicas</li>
+          </ol>
+          <button id="close-discover" class="discover-nav-btn" type="button" aria-label="Fechar descobrir minha música">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          </button>
+        </header>
+        <div class="discovery-heading">
+          <p class="eyebrow">Sua noite, sua trilha</p>
+          <h2 id="discovery-title">Que estilos você gosta de cantar?</h2>
+          <p id="discovery-description">Escolha um ou mais estilos. Eles guiam as sugestões de músicas.</p>
+        </div>
+
+        <section id="step-genres" class="discover-step" aria-label="Estilos musicais">
+          <div id="genre-options" class="genre-options" role="group" aria-label="Estilos musicais"></div>
+          <div class="discovery-actions">
+            <button id="confirm-genres" class="button button-light" type="button" disabled>Continuar</button>
+          </div>
+        </section>
+
+        <section id="step-artists" class="discover-step artist-picker" aria-label="Artistas" hidden>
+          <div class="artist-picker-tools">
+            <label class="visually-hidden" for="artist-search">Buscar artista</label>
+            <input id="artist-search" type="search" placeholder="Buscar artista" autocomplete="off" />
+            <div class="results-view-toggle" role="group" aria-label="Visualização dos artistas">
+              <button type="button" id="artist-view-grid" class="view-toggle-btn" aria-pressed="true">Quadrados</button>
+              <button type="button" id="artist-view-list" class="view-toggle-btn" aria-pressed="false">Lista</button>
+            </div>
+          </div>
+          <p id="artist-selection-count" class="integration-status" aria-live="polite">Nenhum artista selecionado</p>
+          <div id="artist-options" class="artist-options artist-options--grid" role="group" aria-label="Artistas disponíveis"></div>
+          <div class="discovery-actions discover-sticky-actions">
+            <button id="start-discovery" class="button button-light" type="button" disabled>Ver sugestões</button>
+            <button id="skip-artist-picker" class="text-button" type="button">Pular</button>
+          </div>
+        </section>
+
+        <section id="discovery-cards" class="discover-step discovery-cards" aria-label="Sugestões" hidden>
+          <div class="discovery-card-toolbar">
+            <span id="card-position"></span>
+            <button id="undo-discovery" class="text-button" type="button" disabled>Desfazer</button>
+          </div>
+          <div class="discovery-deck">
+            <article id="discovery-card" class="discovery-card" aria-live="polite"></article>
+          </div>
+          <p class="swipe-hint">← Passar <span>Arraste o cartão</span> Quero cantar →</p>
+          <div class="card-actions">
+            <button id="pass-song" class="button button-ghost" type="button">Passar</button>
+            <button id="choose-song" class="button button-light" type="button">Quero cantar</button>
+          </div>
+          <p class="discover-saved-note">“Quero cantar” salva na aba Rascunho das suas Favoritas.</p>
+          <div class="discovery-secondary-actions">
+            <button id="change-artists" class="text-button" type="button">Alterar estilos e artistas</button>
+            <button id="restart-passed" class="text-button" type="button" hidden>Ver músicas passadas</button>
+            <button id="go-to-favorites" class="text-button" type="button">Ver minhas favoritas</button>
+          </div>
+        </section>
+      </div>
     </dialog>
 
     <dialog id="requests-dialog" aria-labelledby="requests-title">
@@ -345,7 +380,6 @@
         <p id="artist-songs-note" class="night-list-note">Músicas deste artista no catálogo do karaokê.</p>
         <div id="artist-songs-items" class="night-list-items artist-songs-items"></div>
         <p id="artist-songs-empty" class="empty-state" hidden>Nenhuma música deste artista no catálogo.</p>
-        <button id="back-to-night-list" class="button button-ghost reset-night" type="button" hidden>Voltar à lista da noite</button>
       </section>
     </dialog>
 

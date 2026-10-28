@@ -17,7 +17,7 @@ export function filterArtists(artists, query) {
   return artists.filter(({ name }) => normalizeText(name).includes(normalized));
 }
 
-export function buildDiscoveryQueue(songs, artists, popularSongs = [], editorialArtists = []) {
+function roundRobinByArtist(songs, artists, source) {
   const byArtist = new Map();
   const chosenKeys = new Set(artists.map((name) => normalizeText(name)));
   for (const song of songs) {
@@ -26,18 +26,32 @@ export function buildDiscoveryQueue(songs, artists, popularSongs = [], editorial
     if (!byArtist.has(artist)) byArtist.set(artist, []);
     byArtist.get(artist).push(song);
   }
-  const personal = [];
+  const result = [];
   let remaining = true;
   while (remaining) {
     remaining = false;
     for (const name of artists) {
       const next = byArtist.get(normalizeText(name))?.shift();
       if (next) {
-        personal.push({ ...next, source: "Artista escolhido" });
+        result.push({ ...next, source });
         remaining = true;
       }
     }
   }
+  return result;
+}
+
+/**
+ * Chosen artists lead; songs from the chosen styles' artists follow, then popular/editorial.
+ * `selection` may be a plain artist list (legacy) or `{ artists, genreArtists }`.
+ */
+export function buildDiscoveryQueue(songs, selection, popularSongs = [], editorialArtists = []) {
+  const { artists = [], genreArtists = [] } = Array.isArray(selection) ? { artists: selection } : selection || {};
+  const chosenKeys = new Set(artists.map(normalizeText));
+  const personal = [
+    ...roundRobinByArtist(songs, artists, "Artista escolhido"),
+    ...roundRobinByArtist(songs, genreArtists.filter((name) => !chosenKeys.has(normalizeText(name))), "Do estilo escolhido"),
+  ];
 
   let editorial = [];
   if (!popularSongs.length && editorialArtists.length) {
@@ -73,17 +87,19 @@ export function sanitizeDiscoveryState(value, songCodes) {
     ? [...new Set(items.filter((item) => typeof item === "string").map(String))].slice(0, max)
     : [];
   if (!value || typeof value !== "object" || Array.isArray(value)) return emptyDiscoveryState();
-  const artists = [...new Map(validStrings(value.artists, 50).map((name) => name.slice(0, 120)).map((name) => [normalizeText(name), name]).filter(([key]) => key)).values()].slice(0, 3);
+  const artists = [...new Map(validStrings(value.artists, 500).map((name) => name.slice(0, 120)).map((name) => [normalizeText(name), name]).filter(([key]) => key)).values()];
+  const genres = validStrings(value.genres, 50).map((id) => id.slice(0, 40));
   const queue = validStrings(value.queue).filter((code) => allowed.has(code)).slice(0, 2000);
   const list = validStrings(value.list).slice(0, 2000);
   const seen = validStrings(value.seen).slice(0, 2000);
   const passed = validStrings(value.passed).filter((code) => allowed.has(code)).slice(0, 2000);
   const history = Array.isArray(value.history) ? value.history.slice(-1).map((entry) => {
     if (!entry || !["pass", "choose"].includes(entry.action) || typeof entry.code !== "string" || !allowed.has(entry.code)) return null;
-    return { action: entry.action, code: entry.code, index: Number.isInteger(entry.index) ? Math.max(0, entry.index) : 0 };
+    return { action: entry.action, code: entry.code, index: Number.isInteger(entry.index) ? Math.max(0, entry.index) : 0, added: entry.added === true };
   }).filter(Boolean) : [];
   return {
-    version: 1,
+    version: 2,
+    genres,
     artists,
     queue,
     index: Math.max(0, Math.min(Number.isInteger(value.index) ? value.index : 0, queue.length)),
@@ -95,5 +111,5 @@ export function sanitizeDiscoveryState(value, songCodes) {
 }
 
 export function emptyDiscoveryState() {
-  return { version: 1, artists: [], queue: [], index: 0, seen: [], passed: [], list: [], history: [] };
+  return { version: 2, genres: [], artists: [], queue: [], index: 0, seen: [], passed: [], list: [], history: [] };
 }

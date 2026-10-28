@@ -66,7 +66,7 @@ test("recupera estado de descoberta validado contra os códigos ativos", () => {
   assert.deepEqual(state.queue, ["102"]);
   assert.deepEqual(state.list, ["102", "104"]);
   assert.deepEqual(state.passed, ["102"]);
-  assert.deepEqual(state.history, [{ action: "pass", code: "102", index: 0 }]);
+  assert.deepEqual(state.history, [{ action: "pass", code: "102", index: 0, added: false }]);
 });
 
 test('combina idioma, artista, favoritas e texto, preservando códigos', () => {
