@@ -11,6 +11,7 @@ export default defineConfig({
         main: resolve(__dirname, "index.html"),
         evento: resolve(__dirname, "evento.html"),
         oBar: resolve(__dirname, "o-bar.html"),
+        garcom: resolve(__dirname, "garcom.html"),
         login: resolve(__dirname, "login.html"),
       },
     },

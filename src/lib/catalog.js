@@ -10,6 +10,17 @@ export function normalizeText(value) {
     .replace(/\s+/g, " ");
 }
 
+export function displayTitle(title) {
+  const t = String(title || "").trim();
+  if (!t) return t;
+  const letters = t.replace(/[^A-Za-zÀ-ÿ]/g, "");
+  const upperRatio = letters ? [...letters].filter((c) => c === c.toUpperCase()).length / letters.length : 0;
+  if (upperRatio < 0.7) return t;
+  return t
+    .toLocaleLowerCase("pt-BR")
+    .replace(/(^|[\s\-–—/((])([\p{L}])/gu, (_, sep, ch) => sep + ch.toLocaleUpperCase("pt-BR"));
+}
+
 export function cleanArtist(value) {
   return String(value || "").replace(/\.\.\.$/, "").trim();
 }
