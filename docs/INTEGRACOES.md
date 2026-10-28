@@ -164,9 +164,24 @@ Se surgirem regras de negócio pesadas, uma opção é Node (Fastify) + Postgres
 
 ## Pedidos de música e painel do garçom
 
-A migração está em `supabase/migrations/004_song_requests.sql`. Os módulos são `src/song-requests.js` (cliente), `src/garcom.js` (painel) e `src/integrations/requests.js`, que usa o cliente compartilhado de `src/integrations/supabase.js`.
+As migrações estão em `supabase/migrations/004_song_requests.sql` a `007_request_presence.sql`. Os módulos são `src/qr-request.js` e `src/song-requests.js` (cliente), `src/garcom.js` (painel), `src/cartaz.js` (cartaz) e `src/integrations/requests.js`, que usa o cliente compartilhado de `src/integrations/supabase.js`.
 
-### Fluxo
+Há dois modos, escolhidos por `VITE_REQUEST_MODE` (no GitHub Actions, a variável `REQUEST_MODE`):
+
+| Modo | Quem cria o pedido | Pedido feito de casa |
+| --- | --- | --- |
+| `qr` (padrão) | O garçom, ao ler o QR do cliente | Impossível: o aparelho do cliente não grava nada |
+| `remoto` | O próprio cliente | Barrado pelo código da noite, se ativado |
+
+### Fluxo pelo QR (padrão)
+
+1. O cliente abre a música, informa o primeiro nome (opcional) e toca em **Mostrar ao garçom**. O site gera localmente um QR com o endereço `garcom.html#add=<código>&t=<ticket>&n=<nome>`, sem chamar o servidor. O `ticket` é um UUID aleatório guardado no aparelho (`bdc-qr-tickets-v1`) e reaproveitado para a mesma música até ela tocar.
+2. O garçom aponta a câmera do celular para o QR, e o painel abre com o cartão **Pedido pelo QR**, mostrando o código, a música e o nome. Se ele ainda não tiver entrado, o pedido fica guardado e aparece logo depois do login. Também dá para usar o botão **Ler QR** do painel, que usa `BarcodeDetector` ou `jsQR`, ou digitar o código da música.
+3. Depois de cobrar, ele toca em **Cobrei, pôr na fila**. `staff_add_request` cria o pedido já como `na_fila`, registra quem o criou e respeita o limite da rodada. Ler o mesmo QR de novo não duplica o pedido: o painel avisa para não cobrar outra vez.
+4. Enquanto o QR está na tela, o aparelho do cliente consulta `get_ticket_status` (sem criar sessão) a cada 8 segundos e mostra "Confirmado! Faltam N músicas antes da sua".
+5. A aba **Fila** mostra a próxima música com o código para digitar no controle e, embaixo, **Tocadas hoje**.
+
+### Fluxo remoto (`VITE_REQUEST_MODE=remoto`)
 
 1. O cliente abre uma música e toca em **Pedir esta música**. Nome e telefone ficam salvos neste aparelho (`bdc-customer-v1`) e são enviados com o pedido, que fica como `aguardando_pagamento`.
 2. O site pede para ele ir ao bar pagar. No bar, o garçom busca pelo nome, telefone ou código na aba **A pagar** e toca em **Pago**. O pedido passa a `na_fila`, ordenado pelo horário do pagamento.
@@ -177,9 +192,37 @@ A migração está em `supabase/migrations/004_song_requests.sql`. Os módulos s
 
 Na aba **Rodada**, o garçom abre ou fecha a fila, define quantas músicas cabem na rodada (padrão 13; 0 = sem limite), o horário da próxima rodada e um aviso opcional. Quando o último pagamento preenche a rodada, a fila fecha sozinha. **Começar nova rodada** zera as vagas e reabre a fila. O site mostra uma faixa com o estado, por exemplo “Fila fechada · próxima rodada às 02:00”. Com a fila fechada, novos pedidos são recusados.
 
+### Código da noite (modo remoto)
+
+Na aba **Rodada**, o garçom pode exigir um código curto (por exemplo `K7PX`, gerado pelo botão **Gerar código novo**) e mostrá-lo no balcão ou na tela do karaokê. Sem ele, `create_song_request` recusa o pedido, o que barra quem pede de casa pelo link do Instagram. Além disso, pedidos não pagos expiram em 30 minutos, e o bar aceita no máximo 40 pedidos aguardando pagamento ao mesmo tempo, para um bot com muitas sessões anônimas não lotar a lista. O código nunca é enviado ao público: `get_public_queue` só informa se ele é exigido.
+
+Um CAPTCHA (Turnstile) no pedido exigiria validar o token numa Edge Function antes de gravar, porque o SQL não consegue chamar a Cloudflare. No modo QR isso não é necessário.
+
+### Resultados para o dono
+
+Quem está cadastrado com `role = 'dono'` vê a aba **Resultados**, alimentada por `owner_metrics` (migração `006_owner_metrics.sql`). Ela mostra, para 7, 30 ou 90 dias: músicas pedidas e pagas, média por noite, clientes que pediram, espera média até tocar, aparelhos que abriram músicas, contas cadastradas, pedidos por noite e por dia da semana, as mais pedidas e os pedidos por garçom. A "noite" começa às 18h no horário de Brasília, então um pedido às 2h conta para a noite anterior.
+
+```sql
+update public.staff set role = 'dono'
+where user_id = (select id from auth.users where email = 'dono@exemplo.com');
+```
+
+### Acessos ao site (analytics)
+
+`VITE_ANALYTICS_ID` (no GitHub Actions, a variável `ANALYTICS_ID`) liga as estatísticas de acesso nas páginas públicas:
+
+- `G-XXXXXXX` usa o **Google Analytics 4**, com os eventos `busca`, `abrir_musica` e `mostrar_qr`. Nenhum nome ou telefone é enviado.
+- Qualquer outro valor é tratado como o token do **Cloudflare Web Analytics**, que é grátis, não usa cookies e conta visitas, mas não recebe eventos.
+
+O cartaz aponta para o site com `?origem=mesa` (ou balcão, banheiro, instagram). A origem fica na sessão e acompanha os eventos, o que mostra quantos clientes chegaram pelo cartaz e quantos pelo link do Instagram. Para o link da bio, use `…/?origem=instagram`.
+
+### Cartaz para imprimir
+
+`cartaz.html` gera um cartaz em A5 (mesa) ou A4 (parede) com o QR do catálogo, a logo e as instruções. Escolha o tamanho e a origem e toque em **Imprimir**. Com domínio próprio, defina `VITE_SITE_URL` (variável `SITE_URL`) para o QR apontar sempre para ele.
+
 ### Configuração
 
-1. Aplique a migração `004_song_requests.sql` depois da 001, 002 e 003, pelo workflow `supabase.yml` ou pelo SQL Editor. Se as anteriores foram aplicadas à mão, inclua `004` no `supabase migration repair`.
+1. Aplique as migrações `004` a `007` depois da 001, 002 e 003, pelo workflow `supabase.yml` ou pelo SQL Editor. Se as anteriores foram aplicadas à mão, inclua as novas no `supabase migration repair`.
 2. Mantenha os Anonymous Sign-Ins ativos. Visitantes pedem com a sessão anônima; quem está logado pede com a própria conta.
 3. Crie um usuário para cada garçom em Authentication > Users > Add user, com e-mail e senha e a opção de confirmar automaticamente.
 4. Autorize esse usuário no painel:
@@ -198,7 +241,8 @@ Nenhuma variável nova é obrigatória: `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANO
 
 - As tabelas `song_requests`, `staff` e `bar_settings` têm RLS e nenhum acesso direto; tudo passa pelas RPCs.
 - As RPCs `staff_*` exigem um usuário cadastrado em `public.staff`. Uma sessão anônima não lê telefones nem altera a fila.
-- Cada sessão (anônima ou conta) pode ter até três pedidos aguardando pagamento e segue o limite de 120 gravações por minuto.
+- No modo QR, só garçons logados gravam pedidos. O cliente só consulta o status do próprio ticket, que é um UUID aleatório.
+- No modo remoto, cada sessão (anônima ou conta) pode ter até três pedidos aguardando pagamento e segue o limite de 120 gravações por minuto. Há também o teto global de 40 pendentes e a expiração em 30 minutos.
 - O painel e “Meus pedidos” mostram apenas as últimas 18 horas.
 - A fila é a do sistema, não a do telão: o garçom marca “Tocou” quando coloca a música.
 

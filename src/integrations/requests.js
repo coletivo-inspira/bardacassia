@@ -6,6 +6,9 @@ const REQUESTS_ENABLED = String(import.meta.env.VITE_ENABLE_REQUESTS || "true") 
 
 export const requestsConfigured = supabaseConfigured && REQUESTS_ENABLED;
 
+/** "qr": o cliente só mostra um QR e o garçom cria o pedido. "remoto": o cliente pede sozinho. */
+export const requestMode = String(import.meta.env.VITE_REQUEST_MODE || "qr") === "remoto" ? "remoto" : "qr";
+
 export class RequestError extends Error {
   constructor(message, { status = 0, code = "", hint = "" } = {}) {
     super(message);
@@ -28,8 +31,8 @@ async function customerRpc(name, params) {
   return call(name, params);
 }
 
-export function createSongRequest({ code, name, phone }) {
-  return customerRpc("create_song_request", { p_code: String(code), p_name: name, p_phone: phone });
+export function createSongRequest({ code, name, phone, nightCode = "" }) {
+  return customerRpc("create_song_request", { p_code: String(code), p_name: name, p_phone: phone, p_night_code: nightCode });
 }
 
 export async function fetchMyRequests() {
@@ -38,6 +41,11 @@ export async function fetchMyRequests() {
 
 export function fetchPublicQueue() {
   return customerRpc("get_public_queue");
+}
+
+/** Leitura anônima: não cria sessão no aparelho do cliente. */
+export function fetchTicketStatus(ticket) {
+  return call("get_ticket_status", { p_ticket: ticket });
 }
 
 /** Staff use a permanent account; an anonymous visitor session does not count. */
@@ -79,6 +87,15 @@ export const staffGetSettings = () => staffRpc("staff_get_settings", {});
 export const staffMarkPaid = (id) => staffRpc("staff_mark_paid", { p_id: id });
 export const staffMarkPlayed = (id) => staffRpc("staff_mark_played", { p_id: id });
 export const staffCancel = (id) => staffRpc("staff_cancel", { p_id: id });
+export const staffAddRequest = ({ code, name, ticket }) => staffRpc("staff_add_request", { p_code: String(code), p_name: name || "", p_ticket: ticket });
+export const staffWhoami = () => staffRpc("staff_whoami", {});
+export const staffGetNightCode = () => staffRpc("staff_get_night_code", {});
+export const staffSetNightCode = ({ required, code }) => staffRpc("staff_set_night_code", { p_required: Boolean(required), p_code: code || "" });
+export const ownerMetrics = ({ from, to }) => staffRpc("owner_metrics", { p_from: from.toISOString(), p_to: to.toISOString() });
+
+export async function staffListPlayed() {
+  return (await staffRpc("staff_list_played", {})) || [];
+}
 
 export function staffUpdateSettings({ queueOpen, roundLimit, nextRoundAt, message, newRound = false }) {
   return staffRpc("staff_update_settings", {

@@ -20,7 +20,10 @@
         <img src="%BASE_URL%logo_bar_da_cacia.svg" alt="" width="36" height="36" />
         <span>Painel do garçom</span>
       </a>
-      <button id="staff-logout" class="staff-link" type="button" hidden>Sair</button>
+      <div class="staff-header-actions">
+        <button id="staff-scan" class="staff-button staff-primary staff-small" type="button" hidden>Ler QR</button>
+        <button id="staff-logout" class="staff-link" type="button" hidden>Sair</button>
+      </div>
     </header>
 
     <main class="staff-main">
@@ -41,9 +44,20 @@
 
       <section id="panel-view" hidden>
         <p id="staff-round" class="staff-round" aria-live="polite"></p>
+        <article id="ticket-card" class="staff-card ticket-card" aria-labelledby="ticket-title" hidden>
+          <p id="ticket-title" class="next-label">Pedido pelo QR · cobre e confirme</p>
+          <p id="ticket-code" class="next-code"></p>
+          <p id="ticket-song" class="next-song"></p>
+          <p id="ticket-customer" class="next-customer"></p>
+          <div class="staff-actions">
+            <button id="ticket-confirm" class="staff-button staff-primary" type="button">Cobrei, pôr na fila ✓</button>
+            <button id="ticket-dismiss" class="staff-button staff-ghost" type="button">Descartar</button>
+          </div>
+        </article>
         <div class="staff-tabs" role="tablist" aria-label="Seções do painel">
           <button id="tab-queue" class="staff-tab" type="button" role="tab" aria-selected="true" aria-controls="panel-queue">Fila <span id="queue-count">0</span></button>
           <button id="tab-pending" class="staff-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-pending">A pagar <span id="pending-count">0</span></button>
+          <button id="tab-results" class="staff-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-results" hidden>Resultados</button>
           <button id="tab-round" class="staff-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-round">Rodada</button>
         </div>
         <p id="staff-status" class="staff-status" role="status" aria-live="polite"></p>
@@ -62,6 +76,8 @@
           <p id="queue-empty" class="staff-empty">Nenhuma música paga na fila.</p>
           <h2 id="queue-rest-title" class="staff-subtitle" hidden>Depois</h2>
           <ol id="queue-rest" class="staff-list"></ol>
+          <h2 id="played-title" class="staff-subtitle" hidden>Tocadas hoje</h2>
+          <ol id="played-list" class="staff-list staff-played"></ol>
         </section>
 
         <section id="panel-pending" class="staff-panel" role="tabpanel" aria-labelledby="tab-pending" hidden>
@@ -69,6 +85,25 @@
           <input id="pending-search" class="staff-search" type="search" placeholder="Buscar nome, telefone ou código" autocomplete="off" />
           <ul id="pending-list" class="staff-list"></ul>
           <p id="pending-empty" class="staff-empty">Nenhum pedido aguardando pagamento.</p>
+        </section>
+
+        <section id="panel-results" class="staff-panel" role="tabpanel" aria-labelledby="tab-results" hidden>
+          <div class="results-ranges" role="group" aria-label="Período">
+            <button class="staff-button staff-ghost staff-small results-range" type="button" data-range="7d">7 dias</button>
+            <button class="staff-button staff-ghost staff-small results-range" type="button" data-range="30d" aria-pressed="true">30 dias</button>
+            <button class="staff-button staff-ghost staff-small results-range" type="button" data-range="90d">90 dias</button>
+          </div>
+          <p id="results-status" class="staff-status" role="status" aria-live="polite"></p>
+          <div id="results-cards" class="results-cards"></div>
+          <h2 class="staff-subtitle">Pedidos por noite</h2>
+          <ol id="results-nights" class="results-bars"></ol>
+          <h2 class="staff-subtitle">Por dia da semana</h2>
+          <ol id="results-weekdays" class="results-bars"></ol>
+          <h2 class="staff-subtitle">Mais pedidas</h2>
+          <ol id="results-top" class="results-bars"></ol>
+          <h2 class="staff-subtitle">Pedidos por garçom</h2>
+          <ol id="results-staff" class="results-bars"></ol>
+          <p class="staff-hint">Acessos ao site (visitas, origem pelo cartaz ou Instagram) ficam no Google Analytics ou Cloudflare, se configurados.</p>
         </section>
 
         <section id="panel-round" class="staff-panel" role="tabpanel" aria-labelledby="tab-round" hidden>
@@ -83,9 +118,35 @@
             <button class="staff-button staff-primary" type="submit">Salvar</button>
             <button id="round-new" class="staff-button staff-ghost" type="button">Começar nova rodada (zera vagas e abre a fila)</button>
           </form>
+          <form id="night-form" class="staff-card staff-round-form night-form">
+            <h2 class="staff-subtitle">Código da noite (pedido pelo celular do cliente)</h2>
+            <p class="staff-hint">Só para quando o cliente pede sozinho, sem o QR. Mostre o código no balcão ou na tela do karaokê: quem está em casa não consegue pedir.</p>
+            <label class="staff-check"><input id="night-required" type="checkbox" /> Exigir código da noite</label>
+            <label for="night-code">Código</label>
+            <input id="night-code" type="text" maxlength="12" autocapitalize="characters" autocomplete="off" />
+            <button id="night-generate" class="staff-button staff-ghost" type="button">Gerar código novo</button>
+            <button class="staff-button staff-primary" type="submit">Salvar código</button>
+          </form>
         </section>
       </section>
     </main>
+
+    <dialog id="scan-dialog" class="scan-dialog" aria-labelledby="scan-title">
+      <div class="staff-card scan-card">
+        <h2 id="scan-title">Ler QR do cliente</h2>
+        <video id="scan-video" class="scan-video" playsinline muted></video>
+        <canvas id="scan-canvas" hidden></canvas>
+        <p id="scan-status" class="staff-status" role="status" aria-live="polite"></p>
+        <form id="manual-form" class="manual-form">
+          <label for="manual-code">Sem câmera? Digite o código da música</label>
+          <input id="manual-code" type="text" inputmode="numeric" pattern="[0-9]{1,6}" maxlength="6" autocomplete="off" />
+          <label for="manual-name">Nome do cliente (opcional)</label>
+          <input id="manual-name" type="text" maxlength="30" autocomplete="off" />
+          <button class="staff-button staff-primary" type="submit">Continuar</button>
+        </form>
+        <button id="scan-close" class="staff-button staff-ghost" type="button">Fechar</button>
+      </div>
+    </dialog>
 
     <script type="module" src="/src/garcom.js"></script>
   </body>

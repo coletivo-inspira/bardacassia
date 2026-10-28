@@ -78,6 +78,16 @@ export function roundSummary(state, options = {}) {
   return `Fila aberta · ${left === 1 ? "falta 1 vaga" : `faltam ${left} vagas`} nesta rodada`;
 }
 
+/** Código curto, sem letras confundíveis (O/0, I/1), para o garçom mostrar no balcão. */
+export function randomNightCode(length = 4, random = Math.random) {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from({ length }, () => alphabet[Math.floor(random() * alphabet.length)]).join("");
+}
+
+export function normalizeNightCode(raw) {
+  return String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+}
+
 // Converte "HH:MM" no próximo instante com esse horário (02:00 digitado às 23h é amanhã).
 export function nextOccurrence(time, now = new Date()) {
   const match = /^(\d{1,2}):(\d{2})$/.exec(String(time || "").trim());
@@ -106,7 +116,7 @@ export function filterStaffRequests(requests, query) {
   if (!needle) return requests;
   return requests.filter((request) => normalizeText(request.customer_name).includes(needle)
     || normalizeText(`${request.title} ${request.artist}`).includes(needle)
-    || (digits && (String(request.customer_phone).includes(digits) || String(request.code).startsWith(digits))));
+    || (digits && (String(request.customer_phone || "").includes(digits) || String(request.code).startsWith(digits))));
 }
 
 const ERROR_MESSAGES = {
@@ -118,6 +128,10 @@ const ERROR_MESSAGES = {
   pedido_nao_pendente: "Esse pedido já foi confirmado ou cancelado.",
   pedido_fora_da_fila: "Esse pedido não está mais na fila.",
   pedido_inativo: "Esse pedido já foi finalizado.",
+  codigo_noite_invalido: "Código da noite incorreto. Ele está no balcão ou na tela do karaokê.",
+  codigo_noite_vazio: "Defina o código da noite antes de exigi-lo.",
+  pendentes_lotado: "Muitos pedidos aguardando pagamento agora. Vá ao bar e peça ao garçom.",
+  qr_invalido: "QR inválido. Peça para o cliente abrir a música de novo.",
 };
 
 export function requestErrorMessage(error) {

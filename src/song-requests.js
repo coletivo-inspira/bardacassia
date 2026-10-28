@@ -1,7 +1,8 @@
-import { createSongRequest, fetchMyRequests, fetchPublicQueue, requestsConfigured } from "./integrations/requests.js";
+import { createSongRequest, fetchMyRequests, fetchPublicQueue, requestMode, requestsConfigured } from "./integrations/requests.js";
+import { clearQrRequest, initQrRequests, prepareQrRequest } from "./qr-request.js";
 import { cleanArtist, displayTitle } from "./lib/catalog.js";
 import {
-  formatClock, readCustomer, requestErrorMessage, requestStatusLabel, roundSummary, saveCustomer, songLabel,
+  normalizeNightCode, formatClock, readCustomer, requestErrorMessage, requestStatusLabel, roundSummary, saveCustomer, songLabel,
   validateCustomer,
 } from "./lib/requests.js";
 
@@ -17,6 +18,8 @@ const els = {
   phone: $("#request-phone"),
   nameError: $("#request-name-error"),
   phoneError: $("#request-phone-error"),
+  nightWrap: $("#request-night-wrap"),
+  night: $("#request-night"),
   send: $("#send-request"),
   status: $("#request-status"),
   seeQueue: $("#request-see-queue"),
@@ -134,6 +137,7 @@ function showForm() {
   const saved = readCustomer();
   if (!els.name.value) els.name.value = saved.name;
   if (!els.phone.value) els.phone.value = saved.phone;
+  els.nightWrap.hidden = !queueState?.night_code_required;
   els.start.hidden = true;
   els.form.hidden = false;
   (els.name.value ? els.phone.value ? els.send : els.phone : els.name).focus();
@@ -154,7 +158,7 @@ async function sendRequest() {
   els.status.textContent = "Enviando pedido…";
   const song = currentSong;
   try {
-    await createSongRequest({ code: song.code, ...result.value });
+    await createSongRequest({ code: song.code, ...result.value, nightCode: normalizeNightCode(els.night.value) });
     if (currentSong !== song) return;
     els.form.hidden = true;
     els.status.textContent = "Pedido enviado! Vá ao bar para pagar e entrar na fila.";
@@ -170,6 +174,7 @@ async function sendRequest() {
 
 export function prepareSongRequest(song) {
   if (!requestsConfigured) return;
+  if (requestMode === "qr") { prepareQrRequest(song); return; }
   currentSong = song;
   els.panel.hidden = false;
   els.start.hidden = false;
@@ -181,20 +186,24 @@ export function prepareSongRequest(song) {
 }
 
 export function clearSongRequest() {
+  clearQrRequest();
   currentSong = null;
 }
 
 export function initSongRequests() {
   if (!requestsConfigured) return;
+  // No modo QR o aparelho do cliente não grava nada: sem sessão anônima, sem pedidos pendentes.
+  if (requestMode === "qr") { initQrRequests(); return; }
   els.open.hidden = false;
   els.start.addEventListener("click", showForm);
   els.send.addEventListener("click", sendRequest);
   // Enter dentro do diálogo enviaria o <form method="dialog"> e fecharia a janela.
-  for (const input of [els.name, els.phone]) {
+  for (const input of [els.name, els.phone, els.night]) {
     input.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
       event.preventDefault();
       if (input === els.name) els.phone.focus();
+      else if (input === els.phone && !els.nightWrap.hidden) els.night.focus();
       else void sendRequest();
     });
   }

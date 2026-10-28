@@ -118,20 +118,50 @@ input:focus-visible, button:focus-visible { outline: 2px solid var(--amber); out
 }
 .staff-round[data-open="false"] { border-left-color: var(--coral); }
 
-.staff-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+.staff-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .4rem; }
+
+.staff-header-actions { display: flex; align-items: center; gap: .5rem; }
+.ticket-card { margin: 0 0 .75rem; text-align: center; border-color: var(--green); box-shadow: 0 0 0 2px rgba(62, 194, 122, .25); }
+.ticket-card .next-code { color: var(--green); }
+.staff-played .staff-item { opacity: .75; }
+
+.scan-dialog { width: min(480px, calc(100% - 1.5rem)); padding: 0; border: 0; background: transparent; color: var(--text); }
+.scan-dialog::backdrop { background: rgba(0, 0, 0, .75); }
+.scan-card { display: grid; gap: .5rem; }
+.scan-card h2 { margin: 0; font-size: 1.2rem; }
+.scan-video { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; background: #000; }
+.results-ranges { display: flex; gap: .4rem; margin-top: .75rem; }
+.results-range[aria-pressed="true"] { background: var(--text); color: #141414; }
+.results-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: .5rem; }
+.results-card { padding: .9rem; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+.results-card strong { display: block; font-family: "Bricolage Grotesque", Georgia, serif; font-size: 1.9rem; color: var(--amber); line-height: 1.1; }
+.results-card span { color: var(--muted); font-size: .85rem; }
+.results-bars { display: grid; gap: .35rem; margin: 0; padding: 0; list-style: none; }
+.results-bar { display: grid; grid-template-columns: minmax(0, 9rem) 1fr 2.5rem; align-items: center; gap: .5rem; font-size: .9rem; }
+.results-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.results-bar-track { display: block; height: 12px; border-radius: 999px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.results-bar-fill { display: block; height: 100%; border-radius: inherit; background: var(--amber); }
+.results-bar-value { text-align: right; font-weight: 700; }
+.results-empty { color: var(--muted); font-size: .9rem; }
+.night-form { margin-top: .75rem; }
+.night-form .staff-subtitle { margin: 0; color: var(--text); }
+#night-code { text-transform: uppercase; letter-spacing: .2em; font-weight: 700; }
+.manual-form { display: grid; gap: .4rem; padding-top: .5rem; border-top: 1px solid var(--line); }
 .staff-tab {
   min-height: 48px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: transparent;
+  padding: 0 .2rem;
   color: var(--muted);
-  font: 700 1rem "Outfit", system-ui, sans-serif;
+  font: 700 .9rem "Outfit", system-ui, sans-serif;
+  white-space: nowrap;
   cursor: pointer;
 }
 .staff-tab span {
   display: inline-block;
-  min-width: 1.5rem;
-  margin-left: .25rem;
+  min-width: 1.3rem;
+  margin-left: .15rem;
   padding: 0 .35rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, .12);
