@@ -139,8 +139,8 @@ input:focus-visible, button:focus-visible { outline: 2px solid var(--amber); out
 .results-bars { display: grid; gap: .35rem; margin: 0; padding: 0; list-style: none; }
 .results-bar { display: grid; grid-template-columns: minmax(0, 9rem) 1fr 2.5rem; align-items: center; gap: .5rem; font-size: .9rem; }
 .results-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
-.results-bar-track { height: 12px; border-radius: 999px; background: rgba(255, 255, 255, .08); overflow: hidden; }
-.results-bar-fill { height: 100%; border-radius: inherit; background: var(--amber); }
+.results-bar-track { display: block; height: 12px; border-radius: 999px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.results-bar-fill { display: block; height: 100%; border-radius: inherit; background: var(--amber); }
 .results-bar-value { text-align: right; font-weight: 700; }
 .results-empty { color: var(--muted); font-size: .9rem; }
 .night-form { margin-top: .75rem; }
@@ -152,14 +152,16 @@ input:focus-visible, button:focus-visible { outline: 2px solid var(--amber); out
   border: 1px solid var(--line);
   border-radius: 12px;
   background: transparent;
+  padding: 0 .2rem;
   color: var(--muted);
-  font: 700 1rem "Outfit", system-ui, sans-serif;
+  font: 700 .9rem "Outfit", system-ui, sans-serif;
+  white-space: nowrap;
   cursor: pointer;
 }
 .staff-tab span {
   display: inline-block;
-  min-width: 1.5rem;
-  margin-left: .25rem;
+  min-width: 1.3rem;
+  margin-left: .15rem;
   padding: 0 .35rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, .12);
