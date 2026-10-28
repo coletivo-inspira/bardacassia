@@ -2844,3 +2844,64 @@ body {
   .discovery-card-content { padding: 1rem; min-height: 300px; }
   .discovery-card-content > img, .discovery-cover { width: 130px; height: 130px; }
 }
+
+/* Pedidos de música */
+.night-list-access { gap: .5rem; flex-wrap: wrap; }
+.round-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-top: .75rem;
+  padding: .7rem 1rem;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--amber);
+  border-radius: 12px;
+  background: var(--bg-soft);
+}
+.round-banner[data-open="false"] { border-left-color: var(--coral); }
+.round-banner-text { margin: 0; font-weight: 600; color: var(--text); }
+.round-banner .text-button { flex-shrink: 0; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; }
+
+.request-panel { margin: .25rem 0 1rem; text-align: left; }
+.request-panel .request-song { width: 100%; color: var(--ink); border-color: rgba(20,20,20,.3); }
+.request-form { display: grid; gap: .35rem; }
+.request-form label { font-size: .85rem; font-weight: 700; color: var(--ink); }
+.request-form input {
+  width: 100%;
+  min-height: 46px;
+  padding: .6rem .75rem;
+  border: 1px solid rgba(20,20,20,.25);
+  border-radius: 10px;
+  background: #fff;
+  color: #141414;
+  font: 500 16px var(--font-body);
+}
+.request-form input:focus-visible { outline: 2px solid #8a6a12; outline-offset: 1px; }
+.request-form .button { margin-top: .4rem; width: 100%; background: #8a6a12; color: #fff; }
+.field-error { margin: 0; color: #a84235; font-size: .85rem; font-weight: 600; }
+.request-privacy { margin: .25rem 0 0; color: #4f5957; font-size: .8rem; line-height: 1.35; }
+.request-status { margin: .5rem 0 0; color: var(--ink); font-weight: 600; text-align: center; }
+.request-status:empty { display: none; }
+.request-panel .text-button { display: block; margin: .35rem auto 0; color: #59615f; text-decoration: underline; min-height: 44px; }
+
+.requests-card #requests-round { margin-top: 0; font-weight: 600; }
+.requests-subtitle { margin: 1.25rem 0 .35rem; font-family: var(--font-display); color: var(--ink); }
+.request-item-status { margin: .35rem 0 0; color: #3e4644; font-weight: 600; font-size: .9rem; }
+.request-na_fila { border-color: #8a6a12; background: rgba(222, 201, 73, .14); }
+.request-tocou, .request-cancelado { opacity: .65; }
+.public-queue { display: grid; gap: .4rem; margin: 0; padding: 0; list-style: none; }
+.public-queue-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: .6rem;
+  padding: .55rem .7rem;
+  border: 1px solid rgba(20,20,20,.12);
+  border-radius: 10px;
+  color: var(--ink);
+}
+.public-queue-item.is-mine { border-color: #8a6a12; background: rgba(222, 201, 73, .2); }
+.public-queue-position { font-weight: 800; font-size: .8rem; color: #8a6a12; min-width: 3.6rem; }
+.public-queue-song { font-weight: 600; line-height: 1.25; }
+.public-queue-name { color: #59615f; font-size: .85rem; }

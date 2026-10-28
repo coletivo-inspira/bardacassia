@@ -12,6 +12,7 @@ import {
 } from "./lib/discovery-swipe.js";
 import { fetchPopularSongs, popularityNeedsUpdate, recordSongOpen, setSongFavorite } from "./integrations/popularity.js";
 import { hideExpiredEventNav, initializeTheme } from "./site.js";
+import { clearSongRequest, initSongRequests, prepareSongRequest } from "./song-requests.js";
 
 const BASE = import.meta.env.BASE_URL || "/";
 const PAGE_SIZE = 40;
@@ -1265,6 +1266,7 @@ function showSongToDJ(song) {
   els.copyCodeStatus.textContent = "";
   if (copyTimer) clearTimeout(copyTimer);
   els.dialog.classList.remove("copy-sticky-visible");
+  prepareSongRequest(song);
 
   resetDialogListen(song);
   const row = document.querySelector(`.song-row[data-code="${song.code}"]`);
@@ -1335,6 +1337,7 @@ els.dialog.addEventListener("close", () => {
   dialogMetaGen++;
   stopPreview();
   activeSong = null;
+  clearSongRequest();
   if (dialogReturnFocus?.isConnected) dialogReturnFocus.focus({ preventScroll: true });
 });
 
@@ -1790,6 +1793,7 @@ els.artistSongsDialog?.addEventListener("close", () => {
 els.favoritesButton.addEventListener("click", showFavorites);
 els.mobileFavoritesButton?.addEventListener("click", showFavorites);
 initializeTheme();
+initSongRequests();
 els.spotifyButton.hidden = !spotifyConfigured;
 els.spotifyStatus.hidden = !spotifyConfigured;
 if (spotifyConfigured) {

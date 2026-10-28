@@ -141,6 +141,11 @@
           <p id="spotify-status" class="integration-status" role="status" aria-live="polite" hidden></p>
           <div class="night-list-access">
             <button id="open-night-list" class="discovery-button" type="button">Minha lista da noite <span id="night-list-count" class="favorite-count">0</span></button>
+            <button id="open-requests" class="discovery-button" type="button" hidden>Meus pedidos <span id="requests-count" class="favorite-count">0</span></button>
+          </div>
+          <div id="round-banner" class="round-banner" hidden>
+            <p id="round-banner-text" class="round-banner-text" aria-live="polite"></p>
+            <button id="round-banner-queue" class="text-button" type="button">Ver fila</button>
           </div>
           <p class="search-help">
             Toque no artista para ver outras músicas dele e descobrir nomes relacionados que também estão no catálogo.
@@ -282,6 +287,22 @@
         <output id="dialog-code" class="song-code"></output>
         <button id="copy-song-code" class="button button-light copy-code" type="button">Copiar código</button>
         <p id="copy-code-status" class="copy-code-status" role="status" aria-live="polite"></p>
+        <section id="request-panel" class="request-panel" aria-labelledby="request-panel-title" hidden>
+          <h2 id="request-panel-title" class="visually-hidden">Pedir esta música</h2>
+          <button id="request-song" class="button button-ghost request-song" type="button">Pedir esta música</button>
+          <div id="request-form" class="request-form" hidden>
+            <label for="request-name">Seu nome</label>
+            <input id="request-name" name="request-name" type="text" autocomplete="name" maxlength="60" enterkeyhint="next" />
+            <p id="request-name-error" class="field-error" hidden></p>
+            <label for="request-phone">Telefone com DDD</label>
+            <input id="request-phone" name="request-phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="(31) 99999-9999" enterkeyhint="send" />
+            <p id="request-phone-error" class="field-error" hidden></p>
+            <p class="request-privacy">Seu nome e telefone ficam salvos neste aparelho e vão só para o bar identificar o seu pedido.</p>
+            <button id="send-request" class="button button-light" type="button">Enviar pedido</button>
+          </div>
+          <p id="request-status" class="request-status" role="status" aria-live="polite"></p>
+          <button id="request-see-queue" class="text-button" type="button" hidden>Ver meus pedidos e a fila</button>
+        </section>
         <button class="button button-light dialog-done" value="close">Pronto</button>
       </form>
     </dialog>
@@ -294,6 +315,22 @@
         <div id="night-list-items" class="night-list-items"></div>
         <p id="night-list-empty" class="empty-state">Ainda não tem músicas na lista. Explore as sugestões e toque em “Quero cantar”.</p>
         <button id="reset-night" class="button button-ghost reset-night" type="button">Começar nova noite</button>
+      </section>
+    </dialog>
+
+    <dialog id="requests-dialog" aria-labelledby="requests-title">
+      <section class="dialog-card night-list-card requests-card">
+        <button id="close-requests" class="dialog-close" type="button" aria-label="Fechar pedidos">×</button>
+        <h2 id="requests-title">Meus pedidos</h2>
+        <p id="requests-round" class="night-list-note"></p>
+        <div id="my-requests" class="night-list-items"></div>
+        <p id="my-requests-empty" class="empty-state">Você ainda não pediu músicas hoje. Abra uma música e toque em “Pedir esta música”.</p>
+        <h3 id="queue-title" class="requests-subtitle">Fila agora</h3>
+        <p id="queue-last-played" class="night-list-note" hidden></p>
+        <ol id="public-queue" class="public-queue" aria-labelledby="queue-title"></ol>
+        <p id="public-queue-empty" class="empty-state">Nenhuma música confirmada na fila.</p>
+        <p class="night-list-note">A fila mostra os pedidos confirmados pelo bar. O telão pode levar alguns instantes para acompanhar.</p>
+        <p id="requests-error" class="request-status" role="status" aria-live="polite"></p>
       </section>
     </dialog>
 
