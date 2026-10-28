@@ -440,7 +440,7 @@ const artistPhotoObserver = typeof IntersectionObserver === "function"
       artistPhotoObserver.unobserve(entry.target);
       loadArtistPhoto(entry.target);
     }
-  }, { root: els.discoverDialog, rootMargin: "200px" })
+  }, { rootMargin: "200px" })
   : null;
 
 function updateArtistSelectionCount() {

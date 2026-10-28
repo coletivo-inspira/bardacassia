@@ -2870,7 +2870,7 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: max(1rem, env(safe-area-inset-top)) clamp(1rem, 4vw, 2rem) max(1.5rem, env(safe-area-inset-bottom));
+  padding: 0 clamp(1rem, 4vw, 2rem) max(1.5rem, env(safe-area-inset-bottom));
   max-width: 980px;
   margin: 0 auto;
 }
@@ -2883,8 +2883,9 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   align-items: center;
   gap: .5rem;
   margin: 0 calc(-1 * clamp(1rem, 4vw, 2rem)) .5rem;
-  padding: .35rem clamp(1rem, 4vw, 2rem);
+  padding: max(.75rem, env(safe-area-inset-top)) clamp(1rem, 4vw, 2rem) .5rem;
   background: var(--bg);
+  box-shadow: 0 8px 16px -12px rgba(0,0,0,.45);
 }
 .discover-nav-btn {
   grid-column: 1;
@@ -2990,3 +2991,5 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   .discover-steps li.is-current { font-size: .8rem; gap: .35rem; }
 }
 @media (prefers-reduced-motion: reduce) { .discover-fab, .genre-chip { transition: none; } }
+.favorite-tab-actions .text-button, .discover-sticky-actions .text-button { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+@media (min-width: 720px) { .site-footer { padding-bottom: 6rem; } }
