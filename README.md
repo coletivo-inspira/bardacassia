@@ -11,6 +11,7 @@
 <p align="center">
   <a href="https://coletivo-inspira.github.io/bardacassia/">Abrir o catálogo</a> ·
   <a href="./docs/INTEGRACOES.md">Integrações</a> ·
+  <a href="./docs/APRESENTACAO.md">Apresentação</a> ·
   <a href="./docs/PESQUISA-E-UX.md">Busca e UX</a>
 </p>
 
@@ -25,7 +26,9 @@
 - **Deezer:** capas e trechos de áudio quando disponíveis; o site continua funcional sem a API.
 - **Conta (opcional):** login por e-mail e senha, link por e-mail ou Google/Facebook, em uma página inspirada nos cartões de login de marketplaces. Senhas ficam só no Supabase Auth (hash bcrypt) e cada pessoa só acessa o próprio perfil.
 - **Código ao DJ:** exibe o código para o usuário mostrar ao DJ.
-- **Pedidos de música (opcional, Supabase):** o cliente toca em “Pedir esta música”, informa nome e telefone (lembrados no aparelho), paga no bar e acompanha a posição em “Meus pedidos”. O garçom confirma o pagamento e controla a fila e as rodadas pelo celular em `garcom.html`.
+- **Pedidos pelo QR (opcional, Supabase):** o cliente toca em “Mostrar ao garçom” e um QR aparece na tela. O garçom lê com o celular, cobra e a música entra na fila em `garcom.html`, que também mostra as tocadas da noite. Como o aparelho do cliente não grava nada, ninguém consegue pedir de casa. O modo antigo, em que o cliente pede sozinho, continua disponível com `VITE_REQUEST_MODE=remoto` e um código da noite.
+- **Resultados para o dono:** pedidos por noite, clientes, espera média, mais pedidas e pedidos por garçom, na aba “Resultados” do painel. Acessos ao site via Google Analytics 4 ou Cloudflare Web Analytics (`VITE_ANALYTICS_ID`).
+- **Cartaz para imprimir:** `cartaz.html` gera o QR do catálogo em A5 ou A4, marcado com a origem (mesa, balcão…).
 
 O catálogo tem aproximadamente 12,7 mil músicas e é gerado a partir de `data/musicas.csv` ou `data/lista-musica.pdf`.
 
@@ -84,15 +87,20 @@ Usa o mesmo projeto Supabase. Execute `supabase/migrations/002_auth_profiles.sql
 
 ## Pedidos de música e painel do garçom (opcional)
 
-Usa o mesmo Supabase do ranking e do login. Aplique `supabase/migrations/004_song_requests.sql` com as demais migrações (pelo workflow ou pelo SQL Editor), cadastre os garçons e abra `garcom.html` no celular do bar. O passo a passo está em [Integrações](./docs/INTEGRACOES.md#pedidos-de-música-e-painel-do-garçom). Para desligar só os pedidos, use `VITE_ENABLE_REQUESTS=false`.
+Usa o mesmo Supabase do ranking e do login. Aplique as migrações `004` a `007` com as demais (pelo workflow ou pelo SQL Editor), cadastre os garçons (e o dono, com `role = 'dono'`) e abra `garcom.html` no celular do bar. O passo a passo está em [Integrações](./docs/INTEGRACOES.md#pedidos-de-música-e-painel-do-garçom). Para desligar só os pedidos, use `VITE_ENABLE_REQUESTS=false`.
 
 ## Organização do projeto
 
 ```text
 src/
   main.js                  # interface e estados da pesquisa
-  song-requests.js         # pedir música, meus pedidos e fila do cliente
-  garcom.js                # painel do garçom (garcom.html)
+  qr-request.js            # QR "Mostrar ao garçom" e status do pedido
+  song-requests.js         # pedido remoto, meus pedidos e fila do cliente
+  garcom.js                # painel do garçom e do dono (garcom.html)
+  cartaz.js                # cartaz para imprimir (cartaz.html)
+  lib/qr-ticket.js         # conteúdo do QR, ticket e textos de status
+  lib/metrics.js           # formatação da aba Resultados
+  integrations/analytics.js # GA4 ou Cloudflare Web Analytics
   login.js                 # página de login/cadastro/conta
   styles.css               # layout e identidade visual
   lib/catalog.js           # ranking, normalização e conciliação
@@ -117,6 +125,7 @@ tests/catalog.test.js
 tests/requests.test.js
 docs/INTEGRACOES.md
 docs/PESQUISA-E-UX.md
+docs/APRESENTACAO.md
 ```
 
 ## Decisões e limites
