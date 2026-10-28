@@ -7,11 +7,11 @@ O site é estático (Vite + GitHub Pages). O **catálogo de karaokê** em `publi
 | Fonte | Finalidade | Autenticação | Comportamento se falhar |
 | --- | --- | --- | --- |
 | Catálogo local | Títulos, artistas, códigos, início da letra | Nenhuma | Exibir erro de carregamento |
-| Deezer | Capas, previews e artistas relacionados | Sem chave no fluxo atual | Iniciais no lugar da capa, sem preview; sugestões editoriais quando disponíveis |
+| Deezer | Capas, previews e artistas relacionados | Sem chave; proxy próprio opcional (Edge Function `deezer-proxy`) | Iniciais no lugar da capa, sem preview; sugestões editoriais quando disponíveis |
 | Spotify (opcional) | Sugerir músicas a partir das 50 faixas mais ouvidas da conta | OAuth 2.0 Authorization Code + PKCE, `user-top-read` | Seleção manual de artistas continua funcionando |
 | Supabase (opcional) | Ranking agregado e identidade anônima por navegador | Auth anônima + RPC com RLS | Descoberta, busca e lista local continuam funcionando |
 | Supabase Auth (opcional) | Login, cadastro, perfil e exclusão de conta | E-mail + senha, link por e-mail, OAuth (PKCE) | Catálogo, favoritas e lista da noite continuam sem conta |
-| Navegador | Favoritas do usuário | Nenhuma | Se armazenamento estiver bloqueado, informar limitação |
+| Navegador | Favoritas do usuário (sincronizadas com a conta, se houver login) | Nenhuma | Se armazenamento estiver bloqueado, informar limitação |
 
 ## Deezer
 
@@ -24,7 +24,13 @@ O adaptador está em `src/integrations/deezer.js`:
 5. Consulta artistas relacionados via busca do artista e endpoint de relacionados. Só mostra os nomes que também existem no catálogo local.
 6. Se o endpoint falhar, tenta sugestões editoriais de artistas dos grupos curados, quando existirem.
 
-**Observação de segurança:** no desenvolvimento, o Vite faz proxy de `/api/deezer`; no GitHub Pages, o navegador usa JSONP por causa das restrições de CORS do Deezer. JSONP executa JavaScript de terceiros na página. Para endurecer a segurança em produção, recomenda-se futuramente um pequeno proxy serverless próprio com CORS controlado, limites de taxa e cache. Não coloque segredos no frontend.
+**Transporte e segurança:** a ordem de preferência é:
+
+1. **Proxy próprio** (`VITE_DEEZER_PROXY_URL`, Edge Function `deezer-proxy`): `fetch` comum, sem executar JavaScript de terceiros, com allowlist de caminhos e parâmetros, CORS restrito às origens do site, cache de 24h e limite de 120 requisições por minuto por IP. É o recomendado em produção.
+2. **Proxy do Vite** (`/api/deezer`), apenas em desenvolvimento.
+3. **JSONP**, só quando nenhum proxy está configurado. O JSONP executa JavaScript de terceiros na página; por isso, configure o proxy assim que o Supabase estiver ativo.
+
+Não coloque segredos no frontend.
 
 ## Spotify: importar as mais ouvidas
 
@@ -70,7 +76,7 @@ As RPCs `record_song_open`, `set_song_favorite` e `get_popular_songs` são as in
 
 Limpar os dados locais pode criar outra identidade anônima. Isso reduz repetições comuns, mas não comprova uma pessoa única.
 
-O ranking e o login compartilham o mesmo cliente (`src/integrations/supabase.js`). Uma pessoa logada registra interações com a própria conta. Um visitante sem conta recebe uma sessão anônima, e a sessão antiga (`bdc-supabase-session-v1`) é migrada automaticamente.
+O ranking, o login e a sincronização de favoritas compartilham o mesmo cliente (`src/integrations/supabase.js`). Uma pessoa logada registra interações com a própria conta. Um visitante sem conta recebe uma sessão anônima, e a sessão antiga (`bdc-supabase-session-v1`) é migrada automaticamente.
 
 ## Autenticação (login e contas)
 
@@ -121,13 +127,29 @@ supabase secrets set ALLOWED_ORIGINS="https://coletivo-inspira.github.io,http://
 
 ### Configuração no painel do Supabase
 
-1. Execute `002_auth_profiles.sql` depois de `001_song_popularity.sql`.
+1. Aplique as migrações em ordem (`001`, `002`, `003`), pelo SQL Editor ou pelo workflow descrito abaixo.
 2. **Authentication > Providers > Email:** ative a confirmação de e-mail, senha mínima de 8 caracteres com letras e dígitos e a proteção contra senhas vazadas (*leaked password protection*).
 3. **Authentication > URL Configuration:** use a URL do site como Site URL e cadastre `https://coletivo-inspira.github.io/bardacassia/login.html` e `http://localhost:5173/login.html` nas Redirect URLs.
 4. **Authentication > Attack Protection:** ative o CAPTCHA com Cloudflare Turnstile (secret key no painel) e defina `VITE_AUTH_CAPTCHA_SITE_KEY` com a site key pública.
 5. **Sessions:** mantenha o JWT com expiração de 1h e a rotação de refresh token ativada (padrão).
 6. **Google / Facebook (opcional):** crie os apps OAuth, cadastre o callback `https://<projeto>.supabase.co/auth/v1/callback`, ative os provedores e defina `VITE_AUTH_PROVIDERS=google,facebook`. Sem isso, os botões ficam ocultos.
 7. Mantenha os Anonymous Sign-Ins ativos para o ranking de visitantes.
+
+### Publicação automática (`.github/workflows/supabase.yml`)
+
+A cada push na `main` que altere `supabase/**` (ou manualmente em *Actions > Deploy Supabase*), o workflow aplica as migrações pendentes (`supabase db push`), define `ALLOWED_ORIGINS` e publica as duas Edge Functions. Sem a configuração abaixo, ele é ignorado com um aviso, sem falhar.
+
+| Tipo | Nome | Valor |
+| --- | --- | --- |
+| Secret | `SUPABASE_ACCESS_TOKEN` | Token pessoal em supabase.com > Account > Access Tokens |
+| Secret | `SUPABASE_DB_PASSWORD` | Senha do banco do projeto |
+| Variável | `SUPABASE_PROJECT_REF` | ID do projeto (o subdomínio de `https://<ref>.supabase.co`) |
+| Variável | `ALLOWED_ORIGINS` | `https://coletivo-inspira.github.io` (separe várias origens com vírgula) |
+| Variável | `DEEZER_PROXY_URL` | `https://<ref>.supabase.co/functions/v1/deezer-proxy`, usada pelo build do site |
+
+Se as migrações já foram executadas à mão no SQL Editor, marque-as como aplicadas antes do primeiro deploy, para o CLI não reexecutá-las: `supabase migration repair --status applied 001 002 003`. Os scripts são idempotentes, então reaplicá-los na ordem também chega ao mesmo estado final.
+
+O CI dos pull requests roda `deno check` nas Edge Functions.
 
 Variáveis do GitHub Actions: `ENABLE_AUTH` (`false` desliga o login), `AUTH_PROVIDERS`, `AUTH_CAPTCHA_SITE_KEY` e `DEEZER_PROXY_URL`. Todas são públicas por natureza; nenhum segredo vai para o frontend.
 
@@ -141,7 +163,13 @@ Se surgirem regras de negócio pesadas, uma opção é Node (Fastify) + Postgres
 
 ## Privacidade e operação
 
-As favoritas são códigos de música salvos **neste navegador**, ainda sem sincronização entre aparelhos, mesmo para quem tem conta. Limpar os dados do navegador remove essa lista. O Deezer recebe consultas por título/artista; o Spotify só é acessado após ação explícita do usuário.
+As favoritas são códigos de música salvos **neste navegador**. Sem conta, limpar os dados do navegador remove essa lista.
+
+**Com conta, as favoritas sincronizam entre aparelhos** (`supabase/migrations/003_favorites_sync.sql`, `src/integrations/favorites-sync.js`):
+
+- Ao abrir o catálogo logado, o navegador envia as favoritas locais e recebe a lista da conta em uma única chamada (`sync_my_favorites`, até 1.000 códigos). O resultado é a união das duas, sem códigos que saíram do catálogo.
+- Marcar ou desmarcar uma favorita logado envia a mudança pela mesma fila do ranking (`set_song_favorite`), inclusive com `VITE_ENABLE_POPULARITY=false`. Assim, uma remoção feita em um aparelho não "volta" no outro.
+- A RPC só aceita contas permanentes, confere o código no catálogo ativo e respeita o limite de gravações por minuto. As favoritas ficam em `song_interactions`, protegida por RLS. O Deezer recebe consultas por título/artista; o Spotify só é acessado após ação explícita do usuário.
 
 ## Testes e verificações
 
@@ -149,6 +177,11 @@ As favoritas são códigos de música salvos **neste navegador**, ainda sem sinc
 npm ci
 npm test
 npm run build
+deno check supabase/functions/*/index.ts   # opcional, requer Deno
 ```
+
+Fluxos no navegador (requer Playwright): `TEST_URL=http://127.0.0.1:4173/ node scripts/verify-flows.cjs` com `npm run preview` rodando. O script também cobre os modos da página de login.
+
+Testar manualmente o login com um projeto Supabase real: cadastro com confirmação de e-mail, login com senha errada e certa, "Manter conectado" desmarcado (fechar a aba encerra a sessão), link por e-mail, redefinição de senha, Google/Facebook (se ativados), excluir conta e favoritas aparecendo em outro aparelho.
 
 Testar manualmente: pesquisa sem acento, busca por código, artista com múltiplas músicas, filtro de favoritas, erro/timeout do Deezer, permissão negada no Spotify, retorno OAuth, catálogo sem correspondências, mobile e navegação por teclado.
