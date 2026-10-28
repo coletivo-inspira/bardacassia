@@ -35,6 +35,11 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
           VITE_ENABLE_DISCOVERY: ${{ vars.ENABLE_DISCOVERY }}
           VITE_ENABLE_POPULARITY: ${{ vars.ENABLE_POPULARITY }}
+          VITE_ENABLE_REQUESTS: ${{ vars.ENABLE_REQUESTS }}
+          VITE_ENABLE_AUTH: ${{ vars.ENABLE_AUTH }}
+          VITE_AUTH_PROVIDERS: ${{ vars.AUTH_PROVIDERS }}
+          VITE_AUTH_CAPTCHA_SITE_KEY: ${{ vars.AUTH_CAPTCHA_SITE_KEY }}
+          VITE_DEEZER_PROXY_URL: ${{ vars.DEEZER_PROXY_URL }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |

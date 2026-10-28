@@ -18,12 +18,14 @@
 
 - **Pesquisa local:** música, artista, código ou começo da letra, sem diferenciar acentos; correspondências mais relevantes aparecem primeiro.
 - **Descoberta:** clique no nome do artista para filtrar suas músicas e explorar artistas relacionados disponíveis no próprio catálogo.
-- **Favoritas:** salve as músicas para cantar no navegador, sem criar conta.
+- **Favoritas:** salve as músicas para cantar no navegador, sem criar conta. Com login, elas sincronizam entre aparelhos.
 - **Spotify opcional:** com autorização do usuário, usa suas **50 mais ouvidas** como sugestões e só as adiciona à lista da noite quando a pessoa escolhe “Quero cantar”.
 - **Descoberta por cartões:** escolha artistas, passe ou selecione músicas e mantenha uma lista da noite salva neste navegador.
 - **Mais populares:** ranking agregado, quando o Supabase está configurado.
 - **Deezer:** capas e trechos de áudio quando disponíveis; o site continua funcional sem a API.
-- **Código ao DJ:** exibe o código para o usuário mostrar ao DJ. **Não envia pedidos automaticamente à fila.**
+- **Conta (opcional):** login por e-mail e senha, link por e-mail ou Google/Facebook, em uma página inspirada nos cartões de login de marketplaces. Senhas ficam só no Supabase Auth (hash bcrypt) e cada pessoa só acessa o próprio perfil.
+- **Código ao DJ:** exibe o código para o usuário mostrar ao DJ.
+- **Pedidos de música (opcional, Supabase):** o cliente toca em “Pedir esta música”, informa nome e telefone (lembrados no aparelho), paga no bar e acompanha a posição em “Meus pedidos”. O garçom confirma o pagamento e controla a fila e as rodadas pelo celular em `garcom.html`.
 
 O catálogo tem aproximadamente 12,7 mil músicas e é gerado a partir de `data/musicas.csv` ou `data/lista-musica.pdf`.
 
@@ -76,15 +78,34 @@ O botão só aparece quando o Client ID estiver configurado. A autorização usa
 
 Veja [Integrações](./docs/INTEGRACOES.md#supabase-ranking-e-interações-anônimas) para configurar o Supabase, executar a migração e sincronizar os códigos. `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` habilitam o ranking; `SUPABASE_SERVICE_ROLE_KEY` é somente um secret do GitHub Actions para sincronizar o catálogo.
 
+## Login e contas (opcional)
+
+Usa o mesmo projeto Supabase. Execute `supabase/migrations/002_auth_profiles.sql`, configure as Redirect URLs e a confirmação de e-mail e, se quiser, o CAPTCHA (Turnstile) e os provedores Google/Facebook. `VITE_ENABLE_AUTH=false` desliga o login. Com os secrets `SUPABASE_ACCESS_TOKEN` e `SUPABASE_DB_PASSWORD` e a variável `SUPABASE_PROJECT_REF`, o workflow `.github/workflows/supabase.yml` aplica as migrações e publica as Edge Functions sozinho. O passo a passo, o modelo de dados, a criptografia com Vault e as Edge Functions (`account-delete`, `deezer-proxy`) estão em [Integrações](./docs/INTEGRACOES.md#autenticação-login-e-contas).
+
+## Pedidos de música e painel do garçom (opcional)
+
+Usa o mesmo Supabase do ranking e do login. Aplique `supabase/migrations/004_song_requests.sql` com as demais migrações (pelo workflow ou pelo SQL Editor), cadastre os garçons e abra `garcom.html` no celular do bar. O passo a passo está em [Integrações](./docs/INTEGRACOES.md#pedidos-de-música-e-painel-do-garçom). Para desligar só os pedidos, use `VITE_ENABLE_REQUESTS=false`.
+
 ## Organização do projeto
 
 ```text
 src/
   main.js                  # interface e estados da pesquisa
+  song-requests.js         # pedir música, meus pedidos e fila do cliente
+  garcom.js                # painel do garçom (garcom.html)
+  login.js                 # página de login/cadastro/conta
   styles.css               # layout e identidade visual
   lib/catalog.js           # ranking, normalização e conciliação
+  lib/requests.js          # validação e textos de pedidos, fila e rodada
   integrations/deezer.js   # metadados e artistas relacionados
   integrations/spotify.js  # autorização PKCE e top tracks
+  integrations/supabase.js # cliente Supabase compartilhado (sessão)
+  integrations/auth.js     # login, cadastro, OAuth, redefinição de senha
+  lib/auth-validation.js   # validação e mensagens de erro do login
+  integrations/requests.js # chamadas de pedidos e do painel
+supabase/
+  migrations/              # RLS, perfis, segredos cifrados, pedidos e fila
+  functions/               # Edge Functions (account-delete, deezer-proxy)
 public/
   data/songs.json          # catálogo publicado
   logo_bar_da_cacia_animada.svg
@@ -93,6 +114,7 @@ data/
   lista-musica.pdf         # fonte alternativa
 scripts/import-songs.js
 tests/catalog.test.js
+tests/requests.test.js
 docs/INTEGRACOES.md
 docs/PESQUISA-E-UX.md
 ```

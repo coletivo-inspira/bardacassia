@@ -1,4 +1,6 @@
 import "./styles.css";
+import { authConfigured, displayName, getCurrentUser, onAuthChange, signOut } from "./integrations/auth.js";
+import { hasStoredAuthSession } from "./integrations/supabase.js";
 
 const THEME_KEY = "bdc-theme-v1";
 
@@ -47,6 +49,78 @@ export function initializeTheme() {
     manualThemeChoice = true;
     applyTheme(next, true);
   });
+}
+
+function currentPagePath() {
+  const page = location.pathname.split("/").pop() || "index.html";
+  return page === "login.html" ? "index.html" : `${page}${location.hash}`;
+}
+
+function renderSignedOut(link) {
+  link.hidden = false;
+  link.href = `login.html?next=${encodeURIComponent(currentPagePath())}`;
+  link.setAttribute("aria-label", "Entrar na sua conta");
+  link.closest(".header-actions")?.querySelector(".header-account-menu")?.remove();
+}
+
+function renderSignedIn(link, user) {
+  link.hidden = true;
+  const actions = link.closest(".header-actions");
+  actions?.querySelector(".header-account-menu")?.remove();
+  const name = displayName(user);
+  const wrapper = document.createElement("div");
+  wrapper.className = "header-account-menu";
+  wrapper.innerHTML = `
+    <button class="theme-toggle header-account" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="header-account-list">
+      ${link.querySelector("svg").outerHTML}
+      <span class="theme-toggle-label"></span>
+    </button>
+    <div id="header-account-list" role="menu" hidden>
+      <div class="header-account-email"></div>
+      <a role="menuitem" href="login.html#conta">Minha conta</a>
+      <button role="menuitem" type="button" data-action="signout">Sair</button>
+    </div>`;
+  const button = wrapper.querySelector("button");
+  const menu = wrapper.querySelector("[role=menu]");
+  button.querySelector(".theme-toggle-label").textContent = name.split(/\s+/)[0];
+  button.setAttribute("aria-label", `Conta de ${name}`);
+  wrapper.querySelector(".header-account-email").textContent = user.email || name;
+  const setOpen = (open) => {
+    menu.hidden = !open;
+    button.setAttribute("aria-expanded", String(open));
+    if (open) menu.querySelector("[role=menuitem]")?.focus();
+  };
+  button.addEventListener("click", () => setOpen(menu.hidden));
+  wrapper.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !menu.hidden) { setOpen(false); button.focus(); }
+  });
+  document.addEventListener("click", (event) => { if (!wrapper.contains(event.target)) setOpen(false); });
+  wrapper.querySelector("[data-action=signout]").addEventListener("click", async () => {
+    await signOut();
+    renderSignedOut(link);
+  });
+  link.after(wrapper);
+}
+
+export async function initializeAccountMenu() {
+  const link = document.querySelector("#header-account");
+  if (!link || !authConfigured) return;
+  renderSignedOut(link);
+  if (!hasStoredAuthSession()) return;
+  try {
+    const user = await getCurrentUser();
+    if (user) renderSignedIn(link, user);
+    await onAuthChange(async (event) => {
+      if (event === "SIGNED_OUT") renderSignedOut(link);
+      else if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        const updated = await getCurrentUser();
+        if (updated) renderSignedIn(link, updated);
+        else renderSignedOut(link);
+      }
+    });
+  } catch {
+    /* the "Entrar" link keeps working when Supabase is unreachable */
+  }
 }
 
 /** @returns {boolean} true if the page/section is still active */

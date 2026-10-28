@@ -1,4 +1,4 @@
-import { filterCatalog, filtersForArtistSelection, countActiveFilterChips, filtersToggleLabel, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
+import { displayTitle, filterCatalog, filtersForArtistSelection, countActiveFilterChips, filtersToggleLabel, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
 import { fetchDeezerMeta, fetchRelatedArtists, fetchArtistPicture, cancelPendingDeezerMeta, metaFromCatalog } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
 import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState, emptyDiscoveryState } from "./lib/discovery.js";
@@ -27,7 +27,10 @@ import {
   isInteractiveSwipeTarget,
 } from "./lib/discovery-swipe.js";
 import { fetchPopularSongs, popularityNeedsUpdate, recordSongOpen, setSongFavorite } from "./integrations/popularity.js";
-import { hideExpiredEventNav, initializeTheme } from "./site.js";
+import { hideExpiredEventNav, initializeAccountMenu, initializeTheme } from "./site.js";
+import { syncAccountFavorites } from "./integrations/favorites-sync.js";
+import { mergeFavoriteCodes } from "./lib/favorites.js";
+import { clearSongRequest, initSongRequests, prepareSongRequest } from "./song-requests.js";
 
 const BASE = import.meta.env.BASE_URL || "/";
 const PAGE_SIZE = 40;
@@ -237,17 +240,6 @@ function setResultsView(view) {
 
 function normalize(value) {
   return normalizeText(value);
-}
-
-function displayTitle(title) {
-  const t = String(title || "").trim();
-  if (!t) return t;
-  const letters = t.replace(/[^A-Za-zÀ-ÿ]/g, "");
-  const upperRatio = letters ? [...letters].filter((c) => c === c.toUpperCase()).length / letters.length : 0;
-  if (upperRatio < 0.7) return t;
-  return t
-    .toLocaleLowerCase("pt-BR")
-    .replace(/(^|[\s\-–—/((])([\p{L}])/gu, (_, sep, ch) => sep + ch.toLocaleUpperCase("pt-BR"));
 }
 
 function spotifySearchUrl(artist, title) {
@@ -792,14 +784,28 @@ function updateFavoriteControls() {
   }
 }
 
-function refreshFavoriteButtons(code) {
+async function applyAccountFavorites() {
+  const remote = await syncAccountFavorites(favoriteCodes);
+  if (!remote) return;
+  const merged = mergeFavoriteCodes(favoriteCodes, remote, (code) => songByCode.has(code));
+  const incoming = [...merged].filter((code) => !favoriteCodes.has(code));
+  if (!incoming.length) return;
+  for (const code of incoming) favoritesState = addToTab(favoritesState, code, DRAFT_TAB_ID);
+  persistFavorites();
+  updateFavoriteControls();
+  if (favoritesOnly) applyFilters();
+  else refreshFavoriteButtons();
+}
+
+function refreshFavoriteButtons(onlyCode = null) {
   document.querySelectorAll(".favorite-btn").forEach((button) => {
-    if (button.dataset.code !== code) return;
-    const saved = favoriteCodes.has(code);
-    const song = songByCode.get(code);
+    if (onlyCode && button.dataset.code !== onlyCode) return;
+    const song = songByCode.get(button.dataset.code);
+    if (!song) return;
+    const saved = favoriteCodes.has(song.code);
     button.textContent = saved ? "Salva" : "Favoritar";
     button.setAttribute("aria-pressed", String(saved));
-    button.setAttribute("aria-label", `${saved ? "Remover das favoritas" : "Adicionar às favoritas"}: ${displayTitle(song?.title || code)}`);
+    button.setAttribute("aria-label", `${saved ? "Remover das favoritas" : "Adicionar às favoritas"}: ${displayTitle(song.title)}`);
     button.classList.toggle("is-favorite", saved);
   });
 }
@@ -1537,6 +1543,7 @@ function showSongToDJ(song) {
   els.copyCodeStatus.textContent = "";
   if (copyTimer) clearTimeout(copyTimer);
   els.dialog.classList.remove("copy-sticky-visible");
+  prepareSongRequest(song);
 
   resetDialogListen(song);
   const row = document.querySelector(`.song-row[data-code="${song.code}"]`);
@@ -1607,6 +1614,7 @@ els.dialog.addEventListener("close", () => {
   dialogMetaGen++;
   stopPreview();
   activeSong = null;
+  clearSongRequest();
   if (dialogReturnFocus?.isConnected) dialogReturnFocus.focus({ preventScroll: true });
 });
 
@@ -2053,6 +2061,7 @@ els.artistSongsDialog?.addEventListener("click", (event) => {
 els.favoritesButton.addEventListener("click", showFavorites);
 els.mobileFavoritesButton?.addEventListener("click", showFavorites);
 initializeTheme();
+initSongRequests();
 els.spotifyButton.hidden = !spotifyConfigured;
 els.spotifyStatus.hidden = !spotifyConfigured;
 if (spotifyConfigured) {
@@ -2102,6 +2111,7 @@ async function init() {
   applyArtistView();
   updateFavoriteControls();
   els.resultsCount.textContent = `${songs.length.toLocaleString("pt-BR")} músicas no catálogo`;
+  void applyAccountFavorites();
 
   try {
   const topTracks = spotifyConfigured ? await completeSpotifyConnection() : null;
@@ -2136,4 +2146,5 @@ async function init() {
 }
 
 hideExpiredEventNav();
+void initializeAccountMenu();
 init();

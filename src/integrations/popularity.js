@@ -1,16 +1,26 @@
-const URL = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
-const KEY = String(import.meta.env.VITE_SUPABASE_ANON_KEY || "");
+import { ensureSession } from "./auth.js";
+import { getSupabase, supabaseConfigured } from "./supabase.js";
+
 const RANKING_ENABLED = String(import.meta.env.VITE_ENABLE_POPULARITY || "true") !== "false";
-const SESSION_KEY = "bdc-supabase-session-v1";
 const QUEUE_KEY = "bdc-popularity-queue-v1";
 const CACHE_KEY = "bdc-popularity-cache-v1";
 const CACHE_TTL = 5 * 60 * 1000;
 const MAX_QUEUE = 500;
 
-export const popularityConfigured = Boolean(URL && KEY) && RANKING_ENABLED;
-let sessionPromise;
+export const popularityConfigured = supabaseConfigured && RANKING_ENABLED;
 let retryPromise;
 let stalePopularity = false;
+let favoriteSyncActive = false;
+
+/** Signed-in accounts keep syncing favorites even when the public ranking is disabled. */
+export function setFavoriteSyncActive(active) {
+  favoriteSyncActive = Boolean(active) && supabaseConfigured;
+  if (favoriteSyncActive) void flushQueue();
+}
+
+function writesEnabled(kind) {
+  return popularityConfigured || (kind === "favorite" && favoriteSyncActive);
+}
 
 export function popularityNeedsUpdate() { return stalePopularity; }
 
@@ -19,45 +29,18 @@ function readJson(key, fallback) {
   catch { return fallback; }
 }
 
-async function getSession() {
-  if (!popularityConfigured) throw new Error("Ranking não configurado.");
-  const cached = readJson(SESSION_KEY, null);
-  if (cached?.access_token && cached.expires_at > Date.now() + 60000) return cached;
-  if (cached?.refresh_token) {
-    const refreshed = await fetch(`${URL}/auth/v1/token?grant_type=refresh_token`, {
-      method: "POST", headers: { apikey: KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: cached.refresh_token }),
-    });
-    if (refreshed.ok) return saveSession(await refreshed.json());
-  }
-  const response = await fetch(`${URL}/auth/v1/signup`, {
-    method: "POST", headers: { apikey: KEY, "Content-Type": "application/json" }, body: JSON.stringify({ data: {} }),
-  });
-  if (!response.ok) throw new Error("Não foi possível iniciar uma sessão anônima para o ranking.");
-  const result = await response.json();
-  return saveSession(result.session || result);
-}
-
-function saveSession(session) {
-  if (!session?.access_token) throw new Error("Supabase não retornou uma sessão válida.");
-  const value = { ...session, expires_at: Date.now() + Number(session.expires_in || 3600) * 1000 };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(value));
-  return value;
-}
-
+/** Signed-in users rank with their own account; visitors get an anonymous session. */
 async function rpc(name, params = {}) {
-  const session = await getSession();
-  const response = await fetch(`${URL}/rest/v1/rpc/${name}`, {
-    method: "POST",
-    headers: { apikey: KEY, Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(params),
-  });
-  if (!response.ok) throw new Error(`Falha no ranking (${response.status}).`);
-  return response.json();
+  if (!supabaseConfigured) throw new Error("Supabase não configurado.");
+  await ensureSession();
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.rpc(name, params);
+  if (error) throw new Error(`Falha no ranking (${error.code || error.message}).`);
+  return data;
 }
 
 function enqueue(kind, code, active = null) {
-  if (!popularityConfigured) return;
+  if (!writesEnabled(kind)) return;
   try {
     const queue = readJson(QUEUE_KEY, []);
     const key = `${kind}:${code}`;
@@ -92,18 +75,19 @@ export async function fetchPopularSongs() {
 }
 
 export async function flushQueue() {
-  if (!popularityConfigured || retryPromise) return retryPromise;
+  if (!(popularityConfigured || favoriteSyncActive) || retryPromise) return retryPromise;
   retryPromise = (async () => {
-    let queue = readJson(QUEUE_KEY, []);
+    let queue = readJson(QUEUE_KEY, []).filter((entry) => writesEnabled(entry.kind));
     while (queue.length) {
       const item = queue[0];
       try {
         await rpc(item.kind === "open" ? "record_song_open" : "set_song_favorite", item.kind === "open"
           ? { p_code: item.code } : { p_code: item.code, p_active: item.active });
-        queue = readJson(QUEUE_KEY, []);
-        const current = queue.findIndex((entry) => entry.kind === item.kind && entry.code === item.code);
-        if (current >= 0 && queue[current].at === item.at) queue.splice(current, 1);
-        localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+        const stored = readJson(QUEUE_KEY, []);
+        const current = stored.findIndex((entry) => entry.kind === item.kind && entry.code === item.code);
+        if (current >= 0 && stored[current].at === item.at) stored.splice(current, 1);
+        localStorage.setItem(QUEUE_KEY, JSON.stringify(stored));
+        queue = stored.filter((entry) => writesEnabled(entry.kind));
       } catch { break; }
     }
   })().finally(() => { retryPromise = null; });
