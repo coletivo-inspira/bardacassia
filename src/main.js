@@ -31,6 +31,7 @@ import { hideExpiredEventNav, initializeAccountMenu, initializeTheme } from "./s
 import { syncAccountFavorites } from "./integrations/favorites-sync.js";
 import { mergeFavoriteCodes } from "./lib/favorites.js";
 import { clearSongRequest, initSongRequests, prepareSongRequest } from "./song-requests.js";
+import { initAnalytics, trackEvent } from "./integrations/analytics.js";
 
 const BASE = import.meta.env.BASE_URL || "/";
 const PAGE_SIZE = 40;
@@ -1536,6 +1537,7 @@ els.previewAudio.addEventListener("ended", stopPreview);
 function showSongToDJ(song) {
   activeSong = song;
   recordSongOpen(song.code);
+  trackEvent("abrir_musica", { code: song.code });
   dialogReturnFocus = document.activeElement;
   document.querySelector("#dialog-song").textContent = `${displayTitle(song.title)} — ${song.artist.replace(/\.\.\.$/, "")}`;
   document.querySelector("#dialog-code").textContent = song.code;
@@ -1800,6 +1802,11 @@ const onSearchInput = debounce(() => {
 }, 160);
 
 els.searchInput.addEventListener("input", onSearchInput);
+const trackSearch = debounce(() => {
+  const term = els.searchInput.value.trim();
+  if (term.length >= 2) trackEvent("busca", { search_term: term.slice(0, 60) });
+}, 1500);
+els.searchInput.addEventListener("input", trackSearch);
 els.clearButton.addEventListener("click", () => {
   els.searchInput.value = "";
   els.clearButton.hidden = true;
@@ -2061,6 +2068,7 @@ els.artistSongsDialog?.addEventListener("click", (event) => {
 els.favoritesButton.addEventListener("click", showFavorites);
 els.mobileFavoritesButton?.addEventListener("click", showFavorites);
 initializeTheme();
+initAnalytics();
 initSongRequests();
 els.spotifyButton.hidden = !spotifyConfigured;
 els.spotifyStatus.hidden = !spotifyConfigured;

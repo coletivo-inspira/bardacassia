@@ -1,4 +1,5 @@
-import { createSongRequest, fetchMyRequests, fetchPublicQueue, requestsConfigured } from "./integrations/requests.js";
+import { createSongRequest, fetchMyRequests, fetchPublicQueue, requestMode, requestsConfigured } from "./integrations/requests.js";
+import { clearQrRequest, initQrRequests, prepareQrRequest } from "./qr-request.js";
 import { cleanArtist, displayTitle } from "./lib/catalog.js";
 import {
   formatClock, readCustomer, requestErrorMessage, requestStatusLabel, roundSummary, saveCustomer, songLabel,
@@ -170,6 +171,7 @@ async function sendRequest() {
 
 export function prepareSongRequest(song) {
   if (!requestsConfigured) return;
+  if (requestMode === "qr") { prepareQrRequest(song); return; }
   currentSong = song;
   els.panel.hidden = false;
   els.start.hidden = false;
@@ -181,11 +183,14 @@ export function prepareSongRequest(song) {
 }
 
 export function clearSongRequest() {
+  clearQrRequest();
   currentSong = null;
 }
 
 export function initSongRequests() {
   if (!requestsConfigured) return;
+  // No modo QR o aparelho do cliente não grava nada: sem sessão anônima, sem pedidos pendentes.
+  if (requestMode === "qr") { initQrRequests(); return; }
   els.open.hidden = false;
   els.start.addEventListener("click", showForm);
   els.send.addEventListener("click", sendRequest);

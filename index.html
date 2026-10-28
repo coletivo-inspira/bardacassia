@@ -280,6 +280,21 @@
           <p id="request-status" class="request-status" role="status" aria-live="polite"></p>
           <button id="request-see-queue" class="text-button" type="button" hidden>Ver meus pedidos e a fila</button>
         </section>
+        <section id="qr-panel" class="request-panel qr-panel" aria-labelledby="qr-panel-title" hidden>
+          <h2 id="qr-panel-title" class="visually-hidden">Pedir ao garçom</h2>
+          <div id="qr-start" class="request-form">
+            <label for="qr-name">Seu nome (opcional)</label>
+            <input id="qr-name" name="qr-name" type="text" autocomplete="given-name" maxlength="30" enterkeyhint="go" />
+            <button id="qr-show" class="button button-light" type="button">Mostrar ao garçom</button>
+            <p class="request-privacy">O garçom lê o QR, cobra e coloca sua música na fila. Nada é enviado antes disso.</p>
+          </div>
+          <div id="qr-ticket" class="qr-ticket" hidden>
+            <img id="qr-image" class="qr-image" alt="" width="260" height="260" />
+            <p class="qr-ticket-code">Código <strong id="qr-code"></strong><span id="qr-ticket-name"></span></p>
+            <p class="qr-hint">Aumente o brilho da tela e mostre ao garçom.</p>
+            <p id="qr-status" class="request-status" role="status" aria-live="polite"></p>
+          </div>
+        </section>
         <button class="button button-light dialog-done" value="close">Pronto</button>
       </form>
     </dialog>
