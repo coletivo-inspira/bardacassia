@@ -118,6 +118,15 @@
             <button class="staff-button staff-primary" type="submit">Salvar</button>
             <button id="round-new" class="staff-button staff-ghost" type="button">Começar nova rodada (zera vagas e abre a fila)</button>
           </form>
+          <form id="night-form" class="staff-card staff-round-form night-form">
+            <h2 class="staff-subtitle">Código da noite (pedido pelo celular do cliente)</h2>
+            <p class="staff-hint">Só para quando o cliente pede sozinho, sem o QR. Mostre o código no balcão ou na tela do karaokê: quem está em casa não consegue pedir.</p>
+            <label class="staff-check"><input id="night-required" type="checkbox" /> Exigir código da noite</label>
+            <label for="night-code">Código</label>
+            <input id="night-code" type="text" maxlength="12" autocapitalize="characters" autocomplete="off" />
+            <button id="night-generate" class="staff-button staff-ghost" type="button">Gerar código novo</button>
+            <button class="staff-button staff-primary" type="submit">Salvar código</button>
+          </form>
         </section>
       </section>
     </main>

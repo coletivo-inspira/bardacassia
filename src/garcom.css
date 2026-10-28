@@ -143,6 +143,9 @@ input:focus-visible, button:focus-visible { outline: 2px solid var(--amber); out
 .results-bar-fill { height: 100%; border-radius: inherit; background: var(--amber); }
 .results-bar-value { text-align: right; font-weight: 700; }
 .results-empty { color: var(--muted); font-size: .9rem; }
+.night-form { margin-top: .75rem; }
+.night-form .staff-subtitle { margin: 0; color: var(--text); }
+#night-code { text-transform: uppercase; letter-spacing: .2em; font-weight: 700; }
 .manual-form { display: grid; gap: .4rem; padding-top: .5rem; border-top: 1px solid var(--line); }
 .staff-tab {
   min-height: 48px;

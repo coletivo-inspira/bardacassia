@@ -113,3 +113,12 @@ test("filterStaffRequests busca por nome sem acento, telefone e código", () => 
   assert.deepEqual(filterStaffRequests(staffRequests, "bruno mars").map((request) => request.id), [3]);
   assert.equal(filterStaffRequests(staffRequests, "  ").length, 3);
 });
+
+test("randomNightCode evita letras confundíveis e normalizeNightCode limpa a digitação", async () => {
+  const { normalizeNightCode, randomNightCode } = await import("../src/lib/requests.js");
+  let seed = 0;
+  const code = randomNightCode(6, () => (seed++ * 0.137) % 1);
+  assert.match(code, /^[A-HJ-NP-Z2-9]{6}$/);
+  assert.equal(normalizeNightCode(" ab-12 c "), "AB12C");
+  assert.equal(requestErrorMessage({ hint: "codigo_noite_invalido" }).includes("Código da noite"), true);
+});

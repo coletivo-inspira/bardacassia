@@ -78,7 +78,7 @@ begin
     s.name as staff_name
   from public.song_requests r
   left join public.staff s on s.user_id = r.created_by
-  where r.status in ('aguardando_pagamento', 'na_fila')
+  where (r.status = 'na_fila' or (r.status = 'aguardando_pagamento' and r.created_at > now() - interval '30 minutes'))
     and r.created_at > now() - interval '18 hours'
     and (lower(r.customer_name) like v_search or coalesce(r.customer_phone, '') like v_search or r.code like v_search)
   order by case r.status when 'na_fila' then 0 else 1 end, r.paid_at nulls last, r.created_at, r.id

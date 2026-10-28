@@ -274,6 +274,10 @@
             <label for="request-phone">Telefone com DDD</label>
             <input id="request-phone" name="request-phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="(31) 99999-9999" enterkeyhint="send" />
             <p id="request-phone-error" class="field-error" hidden></p>
+            <div id="request-night-wrap" hidden>
+              <label for="request-night">Código da noite (está no balcão ou na tela do karaokê)</label>
+              <input id="request-night" name="request-night" type="text" autocomplete="off" autocapitalize="characters" maxlength="12" enterkeyhint="send" />
+            </div>
             <p class="request-privacy">Seu nome e telefone ficam salvos neste aparelho e vão só para o bar identificar o seu pedido.</p>
             <button id="send-request" class="button button-light" type="button">Enviar pedido</button>
           </div>

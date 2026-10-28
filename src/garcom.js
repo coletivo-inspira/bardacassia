@@ -1,11 +1,11 @@
 import "./garcom.css";
 import {
   getStaffSession, ownerMetrics, requestsConfigured, staffAddRequest, staffCancel, staffGetSettings, staffListPlayed,
-  staffListRequests, staffMarkPaid, staffMarkPlayed, staffSignIn, staffSignOut, staffUpdateSettings, staffWhoami,
+  staffGetNightCode, staffListRequests, staffMarkPaid, staffSetNightCode, staffMarkPlayed, staffSignIn, staffSignOut, staffUpdateSettings, staffWhoami,
 } from "./integrations/requests.js";
 import { displayTitle } from "./lib/catalog.js";
 import {
-  filterStaffRequests, formatClock, formatPhone, nextOccurrence, requestErrorMessage, roundSummary, songLabel,
+  filterStaffRequests, normalizeNightCode, randomNightCode, formatClock, formatPhone, nextOccurrence, requestErrorMessage, roundSummary, songLabel,
   splitStaffRequests,
 } from "./lib/requests.js";
 import { newTicketId, parseTicket, ticketName } from "./lib/qr-ticket.js";
@@ -67,6 +67,10 @@ const els = {
   roundMessage: $("#round-message"),
   roundNew: $("#round-new"),
   tabResults: $("#tab-results"),
+  nightForm: $("#night-form"),
+  nightRequired: $("#night-required"),
+  nightCode: $("#night-code"),
+  nightGenerate: $("#night-generate"),
   resultsRanges: [...document.querySelectorAll(".results-range")],
   resultsStatus: $("#results-status"),
   resultsCards: $("#results-cards"),
@@ -290,6 +294,7 @@ function selectTab(tab) {
   }
   if (tab.id === "tab-pending") els.search.focus();
   if (tab.id === "tab-results") void loadResults();
+  if (tab.id === "tab-round") void loadNightCode();
 }
 
 function loadCatalog() {
@@ -487,6 +492,13 @@ async function loadResults() {
   }
 }
 
+async function loadNightCode() {
+  const state = await staffGetNightCode().catch(() => null);
+  if (!state) return;
+  els.nightRequired.checked = Boolean(state.required);
+  els.nightCode.value = state.code || "";
+}
+
 async function applyRole() {
   const me = await staffWhoami().catch(() => null);
   els.tabResults.hidden = me?.role !== "dono";
@@ -532,6 +544,16 @@ function init() {
   els.manualForm.addEventListener("submit", submitManual);
   els.ticketConfirm.addEventListener("click", () => void confirmTicket());
   els.ticketDismiss.addEventListener("click", dismissTicket);
+  els.nightGenerate.addEventListener("click", () => { els.nightCode.value = randomNightCode(); });
+  els.nightForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const code = normalizeNightCode(els.nightCode.value);
+    const state = await act(() => staffSetNightCode({ required: els.nightRequired.checked, code }), "Código da noite salvo.");
+    if (state) {
+      els.nightRequired.checked = Boolean(state.required);
+      els.nightCode.value = state.code || "";
+    }
+  });
   els.resultsRanges.forEach((button) => button.addEventListener("click", () => {
     resultsRange = button.dataset.range;
     void loadResults();
