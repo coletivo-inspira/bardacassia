@@ -23,7 +23,8 @@
 - **Descoberta por cartões:** escolha artistas, passe ou selecione músicas e mantenha uma lista da noite salva neste navegador.
 - **Mais populares:** ranking agregado, quando o Supabase está configurado.
 - **Deezer:** capas e trechos de áudio quando disponíveis; o site continua funcional sem a API.
-- **Código ao DJ:** exibe o código para o usuário mostrar ao DJ. **Não envia pedidos automaticamente à fila.**
+- **Código ao DJ:** exibe o código para o usuário mostrar ao DJ.
+- **Pedidos de música (opcional, Supabase):** o cliente toca em “Pedir esta música”, informa nome e telefone (lembrados no aparelho), paga no bar e acompanha a posição em “Meus pedidos”. O garçom confirma o pagamento e controla a fila e as rodadas pelo celular em `garcom.html`.
 
 O catálogo tem aproximadamente 12,7 mil músicas e é gerado a partir de `data/musicas.csv` ou `data/lista-musica.pdf`.
 
@@ -76,23 +77,34 @@ O botão só aparece quando o Client ID estiver configurado. A autorização usa
 
 Veja [Integrações](./docs/INTEGRACOES.md#supabase-ranking-e-interações-anônimas) para configurar o Supabase, executar a migração e sincronizar os códigos. `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` habilitam o ranking; `SUPABASE_SERVICE_ROLE_KEY` é somente um secret do GitHub Actions para sincronizar o catálogo.
 
+## Pedidos de música e painel do garçom (opcional)
+
+Usa o mesmo Supabase do ranking. Execute também `supabase/migrations/002_song_requests.sql`, cadastre os garçons e abra `garcom.html` no celular do bar. O passo a passo está em [Integrações](./docs/INTEGRACOES.md#pedidos-de-música-e-painel-do-garçom). Para desligar só os pedidos, use `VITE_ENABLE_REQUESTS=false`.
+
 ## Organização do projeto
 
 ```text
 src/
   main.js                  # interface e estados da pesquisa
+  song-requests.js         # pedir música, meus pedidos e fila do cliente
+  garcom.js                # painel do garçom (garcom.html)
   styles.css               # layout e identidade visual
   lib/catalog.js           # ranking, normalização e conciliação
+  lib/requests.js          # validação e textos de pedidos, fila e rodada
   integrations/deezer.js   # metadados e artistas relacionados
   integrations/spotify.js  # autorização PKCE e top tracks
+  integrations/supabase.js # sessão anônima, login do garçom e RPC
+  integrations/requests.js # chamadas de pedidos e do painel
 public/
   data/songs.json          # catálogo publicado
   logo_bar_da_cacia_animada.svg
 data/
   musicas.csv              # fonte editável
   lista-musica.pdf         # fonte alternativa
+supabase/migrations/      # 001 ranking, 002 pedidos e fila
 scripts/import-songs.js
 tests/catalog.test.js
+tests/requests.test.js
 docs/INTEGRACOES.md
 docs/PESQUISA-E-UX.md
 ```

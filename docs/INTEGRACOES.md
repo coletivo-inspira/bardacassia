@@ -10,6 +10,7 @@ O site é estático (Vite + GitHub Pages). O **catálogo de karaokê** em `publi
 | Deezer | Capas, previews e artistas relacionados | Sem chave no fluxo atual | Iniciais no lugar da capa, sem preview; sugestões editoriais quando disponíveis |
 | Spotify (opcional) | Sugerir músicas a partir das 50 faixas mais ouvidas da conta | OAuth 2.0 Authorization Code + PKCE, `user-top-read` | Seleção manual de artistas continua funcionando |
 | Supabase (opcional) | Ranking agregado e identidade anônima por navegador | Auth anônima + RPC com RLS | Descoberta, busca e lista local continuam funcionando |
+| Supabase: pedidos (opcional) | Pedidos de música, fila e painel do garçom | Auth anônima (cliente), e-mail e senha (garçom), RPC com RLS | Botão de pedido e “Meus pedidos” ficam ocultos; o código continua visível |
 | Navegador | Favoritas do usuário | Nenhuma | Se armazenamento estiver bloqueado, informar limitação |
 
 ## Deezer
@@ -69,7 +70,54 @@ As RPCs `record_song_open`, `set_song_favorite` e `get_popular_songs` são as in
 
 Limpar os dados locais pode criar outra identidade anônima. Isso reduz repetições comuns, mas não comprova uma pessoa única.
 
+## Pedidos de música e painel do garçom
+
+A migração está em `supabase/migrations/002_song_requests.sql`. Os módulos são `src/song-requests.js` (cliente), `src/garcom.js` (painel) e `src/integrations/requests.js`.
+
+### Fluxo
+
+1. O cliente abre uma música e toca em **Pedir esta música**. Nome e telefone ficam salvos neste aparelho (`bdc-customer-v1`) e são enviados com o pedido, que fica como `aguardando_pagamento`.
+2. O site pede para ele ir ao bar pagar. No bar, o garçom busca pelo nome, telefone ou código na aba **A pagar** e toca em **Pago**. O pedido passa a `na_fila`, ordenado pelo horário do pagamento.
+3. Na aba **Fila**, a próxima música aparece com o código em destaque para digitar no controle. **Tocou** tira o pedido da fila e mostra o próximo.
+4. Em **Meus pedidos**, o cliente vê o status e quantas músicas faltam para a dele, além da **Fila agora** com o primeiro nome de cada pessoa. O telefone nunca aparece para outros clientes. A tela se atualiza a cada 15 segundos (o painel, a cada 10).
+
+### Rodadas
+
+Na aba **Rodada**, o garçom abre ou fecha a fila, define quantas músicas cabem na rodada (padrão 13; 0 = sem limite), o horário da próxima rodada e um aviso opcional. Quando o último pagamento preenche a rodada, a fila fecha sozinha. **Começar nova rodada** zera as vagas e reabre a fila. O site mostra uma faixa com o estado, por exemplo “Fila fechada · próxima rodada às 02:00”. Com a fila fechada, novos pedidos são recusados.
+
+### Configuração
+
+1. No SQL Editor do Supabase, execute a migração `002_song_requests.sql`, depois da 001.
+2. Mantenha os Anonymous Sign-Ins ativos (os clientes usam a mesma sessão anônima do ranking).
+3. Crie um usuário para cada garçom em Authentication > Users > Add user, com e-mail e senha e a opção de confirmar automaticamente.
+4. Autorize esse usuário no painel:
+
+   ```sql
+   insert into public.staff(user_id, name)
+   select id, 'Nome do garçom' from auth.users where email = 'garcom@exemplo.com';
+   ```
+
+   Para remover o acesso: `delete from public.staff where user_id = '...';`.
+5. Abra `https://coletivo-inspira.github.io/bardacassia/garcom.html` no celular do bar e entre com o e-mail e a senha. A página não é indexada por buscadores.
+
+Nenhuma variável nova é obrigatória: `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` bastam. Para desligar só os pedidos, use `VITE_ENABLE_REQUESTS=false` (no GitHub Actions, a variável `ENABLE_REQUESTS=false`).
+
+### Segurança e limites
+
+- As tabelas `song_requests`, `staff` e `bar_settings` têm RLS e nenhum acesso direto; tudo passa pelas RPCs.
+- As RPCs `staff_*` exigem um usuário cadastrado em `public.staff`. Uma sessão anônima não lê telefones nem altera a fila.
+- Cada sessão anônima pode ter até três pedidos aguardando pagamento e segue o limite de 120 gravações por minuto.
+- O painel e “Meus pedidos” mostram apenas as últimas 18 horas.
+- A fila é a do sistema, não a do telão: o garçom marca “Tocou” quando coloca a música.
+
+### Próximas fases
+
+- **Pagamento online (Pix/PagSeguro):** antes, confirmar com o bar quem recebe o dinheiro (Zig ou maquininha própria) e se há API. A confirmação automática precisaria de uma função de servidor (por exemplo uma Supabase Edge Function) para guardar a chave e receber o webhook, chamando a mesma transição de `aguardando_pagamento` para `na_fila`.
+- **Tempo real:** trocar a atualização periódica por Supabase Realtime.
+
 ## Privacidade e operação
+
+Nos pedidos de música, o site coleta só nome e telefone, para o bar identificar quem pediu. Eles ficam no aparelho do cliente e no Supabase, e apenas garçons cadastrados os veem. Não pedimos CPF.
 
 As favoritas são códigos de música salvos **neste navegador**, sem conta própria ou sincronização entre aparelhos. Limpar os dados do navegador remove essa lista. O Deezer recebe consultas por título/artista; o Spotify só é acessado após ação explícita do usuário.
 
