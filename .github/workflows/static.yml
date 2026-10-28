@@ -38,6 +38,7 @@ jobs:
           VITE_ENABLE_REQUESTS: ${{ vars.ENABLE_REQUESTS }}
           VITE_REQUEST_MODE: ${{ vars.REQUEST_MODE }}
           VITE_ANALYTICS_ID: ${{ vars.ANALYTICS_ID }}
+          VITE_SITE_URL: ${{ vars.SITE_URL }}
           VITE_ENABLE_AUTH: ${{ vars.ENABLE_AUTH }}
           VITE_AUTH_PROVIDERS: ${{ vars.AUTH_PROVIDERS }}
           VITE_AUTH_CAPTCHA_SITE_KEY: ${{ vars.AUTH_CAPTCHA_SITE_KEY }}

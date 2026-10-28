@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Cartaz para imprimir — Bar da Cácia</title>
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Outfit:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="poster-page">
+    <form class="poster-controls" id="poster-controls">
+      <label for="poster-size">Tamanho</label>
+      <select id="poster-size">
+        <option value="a5">A5 (mesa)</option>
+        <option value="a4">A4 (parede)</option>
+      </select>
+      <label for="poster-origin">Origem nas estatísticas</label>
+      <select id="poster-origin">
+        <option value="mesa">mesa</option>
+        <option value="balcao">balcão</option>
+        <option value="banheiro">banheiro</option>
+        <option value="instagram">instagram</option>
+      </select>
+      <button id="poster-print" type="button">Imprimir</button>
+    </form>
+
+    <main id="poster" class="poster" data-size="a5">
+      <img class="poster-logo" src="%BASE_URL%logo_bar_da_cacia.svg" alt="Bar da Cácia" width="96" height="96" />
+      <h1>Quer cantar?</h1>
+      <p class="poster-lead">Ache sua música e mostre ao garçom.</p>
+      <div id="poster-qr" class="poster-qr" role="img" aria-label="QR code do catálogo de karaokê"></div>
+      <ol class="poster-steps">
+        <li>Aponte a câmera do celular para o QR.</li>
+        <li>Busque a música e toque em <strong>“Mostrar ao garçom”</strong>.</li>
+        <li>O garçom lê o seu QR, cobra e sua música entra na fila.</li>
+      </ol>
+      <p id="poster-url" class="poster-url"></p>
+    </main>
+
+    <script type="module" src="/src/cartaz.js"></script>
+  </body>
+</html>

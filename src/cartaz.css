@@ -1,0 +1,69 @@
+:root {
+  --ink: #141414;
+  --amber: #dec949;
+  --gold: #8a6a12;
+  font-family: "Outfit", system-ui, sans-serif;
+  color: var(--ink);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body { margin: 0; background: #e9e6dc; }
+
+.poster-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem .75rem;
+  padding: .75rem 1rem;
+  background: var(--ink);
+  color: #fff;
+}
+.poster-controls label { font-weight: 600; font-size: .9rem; }
+.poster-controls select, .poster-controls button {
+  min-height: 44px;
+  padding: .4rem .8rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, .3);
+  background: #222;
+  color: #fff;
+  font: 600 1rem "Outfit", system-ui, sans-serif;
+}
+.poster-controls button { background: var(--amber); color: var(--ink); border-color: transparent; cursor: pointer; }
+
+.poster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4mm;
+  width: 148mm;
+  height: 210mm;
+  margin: 1.5rem auto;
+  padding: 12mm;
+  background: #fff;
+  border: 3mm solid var(--amber);
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .15);
+}
+.poster[data-size="a4"] { width: 210mm; height: 297mm; padding: 18mm; gap: 6mm; border-width: 4mm; }
+
+.poster-logo { width: 24mm; height: 24mm; }
+.poster[data-size="a4"] .poster-logo { width: 34mm; height: 34mm; }
+.poster h1 { margin: 0; font-family: "Bricolage Grotesque", Georgia, serif; font-size: 16mm; font-weight: 800; line-height: 1; }
+.poster[data-size="a4"] h1 { font-size: 24mm; }
+.poster-lead { margin: 0; font-size: 6mm; font-weight: 600; }
+.poster[data-size="a4"] .poster-lead { font-size: 9mm; }
+.poster-qr { width: 70mm; height: 70mm; }
+.poster[data-size="a4"] .poster-qr { width: 105mm; height: 105mm; }
+.poster-qr svg { width: 100%; height: 100%; display: block; }
+.poster-steps { margin: 0; padding-left: 7mm; text-align: left; font-size: 4.2mm; line-height: 1.45; }
+.poster[data-size="a4"] .poster-steps { font-size: 6mm; }
+.poster-url { margin: 0; color: var(--gold); font-weight: 700; font-size: 4mm; overflow-wrap: anywhere; }
+.poster[data-size="a4"] .poster-url { font-size: 5.5mm; }
+
+@media print {
+  body { background: #fff; }
+  .poster-controls { display: none; }
+  .poster { margin: 0; box-shadow: none; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
