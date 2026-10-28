@@ -16,5 +16,16 @@ const assert=require('node:assert/strict');
  await page.locator('#open-night-list').click();page.once('dialog',d=>d.accept());await page.locator('#reset-night').click();assert.equal(await page.locator('#night-list-count').textContent(),'0');
  assert.deepEqual(errors,[]);
  const blocked=await browser.newPage();await blocked.addInitScript(()=>{Storage.prototype.setItem=()=>{throw Error('blocked')};Storage.prototype.getItem=()=>{throw Error('blocked')};});await blocked.goto(process.env.TEST_URL || 'http://127.0.0.1:5173');await blocked.locator('[data-category-id="discover"]').click();await blocked.locator('#skip-artist-picker').click();assert((await blocked.locator('#spotify-status').textContent()).includes('continuar'));
- console.log(name+': swipe, double click, undo, reload, clipboard success/failure, reset, blocked storage PASS');await browser.close();
+ const login=await browser.newPage({viewport:{width:390,height:844}});const loginErrors=[];login.on('pageerror',e=>loginErrors.push(e.message));
+ await login.goto(new URL('login.html?next=https://evil.example',process.env.TEST_URL || 'http://127.0.0.1:5173/').href);await login.locator('#auth-title').waitFor();
+ assert.equal(await login.locator('#auth-title').textContent(),'Entrar');assert.equal(await login.locator('#auth-submit').isDisabled(),true);
+ await login.locator('a[href="#cadastrar"]').click();await login.locator('#auth-card[data-mode="cadastrar"]').waitFor();assert.equal(await login.locator('#auth-title').textContent(),'Cadastrar');assert.equal(await login.locator('#auth-name').isVisible(),true);
+ await login.locator('a[href="#entrar"]:visible').first().click();await login.locator('#auth-card[data-mode="entrar"]').waitFor();assert.equal(await login.locator('#auth-name').isVisible(),false);
+ if(await login.locator('#auth-unavailable').isHidden()){
+  await login.locator('#auth-email').fill('a@b');await login.locator('#auth-email').blur();assert((await login.locator('#auth-email-error').textContent()).includes('válido'));
+  await login.locator('#auth-email').fill('cacia@bar.com');await login.locator('#auth-password').fill('x');assert.equal(await login.locator('#auth-submit').isDisabled(),false);
+  await login.locator('#auth-toggle-password').click();assert.equal(await login.locator('#auth-password').getAttribute('type'),'text');
+ }
+ assert.deepEqual(loginErrors,[]);
+ console.log(name+': swipe, double click, undo, reload, clipboard success/failure, reset, blocked storage, login modes PASS');await browser.close();
 }})().catch(e=>{console.error(e);process.exit(1)});
