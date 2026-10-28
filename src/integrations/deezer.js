@@ -99,7 +99,17 @@ function jsonp(path, params = {}) {
   });
 }
 
+const DEEZER_PROXY_URL = String(import.meta.env?.VITE_DEEZER_PROXY_URL || "");
+
 async function request(path, params = {}) {
+  if (DEEZER_PROXY_URL) {
+    const url = new URL(DEEZER_PROXY_URL, location.href);
+    url.searchParams.set("path", path);
+    Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
+    const response = await fetch(url, { signal: AbortSignal.timeout?.(8000) });
+    if (!response.ok) throw new Error("Deezer indisponível");
+    return response.json();
+  }
   if (import.meta.env.DEV) {
     try {
       const url = new URL(`/api/deezer${path}`, location.origin);

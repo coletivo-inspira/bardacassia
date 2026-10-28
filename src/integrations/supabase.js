@@ -1,89 +1,104 @@
-const URL = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
-const KEY = String(import.meta.env.VITE_SUPABASE_ANON_KEY || "");
-const ANON_SESSION_KEY = "bdc-supabase-session-v1";
-const STAFF_SESSION_KEY = "bdc-staff-session-v1";
+export const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
+export const SUPABASE_KEY = String(import.meta.env.VITE_SUPABASE_ANON_KEY || "");
+export const supabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_KEY);
 
-export const supabaseConfigured = Boolean(URL && KEY);
+const AUTH_STORAGE_KEY = "bdc-auth-v1";
+const PERSIST_KEY = "bdc-auth-persist-v1";
+const LEGACY_SESSION_KEY = "bdc-supabase-session-v1";
 
-export class SupabaseError extends Error {
-  constructor(message, { status = 0, code = "", hint = "" } = {}) {
-    super(message);
-    this.status = status;
-    this.code = code;
-    this.hint = hint;
+function safeStorage(kind) {
+  try {
+    const storage = window[kind];
+    const probe = "__bdc_probe__";
+    storage.setItem(probe, "1");
+    storage.removeItem(probe);
+    return storage;
+  } catch {
+    return null;
   }
 }
 
-function readJson(key) {
-  try { return JSON.parse(localStorage.getItem(key) || "null"); }
-  catch { return null; }
+const memory = new Map();
+
+/** "Manter conectado" off keeps the session only in this tab (sessionStorage). */
+export function setPersistSession(persist) {
+  const local = safeStorage("localStorage");
+  try { local?.setItem(PERSIST_KEY, persist ? "1" : "0"); } catch { /* preference falls back to persistent */ }
 }
 
-function saveSession(storageKey, session) {
-  if (!session?.access_token) throw new SupabaseError("Supabase não retornou uma sessão válida.");
-  const value = { ...session, expires_at: Date.now() + Number(session.expires_in || 3600) * 1000 };
-  localStorage.setItem(storageKey, JSON.stringify(value));
-  return value;
+export function getPersistSession() {
+  try { return safeStorage("localStorage")?.getItem(PERSIST_KEY) !== "0"; } catch { return true; }
 }
 
-async function authRequest(path, body) {
-  return fetch(`${URL}/auth/v1/${path}`, {
-    method: "POST",
-    headers: { apikey: KEY, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+const authStorage = {
+  getItem(key) {
+    const session = safeStorage("sessionStorage")?.getItem(key);
+    if (session != null) return session;
+    const local = safeStorage("localStorage")?.getItem(key);
+    if (local != null) return local;
+    return memory.get(key) ?? null;
+  },
+  setItem(key, value) {
+    const local = safeStorage("localStorage");
+    const session = safeStorage("sessionStorage");
+    const target = getPersistSession() ? local : session;
+    const other = target === local ? session : local;
+    if (target) target.setItem(key, value);
+    else memory.set(key, value);
+    other?.removeItem(key);
+  },
+  removeItem(key) {
+    safeStorage("localStorage")?.removeItem(key);
+    safeStorage("sessionStorage")?.removeItem(key);
+    memory.delete(key);
+  },
+};
+
+/** Cheap check that avoids downloading supabase-js for visitors who never signed in. */
+export function hasStoredAuthSession() {
+  try {
+    return authStorage.getItem(AUTH_STORAGE_KEY) != null;
+  } catch {
+    return false;
+  }
 }
 
-async function refreshStored(storageKey) {
-  const cached = readJson(storageKey);
-  if (cached?.access_token && cached.expires_at > Date.now() + 60000) return cached;
-  if (!cached?.refresh_token) return null;
-  const refreshed = await authRequest("token?grant_type=refresh_token", { refresh_token: cached.refresh_token });
-  if (refreshed.ok) return saveSession(storageKey, await refreshed.json());
-  localStorage.removeItem(storageKey);
-  return null;
-}
+let clientPromise;
 
-export async function getAnonSession() {
-  if (!supabaseConfigured) throw new SupabaseError("Supabase não configurado.");
-  const stored = await refreshStored(ANON_SESSION_KEY);
-  if (stored) return stored;
-  const response = await authRequest("signup", { data: {} });
-  if (!response.ok) throw new SupabaseError("Não foi possível iniciar uma sessão anônima.", { status: response.status });
-  const result = await response.json();
-  return saveSession(ANON_SESSION_KEY, result.session || result);
-}
-
-export async function getStaffSession() {
-  if (!supabaseConfigured) return null;
-  return refreshStored(STAFF_SESSION_KEY);
-}
-
-export async function staffSignIn(email, password) {
-  if (!supabaseConfigured) throw new SupabaseError("Supabase não configurado.");
-  const response = await authRequest("token?grant_type=password", { email, password });
-  if (!response.ok) throw new SupabaseError("E-mail ou senha incorretos.", { status: response.status });
-  return saveSession(STAFF_SESSION_KEY, await response.json());
-}
-
-export function staffSignOut() {
-  localStorage.removeItem(STAFF_SESSION_KEY);
-}
-
-export async function rpc(name, params = {}, session) {
-  const active = session || await getAnonSession();
-  const response = await fetch(`${URL}/rest/v1/rpc/${name}`, {
-    method: "POST",
-    headers: { apikey: KEY, Authorization: `Bearer ${active.access_token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(params),
-  });
-  if (!response.ok) {
-    let detail = {};
-    try { detail = await response.json(); } catch { /* corpo vazio */ }
-    throw new SupabaseError(detail.message || `Falha no Supabase (${response.status}).`, {
-      status: response.status, code: detail.code || "", hint: detail.hint || "",
+/** Lazily loads supabase-js so pages without auth interactions stay light. */
+export function getSupabase() {
+  if (!supabaseConfigured) return Promise.reject(new Error("Supabase não configurado."));
+  clientPromise ??= import("@supabase/supabase-js").then(async ({ createClient }) => {
+    const client = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: {
+        flowType: "pkce",
+        storageKey: AUTH_STORAGE_KEY,
+        storage: authStorage,
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
     });
+    await adoptLegacySession(client);
+    return client;
+  });
+  return clientPromise;
+}
+
+/** Keeps the anonymous identity created by the previous hand-rolled ranking client. */
+async function adoptLegacySession(client) {
+  const local = safeStorage("localStorage");
+  const raw = local?.getItem(LEGACY_SESSION_KEY);
+  if (!raw) return;
+  local.removeItem(LEGACY_SESSION_KEY);
+  try {
+    const { data } = await client.auth.getSession();
+    if (data.session) return;
+    const legacy = JSON.parse(raw);
+    if (legacy?.access_token && legacy?.refresh_token) {
+      await client.auth.setSession({ access_token: legacy.access_token, refresh_token: legacy.refresh_token });
+    }
+  } catch {
+    /* a fresh anonymous session is created on demand */
   }
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
 }

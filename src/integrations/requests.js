@@ -1,27 +1,74 @@
-import { getStaffSession, rpc, staffSignIn, staffSignOut, supabaseConfigured } from "./supabase.js";
+import { ensureSession, isAnonymous } from "./auth.js";
+import { getSupabase, supabaseConfigured } from "./supabase.js";
+import { authErrorMessage } from "../lib/auth-validation.js";
 
 const REQUESTS_ENABLED = String(import.meta.env.VITE_ENABLE_REQUESTS || "true") !== "false";
 
 export const requestsConfigured = supabaseConfigured && REQUESTS_ENABLED;
 
+export class RequestError extends Error {
+  constructor(message, { status = 0, code = "", hint = "" } = {}) {
+    super(message);
+    this.status = status;
+    this.code = code;
+    this.hint = hint;
+  }
+}
+
+async function call(name, params = {}) {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.rpc(name, params);
+  if (error) throw new RequestError(error.message, { code: error.code || "", hint: error.hint || "" });
+  return data;
+}
+
+/** Signed-in customers request with their account; visitors get an anonymous session. */
+async function customerRpc(name, params) {
+  await ensureSession();
+  return call(name, params);
+}
+
 export function createSongRequest({ code, name, phone }) {
-  return rpc("create_song_request", { p_code: String(code), p_name: name, p_phone: phone });
+  return customerRpc("create_song_request", { p_code: String(code), p_name: name, p_phone: phone });
 }
 
 export async function fetchMyRequests() {
-  return (await rpc("get_my_requests")) || [];
+  return (await customerRpc("get_my_requests")) || [];
 }
 
 export function fetchPublicQueue() {
-  return rpc("get_public_queue");
+  return customerRpc("get_public_queue");
 }
 
-export { getStaffSession, staffSignIn, staffSignOut };
+/** Staff use a permanent account; an anonymous visitor session does not count. */
+export async function getStaffSession() {
+  if (!supabaseConfigured) return null;
+  const supabase = await getSupabase();
+  const { data } = await supabase.auth.getSession();
+  const session = data.session;
+  return session && !isAnonymous(session.user) ? session : null;
+}
+
+export async function staffSignIn(email, password) {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.auth.signInWithPassword({ email: String(email).trim().toLowerCase(), password });
+  if (error) throw new RequestError(authErrorMessage(error), { status: error.status || 400 });
+  return data.session;
+}
+
+export async function staffSignOut() {
+  if (!supabaseConfigured) return;
+  try {
+    const supabase = await getSupabase();
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {
+    // The stored session is already gone or unreachable; the login screen is shown anyway.
+  }
+}
 
 async function staffRpc(name, params) {
-  const session = await getStaffSession();
-  if (!session) throw Object.assign(new Error("Sessão expirada. Entre novamente."), { status: 401 });
-  return rpc(name, params, session);
+  if (!await getStaffSession()) throw new RequestError("Sessão expirada. Entre novamente.", { status: 401 });
+  return call(name, params);
 }
 
 export async function staffListRequests(search = "") {

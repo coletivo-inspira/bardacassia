@@ -1,4 +1,4 @@
-import { hideExpiredEventNav, initializeTheme, isBeforeExpiry } from "./site.js";
+import { hideExpiredEventNav, initializeAccountMenu, initializeTheme, isBeforeExpiry } from "./site.js";
 
 const EVENT_EXPIRES = "2026-11-01";
 
@@ -7,4 +7,5 @@ if (!isBeforeExpiry(EVENT_EXPIRES)) {
 } else {
   initializeTheme();
   hideExpiredEventNav();
+  void initializeAccountMenu();
 }

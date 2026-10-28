@@ -1,0 +1,8 @@
+project_id = "bardacassia"
+
+[functions.account-delete]
+verify_jwt = true
+
+# Public, read-only metadata proxy: no user data and no secrets involved.
+[functions.deezer-proxy]
+verify_jwt = false

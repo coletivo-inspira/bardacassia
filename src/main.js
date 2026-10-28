@@ -11,7 +11,9 @@ import {
   isInteractiveSwipeTarget,
 } from "./lib/discovery-swipe.js";
 import { fetchPopularSongs, popularityNeedsUpdate, recordSongOpen, setSongFavorite } from "./integrations/popularity.js";
-import { hideExpiredEventNav, initializeTheme } from "./site.js";
+import { hideExpiredEventNav, initializeAccountMenu, initializeTheme } from "./site.js";
+import { syncAccountFavorites } from "./integrations/favorites-sync.js";
+import { mergeFavoriteCodes } from "./lib/favorites.js";
 import { clearSongRequest, initSongRequests, prepareSongRequest } from "./song-requests.js";
 
 const BASE = import.meta.env.BASE_URL || "/";
@@ -640,6 +642,31 @@ function updateFavoriteControls() {
   }
 }
 
+async function applyAccountFavorites() {
+  const remote = await syncAccountFavorites(favoriteCodes);
+  if (!remote) return;
+  const merged = mergeFavoriteCodes(favoriteCodes, remote, (code) => songByCode.has(code));
+  if (merged.size === favoriteCodes.size && [...merged].every((code) => favoriteCodes.has(code))) return;
+  favoriteCodes = merged;
+  persistFavorites();
+  updateFavoriteControls();
+  if (favoritesOnly) applyFilters();
+  else refreshFavoriteButtons();
+}
+
+function refreshFavoriteButtons(onlyCode = null) {
+  document.querySelectorAll(".favorite-btn").forEach((button) => {
+    if (onlyCode && button.dataset.code !== onlyCode) return;
+    const song = songByCode.get(button.dataset.code);
+    if (!song) return;
+    const saved = favoriteCodes.has(song.code);
+    button.textContent = saved ? "Salva" : "Favoritar";
+    button.setAttribute("aria-pressed", String(saved));
+    button.setAttribute("aria-label", `${saved ? "Remover das favoritas" : "Adicionar às favoritas"}: ${displayTitle(song.title)}`);
+    button.classList.toggle("is-favorite", saved);
+  });
+}
+
 function addFavorites(newSongs) {
   for (const song of newSongs) favoriteCodes.add(String(song.code));
   persistFavorites();
@@ -654,14 +681,7 @@ function toggleFavorite(song) {
   if (favoritesOnly) {
     applyFilters();
   } else {
-    document.querySelectorAll(".favorite-btn").forEach((button) => {
-      if (button.dataset.code !== song.code) return;
-      const saved = favoriteCodes.has(song.code);
-      button.textContent = saved ? "Salva" : "Favoritar";
-      button.setAttribute("aria-pressed", String(saved));
-      button.setAttribute("aria-label", `${saved ? "Remover das favoritas" : "Adicionar às favoritas"}: ${displayTitle(song.title)}`);
-      button.classList.toggle("is-favorite", saved);
-    });
+    refreshFavoriteButtons(song.code);
   }
   updateFavoriteControls();
 }
@@ -1831,6 +1851,7 @@ async function init() {
   renderNightList();
   updateFavoriteControls();
   els.resultsCount.textContent = `${songs.length.toLocaleString("pt-BR")} músicas no catálogo`;
+  void applyAccountFavorites();
 
   try {
   const topTracks = spotifyConfigured ? await completeSpotifyConnection() : null;
@@ -1865,4 +1886,5 @@ async function init() {
 }
 
 hideExpiredEventNav();
+void initializeAccountMenu();
 init();

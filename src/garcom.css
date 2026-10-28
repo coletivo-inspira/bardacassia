@@ -104,6 +104,8 @@ input:focus-visible, button:focus-visible { outline: 2px solid var(--amber); out
 .staff-login .staff-button, .staff-round-form .staff-button { margin-top: .5rem; width: 100%; }
 
 .staff-status { min-height: 1.25rem; margin: .5rem 0; color: var(--amber); font-weight: 600; }
+.staff-hint { margin: .25rem 0 0; color: var(--muted); font-size: .85rem; line-height: 1.4; }
+.staff-hint a { color: var(--amber); }
 .staff-notice { padding: 1rem; border-radius: 12px; background: var(--card); color: var(--muted); }
 
 .staff-round {
