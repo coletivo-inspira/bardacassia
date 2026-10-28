@@ -106,7 +106,7 @@ export function filterStaffRequests(requests, query) {
   if (!needle) return requests;
   return requests.filter((request) => normalizeText(request.customer_name).includes(needle)
     || normalizeText(`${request.title} ${request.artist}`).includes(needle)
-    || (digits && (String(request.customer_phone).includes(digits) || String(request.code).startsWith(digits))));
+    || (digits && (String(request.customer_phone || "").includes(digits) || String(request.code).startsWith(digits))));
 }
 
 const ERROR_MESSAGES = {
@@ -118,6 +118,7 @@ const ERROR_MESSAGES = {
   pedido_nao_pendente: "Esse pedido já foi confirmado ou cancelado.",
   pedido_fora_da_fila: "Esse pedido não está mais na fila.",
   pedido_inativo: "Esse pedido já foi finalizado.",
+  qr_invalido: "QR inválido. Peça para o cliente abrir a música de novo.",
 };
 
 export function requestErrorMessage(error) {
