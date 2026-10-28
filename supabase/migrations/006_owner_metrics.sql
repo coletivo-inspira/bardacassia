@@ -18,7 +18,7 @@ revoke all on function private.require_owner() from public, anon, authenticated;
 create or replace function private.night_of(p_at timestamptz)
 returns date
 language sql
-immutable
+stable
 set search_path = ''
 as $$
   select ((p_at at time zone 'America/Sao_Paulo') - interval '18 hours')::date;

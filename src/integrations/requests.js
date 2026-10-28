@@ -89,6 +89,7 @@ export const staffMarkPlayed = (id) => staffRpc("staff_mark_played", { p_id: id 
 export const staffCancel = (id) => staffRpc("staff_cancel", { p_id: id });
 export const staffAddRequest = ({ code, name, ticket }) => staffRpc("staff_add_request", { p_code: String(code), p_name: name || "", p_ticket: ticket });
 export const staffWhoami = () => staffRpc("staff_whoami", {});
+export const ownerMetrics = ({ from, to }) => staffRpc("owner_metrics", { p_from: from.toISOString(), p_to: to.toISOString() });
 
 export async function staffListPlayed() {
   return (await staffRpc("staff_list_played", {})) || [];

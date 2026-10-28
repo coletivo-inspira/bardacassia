@@ -1,6 +1,6 @@
 import "./garcom.css";
 import {
-  getStaffSession, requestsConfigured, staffAddRequest, staffCancel, staffGetSettings, staffListPlayed,
+  getStaffSession, ownerMetrics, requestsConfigured, staffAddRequest, staffCancel, staffGetSettings, staffListPlayed,
   staffListRequests, staffMarkPaid, staffMarkPlayed, staffSignIn, staffSignOut, staffUpdateSettings, staffWhoami,
 } from "./integrations/requests.js";
 import { displayTitle } from "./lib/catalog.js";
@@ -9,6 +9,7 @@ import {
   splitStaffRequests,
 } from "./lib/requests.js";
 import { newTicketId, parseTicket, ticketName } from "./lib/qr-ticket.js";
+import { barRows, metricCards, metricsRange, nightLabel, weekdayLabel } from "./lib/metrics.js";
 
 const REFRESH_MS = 10000;
 const SCAN_INTERVAL_MS = 200;
@@ -66,6 +67,13 @@ const els = {
   roundMessage: $("#round-message"),
   roundNew: $("#round-new"),
   tabResults: $("#tab-results"),
+  resultsRanges: [...document.querySelectorAll(".results-range")],
+  resultsStatus: $("#results-status"),
+  resultsCards: $("#results-cards"),
+  resultsNights: $("#results-nights"),
+  resultsWeekdays: $("#results-weekdays"),
+  resultsTop: $("#results-top"),
+  resultsStaff: $("#results-staff"),
 };
 
 let requests = [];
@@ -80,6 +88,7 @@ let scanStream = null;
 let scanTimer = null;
 let detector = null;
 let jsQR = null;
+let resultsRange = "30d";
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -280,6 +289,7 @@ function selectTab(tab) {
     document.getElementById(item.getAttribute("aria-controls")).hidden = !selected;
   }
   if (tab.id === "tab-pending") els.search.focus();
+  if (tab.id === "tab-results") void loadResults();
 }
 
 function loadCatalog() {
@@ -440,6 +450,43 @@ function submitManual(event) {
   void showTicket({ code, name: ticketName(els.manualName.value), ticket: newTicketId() });
 }
 
+function renderBars(list, rows) {
+  if (!rows.length) {
+    list.replaceChildren(el("li", "results-empty", "Sem pedidos no período."));
+    return;
+  }
+  list.replaceChildren(...rows.map((row) => {
+    const item = el("li", "results-bar");
+    const track = el("span", "results-bar-track");
+    const fill = el("span", "results-bar-fill");
+    fill.style.width = `${row.percent}%`;
+    track.append(fill);
+    item.append(el("span", "results-bar-label", row.label), track, el("span", "results-bar-value", String(row.value)));
+    item.title = `${row.label}: ${row.value}`;
+    return item;
+  }));
+}
+
+async function loadResults() {
+  for (const button of els.resultsRanges) button.setAttribute("aria-pressed", String(button.dataset.range === resultsRange));
+  els.resultsStatus.textContent = "Carregando…";
+  try {
+    const metrics = await ownerMetrics(metricsRange(resultsRange));
+    els.resultsStatus.textContent = "";
+    els.resultsCards.replaceChildren(...metricCards(metrics).map((card) => {
+      const node = el("div", "results-card");
+      node.append(el("strong", "", card.value), el("span", "", card.label));
+      return node;
+    }));
+    renderBars(els.resultsNights, barRows(metrics.by_night.slice(-14), { label: (item) => nightLabel(item.night) }));
+    renderBars(els.resultsWeekdays, barRows(metrics.by_weekday, { label: (item) => weekdayLabel(item.weekday) }));
+    renderBars(els.resultsTop, barRows(metrics.top_songs, { label: (item) => `${item.code} · ${songLabel(item)}` }));
+    renderBars(els.resultsStaff, barRows(metrics.by_staff, { label: (item) => item.name }));
+  } catch (error) {
+    els.resultsStatus.textContent = requestErrorMessage(error);
+  }
+}
+
 async function applyRole() {
   const me = await staffWhoami().catch(() => null);
   els.tabResults.hidden = me?.role !== "dono";
@@ -485,6 +532,10 @@ function init() {
   els.manualForm.addEventListener("submit", submitManual);
   els.ticketConfirm.addEventListener("click", () => void confirmTicket());
   els.ticketDismiss.addEventListener("click", dismissTicket);
+  els.resultsRanges.forEach((button) => button.addEventListener("click", () => {
+    resultsRange = button.dataset.range;
+    void loadResults();
+  }));
   window.addEventListener("hashchange", () => {
     const ticket = takeTicketFromUrl();
     if (ticket) void showTicket(ticket);

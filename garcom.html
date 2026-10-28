@@ -87,6 +87,25 @@
           <p id="pending-empty" class="staff-empty">Nenhum pedido aguardando pagamento.</p>
         </section>
 
+        <section id="panel-results" class="staff-panel" role="tabpanel" aria-labelledby="tab-results" hidden>
+          <div class="results-ranges" role="group" aria-label="Período">
+            <button class="staff-button staff-ghost staff-small results-range" type="button" data-range="7d">7 dias</button>
+            <button class="staff-button staff-ghost staff-small results-range" type="button" data-range="30d" aria-pressed="true">30 dias</button>
+            <button class="staff-button staff-ghost staff-small results-range" type="button" data-range="90d">90 dias</button>
+          </div>
+          <p id="results-status" class="staff-status" role="status" aria-live="polite"></p>
+          <div id="results-cards" class="results-cards"></div>
+          <h2 class="staff-subtitle">Pedidos por noite</h2>
+          <ol id="results-nights" class="results-bars"></ol>
+          <h2 class="staff-subtitle">Por dia da semana</h2>
+          <ol id="results-weekdays" class="results-bars"></ol>
+          <h2 class="staff-subtitle">Mais pedidas</h2>
+          <ol id="results-top" class="results-bars"></ol>
+          <h2 class="staff-subtitle">Pedidos por garçom</h2>
+          <ol id="results-staff" class="results-bars"></ol>
+          <p class="staff-hint">Acessos ao site (visitas, origem pelo cartaz ou Instagram) ficam no Google Analytics ou Cloudflare, se configurados.</p>
+        </section>
+
         <section id="panel-round" class="staff-panel" role="tabpanel" aria-labelledby="tab-round" hidden>
           <form id="round-form" class="staff-card staff-round-form">
             <label class="staff-check"><input id="round-open" type="checkbox" /> Fila aberta para novos pedidos</label>

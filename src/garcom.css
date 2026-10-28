@@ -130,6 +130,19 @@ input:focus-visible, button:focus-visible { outline: 2px solid var(--amber); out
 .scan-card { display: grid; gap: .5rem; }
 .scan-card h2 { margin: 0; font-size: 1.2rem; }
 .scan-video { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; background: #000; }
+.results-ranges { display: flex; gap: .4rem; margin-top: .75rem; }
+.results-range[aria-pressed="true"] { background: var(--text); color: #141414; }
+.results-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: .5rem; }
+.results-card { padding: .9rem; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+.results-card strong { display: block; font-family: "Bricolage Grotesque", Georgia, serif; font-size: 1.9rem; color: var(--amber); line-height: 1.1; }
+.results-card span { color: var(--muted); font-size: .85rem; }
+.results-bars { display: grid; gap: .35rem; margin: 0; padding: 0; list-style: none; }
+.results-bar { display: grid; grid-template-columns: minmax(0, 9rem) 1fr 2.5rem; align-items: center; gap: .5rem; font-size: .9rem; }
+.results-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.results-bar-track { height: 12px; border-radius: 999px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.results-bar-fill { height: 100%; border-radius: inherit; background: var(--amber); }
+.results-bar-value { text-align: right; font-weight: 700; }
+.results-empty { color: var(--muted); font-size: .9rem; }
 .manual-form { display: grid; gap: .4rem; padding-top: .5rem; border-top: 1px solid var(--line); }
 .staff-tab {
   min-height: 48px;
