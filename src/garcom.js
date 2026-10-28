@@ -3,8 +3,10 @@ import {
   getStaffSession, requestsConfigured, staffCancel, staffGetSettings, staffListRequests, staffMarkPaid,
   staffMarkPlayed, staffSignIn, staffSignOut, staffUpdateSettings,
 } from "./integrations/requests.js";
+import { displayTitle } from "./lib/catalog.js";
 import {
-  filterStaffRequests, formatClock, formatPhone, nextOccurrence, requestErrorMessage, roundSummary, splitStaffRequests,
+  filterStaffRequests, formatClock, formatPhone, nextOccurrence, requestErrorMessage, roundSummary, songLabel,
+  splitStaffRequests,
 } from "./lib/requests.js";
 
 const REFRESH_MS = 10000;
@@ -64,10 +66,6 @@ function button(label, className, onClick) {
   return node;
 }
 
-function songLine(request) {
-  return `${request.title} — ${request.artist}`;
-}
-
 function customerLine(request) {
   return `${request.customer_name} · ${formatPhone(request.customer_phone)}`;
 }
@@ -116,7 +114,7 @@ function renderQueue(queue) {
   els.queueEmpty.hidden = Boolean(next);
   if (next) {
     els.nextCode.textContent = next.code;
-    els.nextSong.textContent = songLine(next);
+    els.nextSong.textContent = songLabel(next);
     els.nextCustomer.textContent = customerLine(next);
     els.nextPlayed.dataset.id = String(next.id);
     els.nextCancel.dataset.id = String(next.id);
@@ -128,7 +126,7 @@ function renderQueue(queue) {
     info.append(
       el("span", "staff-item-position", `${index + 2}ª`),
       el("strong", "staff-item-code", request.code),
-      el("span", "staff-item-song", songLine(request)),
+      el("span", "staff-item-song", songLabel(request)),
       el("span", "staff-item-customer", customerLine(request)),
     );
     row.append(info, button("Cancelar", "staff-ghost staff-small", () => cancel(request)));
@@ -145,7 +143,7 @@ function renderPending(pending) {
     info.append(
       el("strong", "staff-item-name", request.customer_name),
       el("span", "staff-item-customer", formatPhone(request.customer_phone)),
-      el("span", "staff-item-song", `${request.code} · ${songLine(request)}`),
+      el("span", "staff-item-song", `${request.code} · ${songLabel(request)}`),
       el("span", "staff-item-time", `Pedido às ${formatClock(request.created_at)}`),
     );
     const actions = el("div", "staff-item-actions");
@@ -206,11 +204,11 @@ async function markPaid(request) {
 function markPlayed(id) {
   const request = requests.find((item) => item.id === id);
   if (!request) return;
-  return act(() => staffMarkPlayed(id), `“${request.title}” saiu da fila.`);
+  return act(() => staffMarkPlayed(id), `“${displayTitle(request.title)}” saiu da fila.`);
 }
 
 function cancel(request) {
-  if (!window.confirm(`Cancelar o pedido de ${request.customer_name} (${request.title})?`)) return;
+  if (!window.confirm(`Cancelar o pedido de ${request.customer_name} (${displayTitle(request.title)})?`)) return;
   return act(() => staffCancel(request.id), "Pedido cancelado.");
 }
 

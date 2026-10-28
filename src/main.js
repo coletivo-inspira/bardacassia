@@ -1,4 +1,4 @@
-import { filterCatalog, filtersForArtistSelection, countActiveFilterChips, filtersToggleLabel, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
+import { displayTitle, filterCatalog, filtersForArtistSelection, countActiveFilterChips, filtersToggleLabel, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
 import { fetchDeezerMeta, fetchRelatedArtists, cancelPendingDeezerMeta, metaFromCatalog } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
 import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState, emptyDiscoveryState } from "./lib/discovery.js";
@@ -208,17 +208,6 @@ function setResultsView(view) {
 
 function normalize(value) {
   return normalizeText(value);
-}
-
-function displayTitle(title) {
-  const t = String(title || "").trim();
-  if (!t) return t;
-  const letters = t.replace(/[^A-Za-zÀ-ÿ]/g, "");
-  const upperRatio = letters ? [...letters].filter((c) => c === c.toUpperCase()).length / letters.length : 0;
-  if (upperRatio < 0.7) return t;
-  return t
-    .toLocaleLowerCase("pt-BR")
-    .replace(/(^|[\s\-–—/((])([\p{L}])/gu, (_, sep, ch) => sep + ch.toLocaleUpperCase("pt-BR"));
 }
 
 function spotifySearchUrl(artist, title) {

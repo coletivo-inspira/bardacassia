@@ -1,6 +1,8 @@
 import { createSongRequest, fetchMyRequests, fetchPublicQueue, requestsConfigured } from "./integrations/requests.js";
+import { cleanArtist, displayTitle } from "./lib/catalog.js";
 import {
-  formatClock, readCustomer, requestErrorMessage, requestStatusLabel, roundSummary, saveCustomer, validateCustomer,
+  formatClock, readCustomer, requestErrorMessage, requestStatusLabel, roundSummary, saveCustomer, songLabel,
+  validateCustomer,
 } from "./lib/requests.js";
 
 const DIALOG_REFRESH_MS = 15000;
@@ -66,9 +68,11 @@ function renderMine() {
   els.count.textContent = String(active.length);
   els.mine.replaceChildren(...myRequests.map((request) => {
     const row = el("article", `night-list-item request-item request-${request.status}`);
-    const heading = el("div", "night-list-heading");
-    heading.append(el("strong", "", request.title), el("span", "night-list-artist", request.artist));
-    row.append(heading, el("span", "night-list-code", request.code), el("p", "request-item-status", requestStatusLabel(request)));
+    row.append(
+      el("strong", "request-item-title", displayTitle(request.title)),
+      el("span", "request-item-artist", `${cleanArtist(request.artist)} · ${request.code}`),
+      el("p", "request-item-status", requestStatusLabel(request)),
+    );
     return row;
   }));
   els.mineEmpty.hidden = myRequests.length > 0;
@@ -78,14 +82,14 @@ function renderQueue() {
   els.round.textContent = queueState ? roundSummary(queueState) : "";
   const last = queueState?.last_played;
   els.lastPlayed.hidden = !last;
-  if (last) els.lastPlayed.textContent = `Tocou por último: ${last.title} — ${last.artist} (${last.first_name}, ${formatClock(last.played_at)})`;
+  if (last) els.lastPlayed.textContent = `Tocou por último: ${songLabel(last)} (${last.first_name}, ${formatClock(last.played_at)})`;
   const mineIds = new Set(myRequests.filter((request) => request.status === "na_fila").map((request) => request.id));
   const items = queueState?.queue || [];
   els.queue.replaceChildren(...items.map((item, index) => {
     const row = el("li", `public-queue-item${mineIds.has(item.id) ? " is-mine" : ""}`);
     row.append(
       el("span", "public-queue-position", index === 0 ? "Próxima" : `${index + 1}ª`),
-      el("span", "public-queue-song", `${item.title} — ${item.artist}`),
+      el("span", "public-queue-song", songLabel(item)),
       el("span", "public-queue-name", mineIds.has(item.id) ? "Você" : item.first_name),
     );
     return row;

@@ -1,4 +1,4 @@
-import { normalizeText } from "./catalog.js";
+import { cleanArtist, displayTitle, normalizeText } from "./catalog.js";
 
 export const CUSTOMER_KEY = "bdc-customer-v1";
 
@@ -29,6 +29,10 @@ export function formatPhone(raw) {
 
 export function firstName(name) {
   return normalizeName(name).split(" ")[0] || "";
+}
+
+export function songLabel(song) {
+  return `${displayTitle(song?.title)} — ${cleanArtist(song?.artist)}`;
 }
 
 export function aheadLabel(ahead) {
