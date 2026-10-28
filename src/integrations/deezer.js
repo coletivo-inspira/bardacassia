@@ -146,6 +146,68 @@ export async function fetchDeezerMeta(song) {
   }
 }
 
+const PICTURE_KEY = "bdc-deezer-artist-picture-v1";
+const PICTURE_TTL = 14 * 24 * 60 * 60 * 1000;
+const pictureCache = readPictureCache();
+const pendingPictures = new Map();
+
+function readPictureCache() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(PICTURE_KEY) || "{}");
+    return new Map(Object.entries(stored).filter(([, item]) => item?.expires > Date.now()));
+  } catch {
+    return new Map();
+  }
+}
+
+function persistPictureCache() {
+  try {
+    const entries = [...pictureCache.entries()].slice(-800);
+    localStorage.setItem(PICTURE_KEY, JSON.stringify(Object.fromEntries(entries)));
+  } catch {
+    // Sem cache persistente, as fotos são buscadas novamente na próxima visita.
+  }
+}
+
+/** Catalog lists some bands as "Beatles (The)"; Deezer knows them as "The Beatles". */
+export function artistSearchName(name) {
+  const clean = cleanArtist(name);
+  const article = clean.match(/^(.*)\s+\((the|a|os|as|o)\)$/i);
+  return article ? `${article[2]} ${article[1]}` : clean;
+}
+
+/** Artist photo from Deezer; null when not found. Catalog names may be truncated. */
+export async function fetchArtistPicture(artistName) {
+  const query = artistSearchName(artistName);
+  const key = normalizeText(query);
+  if (!key) return null;
+  const cached = pictureCache.get(key);
+  if (cached?.expires > Date.now()) return cached.url;
+  if (pendingPictures.has(key)) return pendingPictures.get(key);
+  const promise = limited(async () => {
+    try {
+      const search = await request("/search/artist", { q: query, limit: "5" });
+      const results = Array.isArray(search?.data) ? search.data : [];
+      const artist = results.find((item) => normalizeText(item.name) === key)
+        || results.find((item) => normalizeText(item.name).startsWith(key) || key.startsWith(normalizeText(item.name)))
+        || results[0];
+      const picture = artist?.picture_medium || artist?.picture_big || null;
+      const url = picture && !picture.includes("/artist//") ? picture : null;
+      pictureCache.set(key, { url, expires: Date.now() + (url ? PICTURE_TTL : EMPTY_TTL) });
+      persistPictureCache();
+      return url;
+    } catch {
+      return null;
+    }
+  });
+  pendingPictures.set(key, promise);
+  try {
+    return await promise;
+  } finally {
+    pendingPictures.delete(key);
+  }
+}
+
 /** Resultados externos são sugestões, não músicas disponíveis no karaokê. */
 export async function fetchRelatedArtists(artistName) {
   const key = normalizeText(artistName);
