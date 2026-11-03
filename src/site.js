@@ -104,8 +104,10 @@ function renderSignedIn(link, user) {
 
 export async function initializeAccountMenu() {
   const link = document.querySelector("#header-account");
-  if (!link || !authConfigured) return;
+  if (!link) return;
+  // Always show Entrar in the main header; login.html explains when Auth is off.
   renderSignedOut(link);
+  if (!authConfigured) return;
   if (!hasStoredAuthSession()) return;
   try {
     const user = await getCurrentUser();
