@@ -121,17 +121,31 @@ Navegador (GitHub Pages) ──PKCE──> Supabase Auth (hash bcrypt, JWT de 1h
 ```bash
 supabase functions deploy account-delete
 supabase functions deploy deezer-proxy --no-verify-jwt
-supabase secrets set ALLOWED_ORIGINS="https://coletivo-inspira.github.io,http://localhost:5173"
+supabase secrets set ALLOWED_ORIGINS="https://cacia.inspira.dev.br,https://coletivo-inspira.github.io,http://localhost:5173"
 ```
 
 `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` já são injetadas pelo Supabase nas funções. Novas rotinas privilegiadas (por exemplo, para o DJ ou a gestão do bar) devem seguir o mesmo padrão: validar o JWT, conferir um papel em `app_metadata.role` (que só a service role altera) e reforçar a regra com RLS.
 
+### Checklist: ligar login em produção
+
+Ordem sugerida para um projeto Supabase novo (ex.: **Cacia**):
+
+1. **GitHub → Settings → Secrets and variables → Actions**
+   - **Variables:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_PROJECT_REF`, `ALLOWED_ORIGINS` (`https://cacia.inspira.dev.br,https://coletivo-inspira.github.io,http://localhost:5173`). Opcional: `ENABLE_AUTH=true`, `DEEZER_PROXY_URL=https://<ref>.supabase.co/functions/v1/deezer-proxy`.
+   - **Secrets:** `SUPABASE_DB_PASSWORD` (senha do banco na criação), `SUPABASE_SERVICE_ROLE_KEY` (API → `service_role`), `SUPABASE_ACCESS_TOKEN` (Account → Access Tokens; preferir *legacy token* com expiração longa ou Never para o CI).
+2. **Painel Supabase → Authentication** (passos abaixo).
+3. **Actions → Deploy Supabase** (aplica migrações + Edge Functions) e **Deploy Vite site to Pages** (embute `VITE_SUPABASE_*` no build). Sem as variáveis Vite, o ícone “Entrar” permanece oculto.
+4. Smoke test: cadastro → e-mail → login → favoritar → outra aba/aparelho vê as mesmas músicas.
+
 ### Configuração no painel do Supabase
 
-1. Aplique as migrações em ordem (`001`, `002`, `003`), pelo SQL Editor ou pelo workflow descrito abaixo.
+1. Aplique as migrações em ordem (`001`–`007`), pelo SQL Editor ou pelo workflow descrito abaixo.
 2. **Authentication > Providers > Email:** ative a confirmação de e-mail, senha mínima de 8 caracteres com letras e dígitos e a proteção contra senhas vazadas (*leaked password protection*).
-3. **Authentication > URL Configuration:** use a URL do site como Site URL e cadastre `https://coletivo-inspira.github.io/bardacassia/login.html` e `http://localhost:5173/login.html` nas Redirect URLs.
-4. **Authentication > Attack Protection:** ative o CAPTCHA com Cloudflare Turnstile (secret key no painel) e defina `VITE_AUTH_CAPTCHA_SITE_KEY` com a site key pública.
+3. **Authentication > URL Configuration:** Site URL `https://cacia.inspira.dev.br/` e Redirect URLs:
+   - `https://cacia.inspira.dev.br/login.html`
+   - `https://coletivo-inspira.github.io/bardacassia/login.html`
+   - `http://localhost:5173/login.html`
+4. **Authentication > Attack Protection:** ative o CAPTCHA com Cloudflare Turnstile (secret key no painel) e defina `VITE_AUTH_CAPTCHA_SITE_KEY` / variável `AUTH_CAPTCHA_SITE_KEY` com a site key pública (opcional no início).
 5. **Sessions:** mantenha o JWT com expiração de 1h e a rotação de refresh token ativada (padrão).
 6. **Google / Facebook (opcional):** crie os apps OAuth, cadastre o callback `https://<projeto>.supabase.co/auth/v1/callback`, ative os provedores e defina `VITE_AUTH_PROVIDERS=google,facebook`. Sem isso, os botões ficam ocultos.
 7. Mantenha os Anonymous Sign-Ins ativos para o ranking de visitantes.
@@ -144,8 +158,11 @@ A cada push na `main` que altere `supabase/**` (ou manualmente em *Actions > Dep
 | --- | --- | --- |
 | Secret | `SUPABASE_ACCESS_TOKEN` | Token pessoal em supabase.com > Account > Access Tokens |
 | Secret | `SUPABASE_DB_PASSWORD` | Senha do banco do projeto |
+| Secret | `SUPABASE_SERVICE_ROLE_KEY` | Chave `service_role` (só Actions / sync do catálogo) |
 | Variável | `SUPABASE_PROJECT_REF` | ID do projeto (o subdomínio de `https://<ref>.supabase.co`) |
-| Variável | `ALLOWED_ORIGINS` | `https://coletivo-inspira.github.io` (separe várias origens com vírgula) |
+| Variável | `SUPABASE_URL` | `https://<ref>.supabase.co` (vira `VITE_SUPABASE_URL` no build) |
+| Variável | `SUPABASE_ANON_KEY` | Chave `anon` `public` (vira `VITE_SUPABASE_ANON_KEY`) |
+| Variável | `ALLOWED_ORIGINS` | `https://cacia.inspira.dev.br,https://coletivo-inspira.github.io,http://localhost:5173` |
 | Variável | `DEEZER_PROXY_URL` | `https://<ref>.supabase.co/functions/v1/deezer-proxy`, usada pelo build do site |
 
 Se as migrações já foram executadas à mão no SQL Editor, marque-as como aplicadas antes do primeiro deploy, para o CLI não reexecutá-las: `supabase migration repair --status applied 001 002 003`. Os scripts são idempotentes, então reaplicá-los na ordem também chega ao mesmo estado final.
@@ -259,8 +276,9 @@ As favoritas são códigos de música salvos **neste navegador**. Sem conta, lim
 
 **Com conta, as favoritas sincronizam entre aparelhos** (`supabase/migrations/003_favorites_sync.sql`, `src/integrations/favorites-sync.js`):
 
-- Ao abrir o catálogo logado, o navegador envia as favoritas locais e recebe a lista da conta em uma única chamada (`sync_my_favorites`, até 1.000 códigos). O resultado é a união das duas, sem códigos que saíram do catálogo.
+- Ao abrir o catálogo logado — e de novo em `SIGNED_IN` / `USER_UPDATED` — o navegador envia as favoritas locais e recebe a lista da conta em uma única chamada (`sync_my_favorites`, até 1.000 códigos). O resultado é a união das duas, sem códigos que saíram do catálogo.
 - Marcar ou desmarcar uma favorita logado envia a mudança pela mesma fila do ranking (`set_song_favorite`), inclusive com `VITE_ENABLE_POPULARITY=false`. Assim, uma remoção feita em um aparelho não "volta" no outro.
+- Sem conta, ao salvar a primeira favorita o catálogo sugere entrar (`login.html`) para guardar a lista entre aparelhos.
 - A RPC só aceita contas permanentes, confere o código no catálogo ativo e respeita o limite de gravações por minuto. As favoritas ficam em `song_interactions`, protegida por RLS. O Deezer recebe consultas por título/artista; o Spotify só é acessado após ação explícita do usuário.
 
 ## Testes e verificações
