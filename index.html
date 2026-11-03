@@ -166,11 +166,11 @@
                 <p id="active-filter" class="active-filter"></p>
               </div>
               <div class="results-view-toggle" role="group" aria-label="Visualização dos resultados">
-                <button type="button" id="view-list" class="view-toggle-btn" aria-pressed="false" title="Lista">
-                  Lista
+                <button type="button" id="view-list" class="view-toggle-btn view-toggle-btn--icon" aria-pressed="false" title="Lista" aria-label="Lista">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>
                 </button>
-                <button type="button" id="view-grid" class="view-toggle-btn" aria-pressed="false" title="Quadrados">
-                  Quadrados
+                <button type="button" id="view-grid" class="view-toggle-btn view-toggle-btn--icon" aria-pressed="false" title="Quadrados" aria-label="Quadrados">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>
                 </button>
               </div>
             </div>
@@ -209,34 +209,36 @@
       <div class="footer-main">
         <a class="footer-brand" href="#inicio">BAR DA CÁCIA</a>
         <p>Boa música, gente querida e histórias pra contar.</p>
-        <p class="footer-place">Rua Rio de Janeiro, 1411 — Centro, BH · Aberto das 18h às 3h30</p>
+        <p class="footer-place">
+          <a href="https://share.google/lyuzrLdSeLak1ZgsL" target="_blank" rel="noopener noreferrer">Rua Rio de Janeiro, 1411 — Centro, BH</a>
+          · Aberto das 18h às 3h30
+        </p>
         <nav class="footer-nav" aria-label="Links do site">
           <a href="evento.html" data-expires="2026-11-01">Evento</a>
           <a href="o-bar.html">O bar</a>
           <a href="#buscar">Buscar</a>
         </nav>
       </div>
-      <a class="instagram-footer" href="https://www.instagram.com/bardacaciaoficial/" target="_blank" rel="noopener noreferrer" aria-label="Visitar o Instagram oficial do Bar da Cácia">
+      <a class="instagram-footer instagram-footer--icon" href="https://www.instagram.com/bardacaciaoficial/" target="_blank" rel="noopener noreferrer" aria-label="Visitar o Instagram oficial do Bar da Cácia">
         <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle class="instagram-dot" cx="17.6" cy="6.5" r=".8"/></svg>
-        Siga no Instagram
       </a>
     </footer>
 
     <nav class="mobile-tabbar" aria-label="Navegação móvel">
-      <a class="mobile-tab" href="#inicio">
+      <a class="mobile-tab" href="#inicio" data-mobile-tab="inicio">
         <svg aria-hidden="true" viewBox="0 0 24 24">
           <path d="M3.5 10.5 12 3.8l8.5 6.7v9.2a.8.8 0 0 1-.8.8H15v-6H9v6H4.3a.8.8 0 0 1-.8-.8z" />
         </svg>
         <span>Início</span>
       </a>
-      <a class="mobile-tab mobile-tab-primary" href="#buscar" aria-current="page">
+      <a class="mobile-tab" href="#buscar" data-mobile-tab="buscar">
         <svg aria-hidden="true" viewBox="0 0 24 24">
           <circle cx="10.5" cy="10.5" r="6.5" />
           <path d="m15.5 15.5 5 5" />
         </svg>
         <span>Buscar</span>
       </a>
-      <button id="mobile-favorites" class="mobile-tab" type="button" aria-pressed="false" aria-controls="results-view">
+      <button id="mobile-favorites" class="mobile-tab" type="button" data-mobile-tab="favoritas" aria-pressed="false" aria-controls="results-view">
         <span class="mobile-tab-icon-wrap">
           <svg aria-hidden="true" viewBox="0 0 24 24">
             <path d="M12 20.2S4 15.3 4 8.9A4.1 4.1 0 0 1 11.2 6L12 7l.8-1A4.1 4.1 0 0 1 20 8.9c0 6.4-8 11.3-8 11.3z" />
@@ -303,9 +305,9 @@
       </form>
     </dialog>
 
-    <button id="open-discover" class="discover-fab" type="button" aria-haspopup="dialog" aria-controls="discover-dialog">
+    <button id="open-discover" class="discover-fab" type="button" aria-haspopup="dialog" aria-controls="discover-dialog" aria-label="Match: descobrir minha música" title="Match">
       <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 18V5.5l11-2.2V16" /><circle cx="6.5" cy="18" r="2.5" /><circle cx="17.5" cy="16" r="2.5" /></svg>
-      <span>Descobrir minha música</span>
+      <span>Match</span>
     </button>
 
     <dialog id="discover-dialog" class="discover-screen" aria-labelledby="discovery-title">
@@ -341,8 +343,12 @@
             <label class="visually-hidden" for="artist-search">Buscar artista</label>
             <input id="artist-search" type="search" placeholder="Buscar artista" autocomplete="off" />
             <div class="results-view-toggle" role="group" aria-label="Visualização dos artistas">
-              <button type="button" id="artist-view-grid" class="view-toggle-btn" aria-pressed="true">Quadrados</button>
-              <button type="button" id="artist-view-list" class="view-toggle-btn" aria-pressed="false">Lista</button>
+              <button type="button" id="artist-view-grid" class="view-toggle-btn view-toggle-btn--icon" aria-pressed="true" title="Quadrados" aria-label="Quadrados">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>
+              </button>
+              <button type="button" id="artist-view-list" class="view-toggle-btn view-toggle-btn--icon" aria-pressed="false" title="Lista" aria-label="Lista">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>
+              </button>
             </div>
           </div>
           <p id="artist-selection-count" class="integration-status" aria-live="polite">Nenhum artista selecionado</p>
