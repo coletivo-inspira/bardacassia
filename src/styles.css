@@ -970,15 +970,20 @@ input:focus-visible {
   background: rgba(255, 255, 255, 0.06);
 }
 
-.dj-btn {
+.action-btn.dj-btn {
   background: var(--amber);
   color: var(--ink);
   border-color: transparent;
 }
 
-.dj-btn:hover {
+.action-btn.dj-btn:hover {
   background: #ffd76a;
   border-color: transparent;
+  color: var(--ink);
+}
+
+.action-btn.dj-btn.icon-action svg {
+  stroke: currentColor;
 }
 
 .preview-btn.is-playing {
@@ -2515,8 +2520,16 @@ body {
     background: transparent;
   }
 
-  .songs-list--list .action-secondary {
-    display: none !important;
+  .songs-list--list .action-link.icon-action,
+  .songs-list--list .action-btn.icon-action {
+    width: 34px;
+    min-width: 34px;
+    padding: 0;
+  }
+
+  /* Icons are compact enough to keep Spotify/Preview on the list row. */
+  .songs-list--list .action-secondary.icon-action {
+    display: inline-grid !important;
   }
 
   .favorite-btn.is-favorite {
@@ -2525,9 +2538,18 @@ body {
     color: var(--amber);
   }
 
-  .dj-btn {
-    border-color: var(--amber);
+  /* Beat .songs-list--list .action-btn { background: transparent } so Código stays amber. */
+  .songs-list--list .action-btn.dj-btn,
+  .action-btn.dj-btn {
+    border-color: transparent;
     background: var(--amber);
+    color: var(--ink);
+  }
+
+  .songs-list--list .action-btn.dj-btn:hover,
+  .action-btn.dj-btn:hover {
+    background: #ffd76a;
+    border-color: transparent;
     color: var(--ink);
   }
 
