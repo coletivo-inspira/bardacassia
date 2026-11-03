@@ -156,13 +156,15 @@ Ordem sugerida para um projeto Supabase novo (ex.: **Cacia**):
 
 ### Publicação automática (`.github/workflows/supabase.yml`)
 
-A cada push na `main` que altere `supabase/**` (ou manualmente em *Actions > Deploy Supabase*), o workflow aplica as migrações pendentes com:
+A cada push na `main` que altere `supabase/**` / o próprio workflow (ou manualmente em *Actions > Deploy Supabase*), o job aplica as migrações `001`–`008` e publica as Edge Functions.
+
+O GitHub Actions **não tem IPv6**. O host direto `db.<ref>.supabase.co` é só AAAA, então o workflow monta a URI do **shared session pooler** (porta `5432`, IPv4) a partir da região do projeto e de `SUPABASE_DB_PASSWORD`, e roda:
 
 ```bash
-supabase db push --include-all --remote
+supabase db push --include-all --remote="$DB_URL" --yes
 ```
 
-depois define `ALLOWED_ORIGINS` e publica as duas Edge Functions. A flag `--remote` é obrigatória nas versões recentes do CLI: sem ela o comando tenta o Postgres local (`127.0.0.1:54322`) no runner do Actions, falha com `ECONNREFUSED` e o projeto hospedado fica sem tabelas/RPCs (sintoma: `404` em `/rest/v1/rpc/...` e em `/rest/v1/profiles`, `400` no upload de avatar).
+Sem `--remote` / URI, o CLI tenta o Postgres local (`127.0.0.1:54322`) e falha com `ECONNREFUSED`. Sem pooler IPv4, falha com `IPv6 is not supported on your current network`. Nos dois casos o schema remoto fica vazio.
 
 Sem a configuração abaixo, o workflow é ignorado com um aviso, sem falhar.
 
@@ -170,6 +172,7 @@ Sem a configuração abaixo, o workflow é ignorado com um aviso, sem falhar.
 | --- | --- | --- |
 | Secret | `SUPABASE_ACCESS_TOKEN` | Token pessoal em supabase.com > Account > Access Tokens |
 | Secret | `SUPABASE_DB_PASSWORD` | Senha do banco do projeto |
+| Secret | `SUPABASE_DB_URL` | (Opcional) URI **Session pooler** de Dashboard → Connect (porta `5432`). Use se o host auto `aws-0-<region>.pooler.supabase.com` não bater com o do painel |
 | Secret | `SUPABASE_SERVICE_ROLE_KEY` | Chave `service_role` (só Actions / sync do catálogo) |
 | Variável | `SUPABASE_PROJECT_REF` | ID do projeto (o subdomínio de `https://<ref>.supabase.co`) |
 | Variável | `SUPABASE_URL` | `https://<ref>.supabase.co` (vira `VITE_SUPABASE_URL` no build) |
@@ -180,6 +183,15 @@ Sem a configuração abaixo, o workflow é ignorado com um aviso, sem falhar.
 Se as migrações já foram executadas à mão no SQL Editor, marque-as como aplicadas antes do primeiro deploy, para o CLI não reexecutá-las: `supabase migration repair --status applied --remote` com os timestamps/nomes correspondentes. Os scripts são idempotentes, então reaplicá-los na ordem também chega ao mesmo estado final.
 
 Depois do primeiro `db push` verde, rode de novo o deploy do site (ou `npm run sync-catalog` com `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`) para popular `catalog_codes`. Sem as RPCs no remoto, o sync recebe `PGRST202`/`404`.
+
+#### Troubleshooting do schema
+
+| Sintoma | Causa provável | O que fazer |
+| --- | --- | --- |
+| `PGRST205` (“Could not find the table `public.profiles`”) ou `404` em `/rest/v1/rpc/...` / `/rest/v1/profiles` | Migrações não aplicadas no remoto | Rodar **Deploy Supabase** até ficar verde; depois re-sync do catálogo |
+| `400` no upload `storage/.../avatars` | Bucket/policies da `008` ausentes | Mesmo deploy (a `008` cria o bucket) |
+| Actions: `IPv6 is not supported` | Push tentou o host direto | Workflow atual usa session pooler; se ainda falhar, defina `SUPABASE_DB_URL` com a URI do Connect (Session, porta 5432) e reexecute |
+| Actions: `ECONNREFUSED 127.0.0.1:54322` | CLI mirando stack local | Garantir push com `--remote=...` (já no workflow) |
 
 O CI dos pull requests roda `deno check` nas Edge Functions.
 
@@ -253,7 +265,7 @@ O cartaz aponta para o site com `?origem=mesa` (ou balcão, banheiro, instagram)
 
 ### Configuração
 
-1. Aplique as migrações `001` a `008` pelo workflow `supabase.yml` (`db push --include-all --remote`) ou pelo SQL Editor. Se alguma foi aplicada à mão, use `supabase migration repair` no remoto antes do próximo push.
+1. Aplique as migrações `001` a `008` pelo workflow `supabase.yml` (session pooler IPv4) ou pelo SQL Editor. Se alguma foi aplicada à mão, use `supabase migration repair` no remoto antes do próximo push.
 2. Mantenha os Anonymous Sign-Ins ativos. Visitantes pedem com a sessão anônima; quem está logado pede com a própria conta.
 3. Crie um usuário para cada garçom em Authentication > Users > Add user, com e-mail e senha e a opção de confirmar automaticamente.
 4. Autorize esse usuário no painel:
