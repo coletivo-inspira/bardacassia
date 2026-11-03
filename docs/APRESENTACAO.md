@@ -69,12 +69,13 @@ Sugestão de preço: o piloto é grátis, e depois entra uma mensalidade baixa q
 
 ## Checklist para o fim de semana
 
-1. Aplicar as migrações `004` a `007` no Supabase (workflow `supabase.yml` ou SQL Editor).
-2. Cadastrar os garçons e o dono (`role = 'dono'`), conforme [Integrações](./INTEGRACOES.md#pedidos-de-música-e-painel-do-garçom).
-3. Conferir as variáveis do GitHub Actions: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `ENABLE_REQUESTS` vazia ou `true` e `REQUEST_MODE` vazia ou `qr`. Opcionalmente, definir `ANALYTICS_ID` e `SITE_URL`.
-4. Abrir `cartaz.html`, escolher A5 e origem "mesa" e imprimir um cartaz por mesa.
-5. Testar com dois celulares, seguindo o roteiro da demonstração.
-6. Deixar o painel `garcom.html` salvo na tela inicial do celular do garçom.
+1. Garantir secrets/variáveis do Deploy Supabase (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_REF`) e rodar **Actions → Deploy Supabase** até ficar verde (`db push --include-all --remote` aplica `001`–`008`, inclusive perfil/avatar). Ver [Arquitetura](./ARQUITETURA.md).
+2. No SQL Editor, criar a chave Vault `profile_encryption_key` se ainda não existir (comando em [Integrações](./INTEGRACOES.md#autenticação-login-e-contas)).
+3. Cadastrar os garçons e o dono (`role = 'dono'`), conforme [Integrações](./INTEGRACOES.md#pedidos-de-música-e-painel-do-garçom).
+4. Conferir as variáveis do GitHub Actions: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `ENABLE_REQUESTS` vazia ou `true` e `REQUEST_MODE` vazia ou `qr`. Opcionalmente, definir `ANALYTICS_ID` e `SITE_URL`. Reexecutar o deploy do site para sincronizar o catálogo.
+5. Abrir `cartaz.html`, escolher A5 e origem "mesa" e imprimir um cartaz por mesa.
+6. Testar com dois celulares, seguindo o roteiro da demonstração (QR + status no cliente).
+7. Deixar o painel `garcom.html` salvo na tela inicial do celular do garçom.
 
 ## Domínio próprio
 

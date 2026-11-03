@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Encontrar uma música **que realmente está no karaokê**, identificar seu código e mostrá-lo ao DJ, com poucos toques no celular.
+Encontrar uma música **que realmente está no karaokê**, identificar seu código e mostrá-lo ao DJ ou ao garçom, com poucos toques no celular.
 
 ## Fluxos
 
@@ -10,11 +10,13 @@ Encontrar uma música **que realmente está no karaokê**, identificar seu códi
 
 **Artistas:** o nome do artista em cada resultado é um botão. Ao tocar, o usuário vê somente as músicas daquele artista. A área de relacionados tenta o Deezer e restringe os nomes aos artistas existentes no catálogo. Se não houver dados externos, pode mostrar sugestões de grupos editoriais. Não rotular fallback editorial como recomendação algorítmica.
 
-**Favoritas:** o botão `Favoritar` salva um código no navegador; `Salva` remove. `Minhas favoritas` filtra o catálogo e permite continuar pesquisando dentro da seleção. O estado vazio explica como começar.
+**Favoritas:** o botão `Favoritar` salva um código neste navegador (com abas locais). A tela dedicada `#favoritas` concentra a lista; dá para entrar pelo menu da conta, por Minha conta ou pela descoberta. Sem conta, limpar os dados do navegador apaga a lista. Com login, a **união dos códigos** sobe para a conta (`sync_my_favorites`); a organização em abas permanece só neste aparelho.
 
 **Spotify (quando configurado):** o usuário autoriza suas mais ouvidas; a aplicação cruza os dados com o catálogo e adiciona apenas músicas disponíveis à lista local. A interface informa quantas foram conciliadas.
 
-**Código ao DJ:** o botão exibe o código e a música em um diálogo. Isso **não envia a música a uma fila**; o usuário ainda precisa mostrar o código ao DJ.
+**Código ao DJ:** o diálogo mostra o código e a música para digitar no controle. Isso **não grava pedido no servidor**.
+
+**Pedido pelo QR (quando `VITE_ENABLE_REQUESTS` e modo `qr`):** **Mostrar ao garçom** gera um QR local com ticket. O aparelho do cliente não cria a fila; o garçom lê o QR em `garcom.html`, cobra e aí o pedido entra. O cliente vê o status via `get_ticket_status`. No modo `remoto`, o cliente envia o pedido e acompanha em “Meus pedidos”.
 
 ## Critérios de aceitação
 
@@ -22,8 +24,9 @@ Encontrar uma música **que realmente está no karaokê**, identificar seu códi
 - O catálogo é a fonte de verdade; artistas relacionados e Spotify não criam códigos falsos.
 - Os resultados são navegáveis por teclado e os botões têm nomes compreensíveis para leitores de tela.
 - A interface informa estados de carregamento, erro e ausência de resultados.
-- As favoritas permanecem após recarregar a página no mesmo navegador.
+- As favoritas permanecem após recarregar a página no mesmo navegador; com conta e Supabase configurado, os códigos reaparecem em outro aparelho após o sync.
 - Se Deezer ou Spotify estiverem indisponíveis, o usuário ainda consegue buscar e mostrar o código ao DJ.
+- Com pedidos ligados, o fluxo QR deixa claro que a confirmação depende do garçom.
 - A experiência respeita `prefers-reduced-motion`.
 
 ## Identidade visual

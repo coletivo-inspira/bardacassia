@@ -4,6 +4,8 @@
 
 O site é estático (Vite + GitHub Pages). O **catálogo de karaokê** em `public/data/songs.json` é a única fonte de verdade sobre músicas disponíveis e seus códigos. Serviços externos enriquecem a descoberta, mas **não adicionam faixas ao karaokê**.
 
+A visão de arquitetura (páginas, migrações `001`–`008`, fluxos e variáveis) está em [Arquitetura](./ARQUITETURA.md).
+
 | Fonte | Finalidade | Autenticação | Comportamento se falhar |
 | --- | --- | --- | --- |
 | Catálogo local | Títulos, artistas, códigos, início da letra | Nenhuma | Exibir erro de carregamento |
@@ -99,17 +101,18 @@ Navegador (GitHub Pages) ──PKCE──> Supabase Auth (hash bcrypt, JWT de 1h
 - **Erros:** mensagens genéricas ("E-mail ou senha inválidos.", "Se houver uma conta com esse e-mail…") não revelam quais e-mails estão cadastrados.
 - **CSP:** `login.html` tem Content-Security-Policy própria. O script inline do tema é liberado por hash, e `tests/login-csp.test.js` falha se o script mudar sem atualizar o hash.
 
-### Banco de dados (`supabase/migrations/002_auth_profiles.sql`)
+### Banco de dados (`002_auth_profiles.sql` + `008_profile_extras.sql`)
 
-- `public.profiles`: `id` (FK para `auth.users`, com `on delete cascade`), `display_name`, `birth_date` (opcional), `avatar_url` (opcional), `data_consent_at` / `data_consent_version` (LGPD), `created_at`, `updated_at`. RLS permite `select` e `update` apenas do próprio perfil e não permite nada para `anon` ou para sessões anônimas. O perfil é criado por trigger quando surge uma conta permanente, inclusive na conversão de uma conta anônima. Fotos vão no bucket Storage público `avatars` (gravação só na pasta do próprio `user_id`); ver `008_profile_extras.sql`.
-- `private.consume_write()` passa a aceitar contas logadas, além das anônimas, mantendo o limite de 120 gravações por minuto.
-- **Criptografia de colunas sensíveis:** dados como telefone ficam em `private.profile_secrets`, cifrados com `pgp_sym_encrypt` (pgcrypto). A chave fica no **Supabase Vault** e só é lida por funções `security definer` (`set_my_phone` / `get_my_phone`), restritas ao dono. Crie a chave uma vez no SQL Editor:
+- `public.profiles`: `id` (FK para `auth.users`, com `on delete cascade`), `display_name`, `birth_date` (opcional), `avatar_url` (opcional), `data_consent_at` / `data_consent_version` (LGPD), `created_at`, `updated_at`. RLS permite `select` e `update` apenas do próprio perfil e não permite nada para `anon` ou para sessões anônimas. O perfil é criado por trigger quando surge uma conta permanente, inclusive na conversão de uma conta anônima.
+- **Minha conta** (`src/integrations/profile.js`, `login.html#conta`): lê/atualiza o próprio perfil via PostgREST, comprime a foto e envia ao bucket Storage público `avatars` (pasta = `user_id`, JPEG/PNG/WebP até 512 KiB; policies na migração `008`). O cadastro exige consentimento LGPD versionado (`data_consent_*`).
+- `private.consume_write()` aceita contas logadas e anônimas, com limite de 120 gravações por minuto.
+- **Telefone cifrado (SQL pronto, sem UI ainda):** `private.profile_secrets` usa `pgp_sym_encrypt` (pgcrypto). A chave fica no **Supabase Vault** e só é lida por `set_my_phone` / `get_my_phone` (`security definer`). Crie a chave uma vez no SQL Editor:
 
   ```sql
   select vault.create_secret(encode(extensions.gen_random_bytes(32), 'base64'), 'profile_encryption_key');
   ```
 
-- Além disso, o Supabase cifra o disco em repouso (AES-256) e todo o tráfego usa TLS. Guarde apenas o que for necessário.
+- O Supabase cifra o disco em repouso (AES-256) e o tráfego usa TLS. Guarde apenas o que for necessário.
 
 ### Edge Functions (`supabase/functions/`)
 
@@ -139,7 +142,7 @@ Ordem sugerida para um projeto Supabase novo (ex.: **Cacia**):
 
 ### Configuração no painel do Supabase
 
-1. Aplique as migrações em ordem (`001`–`007`), pelo SQL Editor ou pelo workflow descrito abaixo.
+1. Aplique as migrações em ordem (`001`–`008`), pelo workflow descrito abaixo (preferível) ou pelo SQL Editor.
 2. **Authentication > Providers > Email:** ative a confirmação de e-mail, senha mínima de 8 caracteres com letras e dígitos e a proteção contra senhas vazadas (*leaked password protection*).
 3. **Authentication > URL Configuration:** Site URL `https://cacia.inspira.dev.br/` e Redirect URLs:
    - `https://cacia.inspira.dev.br/login.html`
@@ -149,10 +152,19 @@ Ordem sugerida para um projeto Supabase novo (ex.: **Cacia**):
 5. **Sessions:** mantenha o JWT com expiração de 1h e a rotação de refresh token ativada (padrão).
 6. **Google / Facebook (opcional):** crie os apps OAuth, cadastre o callback `https://<projeto>.supabase.co/auth/v1/callback`, ative os provedores e defina `VITE_AUTH_PROVIDERS=google,facebook`. Sem isso, os botões ficam ocultos.
 7. Mantenha os Anonymous Sign-Ins ativos para o ranking de visitantes.
+8. Confirme o bucket Storage `avatars` (criado pela `008`) após o primeiro deploy bem-sucedido.
 
 ### Publicação automática (`.github/workflows/supabase.yml`)
 
-A cada push na `main` que altere `supabase/**` (ou manualmente em *Actions > Deploy Supabase*), o workflow aplica as migrações pendentes (`supabase db push`), define `ALLOWED_ORIGINS` e publica as duas Edge Functions. Sem a configuração abaixo, ele é ignorado com um aviso, sem falhar.
+A cada push na `main` que altere `supabase/**` (ou manualmente em *Actions > Deploy Supabase*), o workflow aplica as migrações pendentes com:
+
+```bash
+supabase db push --include-all --remote
+```
+
+depois define `ALLOWED_ORIGINS` e publica as duas Edge Functions. A flag `--remote` é obrigatória nas versões recentes do CLI: sem ela o comando tenta o Postgres local (`127.0.0.1:54322`) no runner do Actions, falha com `ECONNREFUSED` e o projeto hospedado fica sem tabelas/RPCs (sintoma: `404` em `/rest/v1/rpc/...` e em `/rest/v1/profiles`, `400` no upload de avatar).
+
+Sem a configuração abaixo, o workflow é ignorado com um aviso, sem falhar.
 
 | Tipo | Nome | Valor |
 | --- | --- | --- |
@@ -165,7 +177,9 @@ A cada push na `main` que altere `supabase/**` (ou manualmente em *Actions > Dep
 | Variável | `ALLOWED_ORIGINS` | `https://cacia.inspira.dev.br,https://coletivo-inspira.github.io,http://localhost:5173` |
 | Variável | `DEEZER_PROXY_URL` | `https://<ref>.supabase.co/functions/v1/deezer-proxy`, usada pelo build do site |
 
-Se as migrações já foram executadas à mão no SQL Editor, marque-as como aplicadas antes do primeiro deploy, para o CLI não reexecutá-las: `supabase migration repair --status applied 001 002 003`. Os scripts são idempotentes, então reaplicá-los na ordem também chega ao mesmo estado final.
+Se as migrações já foram executadas à mão no SQL Editor, marque-as como aplicadas antes do primeiro deploy, para o CLI não reexecutá-las: `supabase migration repair --status applied --remote` com os timestamps/nomes correspondentes. Os scripts são idempotentes, então reaplicá-los na ordem também chega ao mesmo estado final.
+
+Depois do primeiro `db push` verde, rode de novo o deploy do site (ou `npm run sync-catalog` com `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`) para popular `catalog_codes`. Sem as RPCs no remoto, o sync recebe `PGRST202`/`404`.
 
 O CI dos pull requests roda `deno check` nas Edge Functions.
 
@@ -181,7 +195,7 @@ Se surgirem regras de negócio pesadas, uma opção é Node (Fastify) + Postgres
 
 ## Pedidos de música e painel do garçom
 
-As migrações estão em `supabase/migrations/004_song_requests.sql` a `007_request_presence.sql`. Os módulos são `src/qr-request.js` e `src/song-requests.js` (cliente), `src/garcom.js` (painel), `src/cartaz.js` (cartaz) e `src/integrations/requests.js`, que usa o cliente compartilhado de `src/integrations/supabase.js`.
+As migrações de pedidos estão em `supabase/migrations/004_song_requests.sql` a `007_request_presence.sql` (aplicadas junto com `001`–`003` e `008`). Os módulos são `src/qr-request.js` e `src/song-requests.js` (cliente), `src/garcom.js` (painel), `src/cartaz.js` (cartaz) e `src/integrations/requests.js`, que usa o cliente compartilhado de `src/integrations/supabase.js`.
 
 Há dois modos, escolhidos por `VITE_REQUEST_MODE` (no GitHub Actions, a variável `REQUEST_MODE`):
 
@@ -239,7 +253,7 @@ O cartaz aponta para o site com `?origem=mesa` (ou balcão, banheiro, instagram)
 
 ### Configuração
 
-1. Aplique as migrações `004` a `007` depois da 001, 002 e 003, pelo workflow `supabase.yml` ou pelo SQL Editor. Se as anteriores foram aplicadas à mão, inclua as novas no `supabase migration repair`.
+1. Aplique as migrações `001` a `008` pelo workflow `supabase.yml` (`db push --include-all --remote`) ou pelo SQL Editor. Se alguma foi aplicada à mão, use `supabase migration repair` no remoto antes do próximo push.
 2. Mantenha os Anonymous Sign-Ins ativos. Visitantes pedem com a sessão anônima; quem está logado pede com a própria conta.
 3. Crie um usuário para cada garçom em Authentication > Users > Add user, com e-mail e senha e a opção de confirmar automaticamente.
 4. Autorize esse usuário no painel:
@@ -272,14 +286,15 @@ Nenhuma variável nova é obrigatória: `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANO
 
 Nos pedidos de música, o site coleta só nome e telefone, para o bar identificar quem pediu. Eles ficam no aparelho do cliente e no Supabase, e apenas garçons cadastrados os veem. Não pedimos CPF.
 
-As favoritas são códigos de música salvos **neste navegador**. Sem conta, limpar os dados do navegador remove essa lista.
+As favoritas são códigos de música salvos **neste navegador**, organizados em abas locais (`src/lib/favorites.js`). Sem conta, limpar os dados do navegador remove essa lista. A tela dedicada é `#favoritas` (entrada pelo menu da conta, Minha conta e descoberta).
 
-**Com conta, as favoritas sincronizam entre aparelhos** (`supabase/migrations/003_favorites_sync.sql`, `src/integrations/favorites-sync.js`):
+**Com conta, só a lista plana de códigos sincroniza entre aparelhos** (`003_favorites_sync.sql`, `src/integrations/favorites-sync.js`):
 
 - Ao abrir o catálogo logado — e de novo em `SIGNED_IN` / `USER_UPDATED` — o navegador envia as favoritas locais e recebe a lista da conta em uma única chamada (`sync_my_favorites`, até 1.000 códigos). O resultado é a união das duas, sem códigos que saíram do catálogo.
+- As **abas** (nomes e agrupamentos) permanecem só neste aparelho; o Postgres guarda `favorited` em `song_interactions`, não a estrutura de abas.
 - Marcar ou desmarcar uma favorita logado envia a mudança pela mesma fila do ranking (`set_song_favorite`), inclusive com `VITE_ENABLE_POPULARITY=false`. Assim, uma remoção feita em um aparelho não "volta" no outro.
 - Sem conta, ao salvar a primeira favorita o catálogo sugere entrar (`login.html`) para guardar a lista entre aparelhos.
-- A RPC só aceita contas permanentes, confere o código no catálogo ativo e respeita o limite de gravações por minuto. As favoritas ficam em `song_interactions`, protegida por RLS. O Deezer recebe consultas por título/artista; o Spotify só é acessado após ação explícita do usuário.
+- A RPC só aceita contas permanentes, confere o código no catálogo ativo e respeita o limite de gravações por minuto. O Deezer recebe consultas por título/artista; o Spotify só é acessado após ação explícita do usuário.
 
 ## Testes e verificações
 

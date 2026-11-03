@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="https://coletivo-inspira.github.io/bardacassia/">Abrir o catálogo</a> ·
+  <a href="./docs/ARQUITETURA.md">Arquitetura</a> ·
   <a href="./docs/INTEGRACOES.md">Integrações</a> ·
   <a href="./docs/APRESENTACAO.md">Apresentação</a> ·
   <a href="./docs/PESQUISA-E-UX.md">Busca e UX</a>
@@ -19,12 +20,12 @@
 
 - **Pesquisa local:** música, artista, código ou começo da letra, sem diferenciar acentos; correspondências mais relevantes aparecem primeiro.
 - **Descoberta:** clique no nome do artista para filtrar suas músicas e explorar artistas relacionados disponíveis no próprio catálogo.
-- **Favoritas:** salve as músicas para cantar no navegador, sem criar conta. Com login, elas sincronizam entre aparelhos.
+- **Favoritas:** tela `#favoritas` e abas locais no navegador, sem criar conta. Com login, a **lista de códigos** sincroniza entre aparelhos (as abas continuam só neste aparelho).
 - **Spotify opcional:** com autorização do usuário, usa suas **50 mais ouvidas** como sugestões e só as adiciona à lista da noite quando a pessoa escolhe “Quero cantar”.
 - **Descoberta por cartões:** escolha artistas, passe ou selecione músicas e mantenha uma lista da noite salva neste navegador.
-- **Mais populares:** ranking agregado, quando o Supabase está configurado.
+- **Mais populares:** ranking agregado, quando o Supabase está configurado e as migrações estão aplicadas.
 - **Deezer:** capas e trechos de áudio quando disponíveis; o site continua funcional sem a API.
-- **Conta (opcional):** login por e-mail e senha, link por e-mail ou Google/Facebook, em uma página inspirada nos cartões de login de marketplaces. Senhas ficam só no Supabase Auth (hash bcrypt) e cada pessoa só acessa o próprio perfil.
+- **Conta (opcional):** login por e-mail e senha, link por e-mail ou Google/Facebook. Em Minha conta: foto (Storage `avatars`), aniversário e consentimento LGPD. Senhas ficam só no Supabase Auth (hash bcrypt) e cada pessoa só acessa o próprio perfil.
 - **Código ao DJ:** exibe o código para o usuário mostrar ao DJ.
 - **Pedidos pelo QR (opcional, Supabase):** o cliente toca em “Mostrar ao garçom” e um QR aparece na tela. O garçom lê com o celular, cobra e a música entra na fila em `garcom.html`, que também mostra as tocadas da noite. Como o aparelho do cliente não grava nada, ninguém consegue pedir de casa. O modo antigo, em que o cliente pede sozinho, continua disponível com `VITE_REQUEST_MODE=remoto` e um código da noite.
 - **Resultados para o dono:** pedidos por noite, clientes, espera média, mais pedidas e pedidos por garçom, na aba “Resultados” do painel. Acessos ao site via Google Analytics 4 ou Cloudflare Web Analytics (`VITE_ANALYTICS_ID`).
@@ -77,17 +78,23 @@ O botão só aparece quando o Client ID estiver configurado. A autorização usa
 
 **Mais ouvidas não são as faixas curtidas.** A integração lê as top tracks de um período recente, cruza título e artista com o catálogo e usa os códigos correspondentes como sugestões. Nenhum token é persistido no armazenamento local. Leia os [detalhes, limites e privacidade](./docs/INTEGRACOES.md).
 
+## Arquitetura e Supabase
+
+Mapa do ambiente (páginas, migrações `001`–`008`, RPCs, Storage, variáveis e workflows): [Arquitetura](./docs/ARQUITETURA.md).
+
+O backend opcional é um único projeto Supabase (ex.: **Cacia**). `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` ligam o cliente; `SUPABASE_SERVICE_ROLE_KEY` fica só no Actions para `sync-catalog`. Com `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` e `SUPABASE_PROJECT_REF`, o workflow `.github/workflows/supabase.yml` aplica as migrações com `supabase db push --include-all --remote` e publica as Edge Functions. **Sem um Deploy Supabase verde, Auth pode funcionar e mesmo assim ranking, favoritas sync, perfil e pedidos retornam 404.**
+
 ## Ranking compartilhado (opcional)
 
-Veja [Integrações](./docs/INTEGRACOES.md#supabase-ranking-e-interações-anônimas) para configurar o Supabase, executar a migração e sincronizar os códigos. `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` habilitam o ranking; `SUPABASE_SERVICE_ROLE_KEY` é somente um secret do GitHub Actions para sincronizar o catálogo.
+Veja [Integrações](./docs/INTEGRACOES.md#supabase-ranking-e-interações-anônimas). Depois das migrações, o build sincroniza `catalog_codes`; localmente use `npm run sync-catalog`.
 
 ## Login e contas (opcional)
 
-Usa o mesmo projeto Supabase. Execute `supabase/migrations/002_auth_profiles.sql`, configure as Redirect URLs e a confirmação de e-mail e, se quiser, o CAPTCHA (Turnstile) e os provedores Google/Facebook. `VITE_ENABLE_AUTH=false` desliga o login. Com os secrets `SUPABASE_ACCESS_TOKEN` e `SUPABASE_DB_PASSWORD` e a variável `SUPABASE_PROJECT_REF`, o workflow `.github/workflows/supabase.yml` aplica as migrações e publica as Edge Functions sozinho. O passo a passo, o modelo de dados, a criptografia com Vault e as Edge Functions (`account-delete`, `deezer-proxy`) estão em [Integrações](./docs/INTEGRACOES.md#autenticação-login-e-contas).
+Mesmo projeto Supabase. Configure Redirect URLs, confirmação de e-mail e, se quiser, Turnstile e Google/Facebook. `VITE_ENABLE_AUTH=false` desliga o login. Perfil, avatar, LGPD, Vault e Edge Functions: [Integrações](./docs/INTEGRACOES.md#autenticação-login-e-contas).
 
 ## Pedidos de música e painel do garçom (opcional)
 
-Usa o mesmo Supabase do ranking e do login. Aplique as migrações `004` a `007` com as demais (pelo workflow ou pelo SQL Editor), cadastre os garçons (e o dono, com `role = 'dono'`) e abra `garcom.html` no celular do bar. O passo a passo está em [Integrações](./docs/INTEGRACOES.md#pedidos-de-música-e-painel-do-garçom). Para desligar só os pedidos, use `VITE_ENABLE_REQUESTS=false`.
+Mesmo Supabase. Com as migrações `001`–`008` aplicadas, cadastre os garçons (e o dono com `role = 'dono'`) e abra `garcom.html`. Passo a passo: [Integrações](./docs/INTEGRACOES.md#pedidos-de-música-e-painel-do-garçom). Para desligar só os pedidos: `VITE_ENABLE_REQUESTS=false`.
 
 ## Organização do projeto
 
@@ -109,10 +116,13 @@ src/
   integrations/spotify.js  # autorização PKCE e top tracks
   integrations/supabase.js # cliente Supabase compartilhado (sessão)
   integrations/auth.js     # login, cadastro, OAuth, redefinição de senha
+  integrations/profile.js  # perfil, avatar Storage e consentimento LGPD
   lib/auth-validation.js   # validação e mensagens de erro do login
+  lib/profile.js           # compressão de avatar e versão do consentimento
   integrations/requests.js # chamadas de pedidos e do painel
+  integrations/favorites-sync.js # sync_my_favorites
 supabase/
-  migrations/              # RLS, perfis, segredos cifrados, pedidos e fila
+  migrations/              # 001–008: ranking, auth, favoritas, pedidos, perfil/Storage
   functions/               # Edge Functions (account-delete, deezer-proxy)
 public/
   data/songs.json          # catálogo publicado
@@ -121,8 +131,9 @@ data/
   musicas.csv              # fonte editável
   lista-musica.pdf         # fonte alternativa
 scripts/import-songs.js
-tests/catalog.test.js
-tests/requests.test.js
+scripts/sync-catalog.js
+tests/
+docs/ARQUITETURA.md
 docs/INTEGRACOES.md
 docs/PESQUISA-E-UX.md
 docs/APRESENTACAO.md
@@ -130,6 +141,6 @@ docs/APRESENTACAO.md
 
 ## Decisões e limites
 
-O catálogo local é a fonte de verdade para **disponibilidade e código**. As APIs externas são auxiliares; falhas não devem bloquear a busca. Favoritas ficam neste navegador e podem desaparecer quando os dados locais forem limpos. O Deezer em produção ainda usa JSONP, cujo risco e alternativa com proxy estão documentados em [Integrações](./docs/INTEGRACOES.md).
+O catálogo local é a fonte de verdade para **disponibilidade e código**. As APIs externas são auxiliares; falhas não devem bloquear a busca. Favoritas locais (e abas) ficam neste navegador; com conta, só os códigos sincronizam. Prefira o proxy Deezer (`VITE_DEEZER_PROXY_URL`) em produção — detalhes em [Integrações](./docs/INTEGRACOES.md).
 
 A interface respeita navegação por teclado, foco visível, regiões `aria-live` e preferência por movimento reduzido. A logo animada acima já está versionada em `public/`; se o GitHub não reproduzir a animação em um contexto, ela permanece como identidade visual estática.

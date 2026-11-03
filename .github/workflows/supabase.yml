@@ -3,7 +3,9 @@ name: Deploy Supabase (database + Edge Functions)
 on:
   push:
     branches: ["main"]
-    paths: ["supabase/**"]
+    paths:
+      - "supabase/**"
+      - ".github/workflows/supabase.yml"
   workflow_dispatch:
 
 permissions:
@@ -42,7 +44,8 @@ jobs:
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
       - name: Apply migrations
         if: steps.config.outputs.ready == 'true'
-        run: supabase db push --include-all
+        # CLI recent defaults to the local stack (127.0.0.1:54322); --remote targets the linked project.
+        run: supabase db push --include-all --remote
       - name: Configure function secrets
         if: steps.config.outputs.ready == 'true' && env.ALLOWED_ORIGINS != ''
         run: supabase secrets set ALLOWED_ORIGINS="$ALLOWED_ORIGINS" --project-ref "$SUPABASE_PROJECT_REF"
