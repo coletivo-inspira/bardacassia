@@ -37,6 +37,17 @@ test("pular artistas ainda gera sugestões a partir dos estilos", () => {
   assert.deepEqual(queue.map(({ code }) => code), ["205"]);
 });
 
+test("fila de descoberta omite músicas já favoritas", () => {
+  const queue = buildDiscoveryQueue(
+    catalog,
+    { artists: ["Queen"], genreArtists: ["Jorge e Mateus", "Henrique e Juliano", "Queen"] },
+    [],
+    [],
+    { excludeCodes: ["201", "204"] },
+  );
+  assert.deepEqual(queue.map(({ code }) => code), ["202", "203"]);
+});
+
 test("identifica o estilo de uma música entre os estilos escolhidos", () => {
   assert.equal(genreForSong(catalog[0], ["pop", "sertanejo"])?.id, "sertanejo");
   assert.equal(genreForSong(catalog[3], ["sertanejo"]), null);

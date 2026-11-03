@@ -269,6 +269,11 @@ const ACTION_ICONS = {
       '<path d="M7.2 14.2c2.9-.8 6-.5 8.5 1"/><path d="M6.8 11c3.5-1 7.3-.6 10.3 1.3"/><path d="M6.5 7.8c4-1.2 8.4-.7 11.9 1.5"/>',
     ],
   },
+  bookmark: { paths: ['<path d="M7 4h10a1 1 0 0 1 1 1v16l-6-3.5L6 21V5a1 1 0 0 1 1-1z"/>'] },
+  bookmarkFilled: {
+    fill: true,
+    paths: ['<path d="M7 4h10a1 1 0 0 1 1 1v16l-6-3.5L6 21V5a1 1 0 0 1 1-1z"/>'],
+  },
 };
 
 function createIcon(name) {
@@ -685,9 +690,16 @@ async function startDiscovery(passedArtists = discovery.artists) {
   }
   const genreArtists = artistsForGenres(discovery.genres, allCatalogArtists).map((artist) => artist.name);
   const editorialArtists = CURATED.flatMap((pack) => pack.artists);
-  const queue = buildDiscoveryQueue(songs, { artists: discovery.artists, genreArtists }, [...spotifySuggestions, ...popularSongs], editorialArtists);
+  const queue = buildDiscoveryQueue(
+    songs,
+    { artists: discovery.artists, genreArtists },
+    [...spotifySuggestions, ...popularSongs],
+    editorialArtists,
+    { excludeCodes: favoriteCodes },
+  );
   const fallback = [...new Set(editorialArtists.map(normalize))];
-  const fallbackSongs = queue.length ? queue : songs.filter((song) => fallback.includes(normalize(cleanArtist(song.artist))))
+  const fallbackSongs = queue.length ? queue : songs
+    .filter((song) => fallback.includes(normalize(cleanArtist(song.artist))) && !favoriteCodes.has(String(song.code)))
     .map((song) => ({ ...song, source: "Sugestão da casa" }));
   discovery.queue = fallbackSongs.map((song) => String(song.code));
   discovery.index = 0;
@@ -698,7 +710,28 @@ async function startDiscovery(passedArtists = discovery.artists) {
   showDiscoverStep("cards");
 }
 
+function discoverySourceLabel(song) {
+  const isSpotify = spotifySuggestions.some((item) => item.code === song.code);
+  const isChosenArtist = discovery.artists.some((name) => normalize(name) === normalize(cleanArtist(song.artist)));
+  const genre = isChosenArtist ? null : genreForSong(song, discovery.genres);
+  if (isSpotify) return "Do seu Spotify";
+  if (isChosenArtist) return "Artista escolhido";
+  if (genre) return genre.label;
+  if (popularSongs.some((item) => item.code === song.code)) return "Mais popular";
+  return "Sugestão da casa";
+}
+
+function skipFavoriteDiscoverySongs() {
+  let moved = false;
+  while (discovery.index < discovery.queue.length && favoriteCodes.has(String(discovery.queue[discovery.index]))) {
+    discovery.index += 1;
+    moved = true;
+  }
+  if (moved) persistDiscovery();
+}
+
 function currentDiscoverySong() {
+  skipFavoriteDiscoverySongs();
   const code = discovery.queue[discovery.index];
   return code ? songByCode.get(code) : null;
 }
@@ -721,10 +754,15 @@ function renderDiscoveryCard() {
     return;
   }
   els.discoveryDescription.textContent = "Deslize ou use os botões: escolha músicas para cantar ou passe para a próxima.";
-  els.cardPosition.textContent = `Sugestão ${discovery.index + 1} de ${discovery.queue.length}`;
+  const remaining = discovery.queue.slice(discovery.index).filter((code) => !favoriteCodes.has(String(code))).length;
+  els.cardPosition.textContent = `Sugestão ${discovery.index + 1} · ${remaining} restante${remaining === 1 ? "" : "s"}`;
   els.restartPassed.hidden = false;
+
   const card = document.createElement("div");
   card.className = "discovery-card-content";
+
+  const media = document.createElement("div");
+  media.className = "discovery-card-media";
   let cover = createCoverFallback(song);
   cover.className = "cover-fallback discovery-cover";
   const catalogMeta = metaFromCatalog(song);
@@ -740,59 +778,88 @@ function renderDiscoveryCard() {
     }, { once: true });
     cover = img;
   }
+  const record = document.createElement("span");
+  record.className = "discovery-source";
+  record.textContent = discoverySourceLabel(song);
+  media.append(cover, record);
+
+  const metaBlock = document.createElement("div");
+  metaBlock.className = "discovery-card-meta";
   const title = document.createElement("h4");
   title.textContent = displayTitle(song.title);
   const artist = document.createElement("p");
   artist.textContent = cleanArtist(song.artist);
-  const record = document.createElement("span");
-  record.className = "discovery-source";
-  const isSpotify = spotifySuggestions.some((item) => item.code === song.code);
-  const isChosenArtist = discovery.artists.some((name) => normalize(name) === normalize(cleanArtist(song.artist)));
-  const genre = isChosenArtist ? null : genreForSong(song, discovery.genres);
-  record.textContent = isSpotify ? "Do seu Spotify"
-    : isChosenArtist ? "Artista escolhido"
-    : genre ? `Do estilo ${genre.label}`
-    : popularSongs.some((item) => item.code === song.code) ? "Mais popular"
-    : "Sugestão da casa";
+  metaBlock.append(title, artist);
+
   const actions = document.createElement("div");
   actions.className = "discovery-card-links";
+
   const details = document.createElement("button");
   details.type = "button";
-  details.className = "action-btn dj-btn";
-  details.textContent = "Código";
+  details.className = "action-btn dj-btn icon-action";
+  setIconAction(details, "code");
+  details.title = "Código";
   details.setAttribute("aria-label", `Código ao DJ: ${song.code}`);
-  details.addEventListener("click", () => showSongToDJ(song));
+  details.addEventListener("click", (event) => {
+    event.stopPropagation();
+    showSongToDJ(song);
+  });
+
+  const remind = document.createElement("button");
+  remind.type = "button";
+  remind.className = "action-btn icon-action discovery-remind-btn";
+  const reminded = favoriteCodes.has(String(song.code));
+  setIconAction(remind, reminded ? "bookmarkFilled" : "bookmark");
+  remind.title = "Relembrar depois";
+  remind.setAttribute("aria-label", `Relembrar depois: ${displayTitle(song.title)}`);
+  remind.setAttribute("aria-pressed", String(reminded));
+  remind.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (favoriteCodes.has(String(song.code))) unsaveFavorite(song.code);
+    else saveFavorite(song);
+    renderDiscoveryCard();
+  });
+
+  const previewBtn = document.createElement("button");
+  previewBtn.type = "button";
+  previewBtn.className = "action-btn preview-btn icon-action";
+  setIconAction(previewBtn, "play");
+  previewBtn.title = "Ouvir trecho";
+  previewBtn.setAttribute("aria-label", `Ouvir trecho: ${displayTitle(song.title)}`);
+  previewBtn.dataset.idleLabel = "Ouvir trecho";
+  previewBtn.hidden = !catalogMeta.previewUrl;
+  if (catalogMeta.previewUrl) previewBtn.dataset.preview = catalogMeta.previewUrl;
+  previewBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    togglePreview(song, previewBtn);
+  });
+
   const spotify = document.createElement("a");
   spotify.href = spotifySearchUrl(cleanArtist(song.artist), displayTitle(song.title));
   spotify.target = "_blank";
   spotify.rel = "noopener noreferrer";
-  spotify.className = "action-link";
-  spotify.textContent = "Relembrar esta música";
-  actions.append(details, spotify);
-  if (catalogMeta.previewUrl) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "action-btn preview-btn";
-    button.dataset.idleLabel = "Ouvir trecho";
-    button.textContent = "Ouvir trecho";
-    button.dataset.preview = catalogMeta.previewUrl;
-    button.addEventListener("click", () => togglePreview(song, button));
-    actions.append(button);
-  }
-  card.append(cover, title, artist, record, actions);
+  spotify.className = "action-link icon-action";
+  setIconAction(spotify, "spotify");
+  spotify.title = "Spotify";
+  spotify.setAttribute("aria-label", `Ouvir no Spotify: ${displayTitle(song.title)}`);
+  spotify.addEventListener("click", (event) => event.stopPropagation());
+
+  actions.append(details, remind, previewBtn, spotify);
+  card.append(media, metaBlock, actions);
   els.discoveryCard.replaceChildren(card);
-  if (!catalogMeta.cover) enrichDiscoveryCover(cover, song);
+  if (!catalogMeta.cover || !catalogMeta.previewUrl) enrichDiscoveryCover(cover, song, previewBtn);
 }
 
-async function enrichDiscoveryCover(cover, song) {
+async function enrichDiscoveryCover(cover, song, previewBtn) {
   try {
     const meta = await fetchDeezerMeta(song);
-    if (!meta || !cover.isConnected || currentDiscoverySong()?.code !== song.code) return;
+    if (!meta || currentDiscoverySong()?.code !== song.code) return;
     if (meta.cover && cover.isConnected) {
       const img = document.createElement("img");
       img.alt = "";
       img.decoding = "async";
       img.referrerPolicy = "no-referrer";
+      img.className = "discovery-cover";
       img.src = meta.cover;
       img.addEventListener("error", () => {
         if (cover.isConnected && currentDiscoverySong()?.code === song.code) {
@@ -801,15 +868,9 @@ async function enrichDiscoveryCover(cover, song) {
       }, { once: true });
       cover.replaceWith(img);
     }
-    if (meta.previewUrl) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "action-btn preview-btn";
-      button.dataset.idleLabel = "Ouvir trecho";
-      button.textContent = "Ouvir trecho";
-      button.dataset.preview = meta.previewUrl;
-      button.addEventListener("click", () => togglePreview(song, button));
-      els.discoveryCard.querySelector(".discovery-card-links")?.append(button);
+    if (meta.previewUrl && previewBtn?.isConnected) {
+      previewBtn.hidden = false;
+      previewBtn.dataset.preview = meta.previewUrl;
     }
   } catch { /* O cartão segue funcional sem dados do Deezer. */ }
 }
@@ -2239,7 +2300,7 @@ els.discoveryCard.addEventListener("dragstart", (event) => event.preventDefault(
 els.undoDiscovery.addEventListener("click", undoDiscovery);
 els.restartPassed.addEventListener("click", () => {
   if (!discovery.passed.length) return;
-  discovery.queue = [...discovery.passed];
+  discovery.queue = discovery.passed.filter((code) => !favoriteCodes.has(String(code)));
   discovery.passed = [];
   discovery.seen = [];
   discovery.index = 0;
