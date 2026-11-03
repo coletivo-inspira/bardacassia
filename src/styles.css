@@ -2196,6 +2196,11 @@ body {
 
   .theme-toggle { width: 44px; height: 44px; padding: 0; flex: 0 0 44px; }
 
+  .header-account-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
   .hero {
     min-height: 0;
   }
@@ -3397,9 +3402,18 @@ dialog.discover-screen::backdrop { background: var(--bg); }
 .public-queue-name { color: #59615f; font-size: .85rem; }
 
 /* Login / conta — layout inspired by a classic marketplace sign-in card. */
-.header-account { text-decoration: none; }
+.header-account { text-decoration: none; gap: 0.45rem; }
 .header-account[hidden] { display: none; }
 .header-account svg { width: 19px; height: 19px; }
+.header-account svg[hidden] { display: none; }
+.header-account-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+  background: color-mix(in srgb, var(--amber) 22%, var(--bg-soft));
+}
 .header-account-menu { position: relative; }
 .header-account-menu [role="menu"] {
   position: absolute;
