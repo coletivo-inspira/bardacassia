@@ -230,6 +230,33 @@
       </section>
     </main>
 
+    <dialog id="auth-avatar-crop" class="auth-avatar-crop" aria-labelledby="auth-avatar-crop-title">
+      <div class="auth-avatar-crop-panel">
+        <h2 id="auth-avatar-crop-title" class="auth-avatar-crop-title">Enquadrar foto</h2>
+        <p class="auth-avatar-crop-hint">Arraste para ajustar. A área circular é o que aparece no perfil.</p>
+        <div class="auth-avatar-crop-stage" id="auth-avatar-crop-stage">
+          <div class="auth-avatar-crop-frame" id="auth-avatar-crop-frame">
+            <img id="auth-avatar-crop-image" class="auth-avatar-crop-image" alt="" draggable="false" />
+            <div class="auth-avatar-crop-mask" aria-hidden="true"></div>
+            <div class="auth-avatar-crop-corners" aria-hidden="true">
+              <span class="auth-avatar-crop-corner is-tl"></span>
+              <span class="auth-avatar-crop-corner is-tr"></span>
+              <span class="auth-avatar-crop-corner is-bl"></span>
+              <span class="auth-avatar-crop-corner is-br"></span>
+            </div>
+          </div>
+        </div>
+        <label class="auth-avatar-crop-zoom">
+          <span>Zoom</span>
+          <input id="auth-avatar-crop-zoom" type="range" min="100" max="300" value="100" step="1" />
+        </label>
+        <div class="auth-avatar-crop-actions">
+          <button id="auth-avatar-crop-cancel" class="auth-secondary" type="button">Cancelar</button>
+          <button id="auth-avatar-crop-confirm" class="auth-submit" type="button">Definir Foto</button>
+        </div>
+      </div>
+    </dialog>
+
     <script type="module" src="/src/login.js"></script>
   </body>
 </html>

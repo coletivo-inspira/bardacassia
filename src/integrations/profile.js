@@ -1,6 +1,11 @@
 import { authConfigured, getCurrentUser } from "./auth.js";
 import { getSupabase } from "./supabase.js";
-import { compressAvatarFile, DATA_CONSENT_VERSION, providerAvatarUrl } from "../lib/profile.js";
+import {
+  AVATAR_MAX_OUTPUT_BYTES,
+  compressAvatarFile,
+  DATA_CONSENT_VERSION,
+  providerAvatarUrl,
+} from "../lib/profile.js";
 
 async function client() {
   if (!authConfigured) throw new Error("Login não configurado.");
@@ -51,11 +56,26 @@ export async function updateMyProfile({ birthDate, avatarUrl, grantConsent = fal
   return getMyProfile();
 }
 
-export async function uploadMyAvatar(file) {
+/**
+ * Upload a profile photo to Storage `avatars` at `{userId}/avatar.jpg`.
+ * Pass `{ compressed: true }` when `file` is already a square JPEG from `compressAvatarFile`
+ * (e.g. after the crop modal) so we do not re-encode.
+ * @param {Blob} file
+ * @param {{ compressed?: boolean, maxSize?: number, quality?: number, crop?: { sx: number, sy: number, sw: number, sh: number } }} [options]
+ */
+export async function uploadMyAvatar(file, { compressed = false, maxSize, quality, crop } = {}) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Entre na sua conta para enviar a foto.");
   const supabase = await client();
-  const blob = await compressAvatarFile(file);
+  const blob = compressed
+    ? file
+    : await compressAvatarFile(file, {
+        ...(maxSize != null ? { maxSize } : {}),
+        ...(quality != null ? { quality } : {}),
+        ...(crop ? { crop } : {}),
+      });
+  if (!(blob instanceof Blob) || blob.size === 0) throw new Error("Selecione uma imagem.");
+  if (blob.size > AVATAR_MAX_OUTPUT_BYTES) throw new Error("A imagem ficou grande demais. Tente outra foto.");
   const path = `${user.id}/avatar.jpg`;
   const { error: uploadError } = await supabase.storage
     .from("avatars")
