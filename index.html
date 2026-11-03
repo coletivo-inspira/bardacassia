@@ -325,9 +325,10 @@
         </div>
 
         <section id="step-genres" class="discover-step" aria-label="Estilos musicais">
-          <div id="genre-options" class="genre-options" role="group" aria-label="Estilos musicais"></div>
-          <div class="discovery-actions">
-            <button id="confirm-genres" class="button button-light" type="button" disabled>Continuar</button>
+          <div id="genre-options" class="genre-options" role="group" aria-label="Estilos disponíveis"></div>
+          <div class="discovery-actions discover-sticky-actions genre-confirm-bar">
+            <div id="genre-selected" class="genre-selected" role="list" aria-label="Estilos selecionados" hidden></div>
+            <button id="confirm-genres" class="button button-light" type="button" disabled>Escolha pelo menos um estilo</button>
           </div>
         </section>
 
@@ -344,11 +345,17 @@
               </button>
             </div>
           </div>
-          <p id="artist-selection-count" class="integration-status" aria-live="polite">Nenhum artista selecionado</p>
+          <div class="artist-selection-panel">
+            <button id="artist-selection-toggle" class="artist-selection-toggle integration-status" type="button" aria-expanded="false" aria-controls="artist-selected" disabled>
+              <span id="artist-selection-count">Nenhum artista selecionado</span>
+              <span class="artist-selection-chevron" aria-hidden="true"></span>
+            </button>
+            <div id="artist-selected" class="artist-selected" role="list" aria-label="Artistas selecionados" hidden></div>
+          </div>
           <div id="artist-options" class="artist-options artist-options--grid" role="group" aria-label="Artistas disponíveis"></div>
-          <div class="discovery-actions discover-sticky-actions">
+          <div class="discovery-actions discover-sticky-actions artist-confirm-bar">
             <button id="start-discovery" class="button button-light" type="button" disabled>Ver sugestões</button>
-            <button id="skip-artist-picker" class="text-button" type="button">Pular</button>
+            <button id="skip-artist-picker" class="button button-ghost" type="button">Pular esta etapa</button>
           </div>
         </section>
 

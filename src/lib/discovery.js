@@ -45,8 +45,9 @@ function roundRobinByArtist(songs, artists, source) {
  * Chosen artists lead; songs from the chosen styles' artists follow, then popular/editorial.
  * `selection` may be a plain artist list (legacy) or `{ artists, genreArtists }`.
  */
-export function buildDiscoveryQueue(songs, selection, popularSongs = [], editorialArtists = []) {
+export function buildDiscoveryQueue(songs, selection, popularSongs = [], editorialArtists = [], { excludeCodes = [] } = {}) {
   const { artists = [], genreArtists = [] } = Array.isArray(selection) ? { artists: selection } : selection || {};
+  const excluded = new Set([...excludeCodes].map(String));
   const chosenKeys = new Set(artists.map(normalizeText));
   const personal = [
     ...roundRobinByArtist(songs, artists, "Artista escolhido"),
@@ -68,14 +69,18 @@ export function buildDiscoveryQueue(songs, selection, popularSongs = [], editori
   const seen = new Set();
   let personalIndex = 0;
   let secondaryIndex = 0;
+  const take = (song) => {
+    const code = String(song.code);
+    if (seen.has(code) || excluded.has(code)) return;
+    result.push(song);
+    seen.add(code);
+  };
   while (personalIndex < personal.length || secondaryIndex < secondary.length) {
     for (let i = 0; i < 2 && personalIndex < personal.length; i++) {
-      const song = personal[personalIndex++];
-      if (!seen.has(song.code)) { result.push(song); seen.add(song.code); }
+      take(personal[personalIndex++]);
     }
     if (secondaryIndex < secondary.length) {
-      const song = secondary[secondaryIndex++];
-      if (!seen.has(song.code)) { result.push(song); seen.add(song.code); }
+      take(secondary[secondaryIndex++]);
     }
   }
   return result;
