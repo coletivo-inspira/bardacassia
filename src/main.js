@@ -2,7 +2,7 @@ import { displayTitle, filterCatalog, filtersForArtistSelection, countActiveFilt
 import { fetchDeezerMeta, fetchRelatedArtists, fetchArtistPicture, cancelPendingDeezerMeta, metaFromCatalog } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
 import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState, emptyDiscoveryState } from "./lib/discovery.js";
-import { GENRES, artistsForGenres, genreForSong } from "./lib/genres.js";
+import { GENRES, artistsForGenres, genreById, genreForSong } from "./lib/genres.js";
 import {
   DRAFT_TAB_ID,
   addToTab,
@@ -129,6 +129,7 @@ const els = {
   discoveryDescription: document.querySelector("#discovery-description"),
   stepGenres: document.querySelector("#step-genres"),
   genreOptions: document.querySelector("#genre-options"),
+  genreSelected: document.querySelector("#genre-selected"),
   confirmGenres: document.querySelector("#confirm-genres"),
   stepArtists: document.querySelector("#step-artists"),
   artistSearch: document.querySelector("#artist-search"),
@@ -443,32 +444,86 @@ function showDiscoverStep(step) {
   els.discoverDialog.querySelector(".discover-screen-inner")?.scrollTo({ top: 0 });
 }
 
+/** Stable-per-session cover artist so chips keep the same photo while toggling. */
+const genreCoverArtistById = new Map();
+
+function coverArtistForGenre(genre) {
+  if (!genreCoverArtistById.has(genre.id)) {
+    const pool = genre.artists.slice(0, 12);
+    genreCoverArtistById.set(genre.id, pool[Math.floor(Math.random() * pool.length)] || genre.label);
+  }
+  return genreCoverArtistById.get(genre.id);
+}
+
+function loadGenreChipPhoto(media) {
+  const artist = media.dataset.artist;
+  if (!artist) return;
+  void fetchArtistPicture(artist).then((url) => {
+    if (!url || !media.isConnected) return;
+    const img = new Image();
+    img.alt = "";
+    img.decoding = "async";
+    img.referrerPolicy = "no-referrer";
+    img.onload = () => {
+      if (!media.isConnected) return;
+      media.replaceChildren(img);
+      media.classList.add("has-photo");
+    };
+    img.src = url;
+  });
+}
+
+function createGenreChip(genre, { selected = false, compact = false } = {}) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = compact ? "genre-chip genre-chip--selected" : "genre-chip";
+  button.style.setProperty("--genre", genre.color);
+  button.setAttribute("aria-pressed", String(selected));
+  button.setAttribute("aria-label", selected ? `Remover ${genre.label}` : `Selecionar ${genre.label}`);
+  if (compact) button.setAttribute("role", "listitem");
+
+  const media = document.createElement("span");
+  media.className = "genre-chip-media";
+  media.dataset.artist = coverArtistForGenre(genre);
+  media.setAttribute("aria-hidden", "true");
+
+  const check = document.createElement("span");
+  check.className = "genre-chip-check";
+  check.setAttribute("aria-hidden", "true");
+  check.textContent = selected ? "×" : "+";
+
+  const label = document.createElement("span");
+  label.className = "genre-chip-label";
+  label.textContent = genre.label;
+
+  button.append(media, check, label);
+  button.addEventListener("click", () => {
+    discovery.genres = selected
+      ? discovery.genres.filter((id) => id !== genre.id)
+      : [...discovery.genres, genre.id];
+    persistDiscovery();
+    renderGenreOptions();
+  });
+  loadGenreChipPhoto(media);
+  return button;
+}
+
 function renderGenreOptions() {
-  const selected = new Set(discovery.genres);
-  els.genreOptions.replaceChildren(...GENRES.map((genre) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "genre-chip";
-    button.style.setProperty("--genre", genre.color);
-    const isSelected = selected.has(genre.id);
-    button.setAttribute("aria-pressed", String(isSelected));
-    const check = document.createElement("span");
-    check.className = "genre-chip-check";
-    check.setAttribute("aria-hidden", "true");
-    check.textContent = isSelected ? "✓" : "+";
-    const label = document.createElement("span");
-    label.textContent = genre.label;
-    button.append(check, label);
-    button.addEventListener("click", () => {
-      discovery.genres = isSelected ? discovery.genres.filter((id) => id !== genre.id) : [...discovery.genres, genre.id];
-      persistDiscovery();
-      renderGenreOptions();
-    });
-    return button;
-  }));
-  els.confirmGenres.disabled = discovery.genres.length === 0;
-  els.confirmGenres.textContent = discovery.genres.length
-    ? `Continuar com ${discovery.genres.length} estilo${discovery.genres.length === 1 ? "" : "s"}`
+  const selectedIds = discovery.genres.filter((id) => genreById(id));
+  const selectedSet = new Set(selectedIds);
+  const available = GENRES.filter((genre) => !selectedSet.has(genre.id));
+  const chosen = selectedIds.map((id) => genreById(id)).filter(Boolean);
+
+  els.genreOptions.replaceChildren(...available.map((genre) => createGenreChip(genre, { selected: false })));
+  if (els.genreSelected) {
+    els.genreSelected.hidden = chosen.length === 0;
+    els.genreSelected.replaceChildren(...chosen.map((genre) => createGenreChip(genre, { selected: true, compact: true })));
+  }
+
+  const count = chosen.length;
+  els.confirmGenres.disabled = count === 0;
+  els.confirmGenres.textContent = count
+    ? `Continuar com ${count} estilo${count === 1 ? "" : "s"}`
     : "Escolha pelo menos um estilo";
 }
 
