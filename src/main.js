@@ -26,7 +26,8 @@ import {
   swipeStrength,
   isInteractiveSwipeTarget,
 } from "./lib/discovery-swipe.js";
-import { fetchPopularSongs, popularityNeedsUpdate, recordSongOpen, setSongFavorite } from "./integrations/popularity.js";
+import { fetchPopularSongs, popularityNeedsUpdate, recordSongOpen, setFavoriteSyncActive, setSongFavorite } from "./integrations/popularity.js";
+import { authConfigured, getCurrentUser, onAuthChange } from "./integrations/auth.js";
 import { hideExpiredEventNav, initializeAccountMenu, initializeTheme } from "./site.js";
 import { syncAccountFavorites } from "./integrations/favorites-sync.js";
 import { mergeFavoriteCodes } from "./lib/favorites.js";
@@ -181,6 +182,7 @@ let favoriteCodes = allCodes(favoritesState);
 /** Favorites view shows one tab at a time; the "Somente favoritas" filter spans all tabs. */
 let favoritesTabView = false;
 let favoritesOnly = false;
+let accountFavoritesPromptShown = false;
 let relatedRequest = 0;
 let songByCode = new Map();
 let observer = null;
@@ -798,6 +800,38 @@ async function applyAccountFavorites() {
   else refreshFavoriteButtons();
 }
 
+/** Soft CTA once per visit when the first favorite is saved without a permanent account. */
+async function maybePromptAccountForFavorites() {
+  if (!authConfigured || accountFavoritesPromptShown) return;
+  try {
+    if (await getCurrentUser()) return;
+  } catch {
+    return;
+  }
+  accountFavoritesPromptShown = true;
+  const link = document.createElement("a");
+  link.href = `login.html?next=${encodeURIComponent("index.html#buscar")}`;
+  link.textContent = "Entre";
+  els.spotifyStatus.hidden = false;
+  els.spotifyStatus.replaceChildren(
+    link,
+    document.createTextNode(" para guardar as favoritas entre aparelhos."),
+  );
+}
+
+async function watchAccountFavorites() {
+  if (!authConfigured) return;
+  await onAuthChange(async (event) => {
+    if (event === "SIGNED_OUT") {
+      setFavoriteSyncActive(false);
+      return;
+    }
+    if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+      await applyAccountFavorites();
+    }
+  });
+}
+
 function refreshFavoriteButtons(onlyCode = null) {
   document.querySelectorAll(".favorite-btn").forEach((button) => {
     if (onlyCode && button.dataset.code !== onlyCode) return;
@@ -820,10 +854,12 @@ function onFavoritesChanged(code) {
 function saveFavorite(song) {
   const code = String(song.code);
   if (favoriteCodes.has(code)) return;
+  const wasEmpty = favoriteCodes.size === 0;
   favoritesState = addToTab(favoritesState, code, DRAFT_TAB_ID);
   setSongFavorite(code, true);
   persistFavorites();
   onFavoritesChanged(code);
+  if (wasEmpty) void maybePromptAccountForFavorites();
 }
 
 function unsaveFavorite(code) {
@@ -2155,4 +2191,5 @@ async function init() {
 
 hideExpiredEventNav();
 void initializeAccountMenu();
+void watchAccountFavorites();
 init();
