@@ -72,9 +72,10 @@ jobs:
           fi
       - name: Configure function secrets
         if: steps.config.outputs.ready == 'true' && env.ALLOWED_ORIGINS != ''
-        run: supabase secrets set ALLOWED_ORIGINS="$ALLOWED_ORIGINS" --project-ref "$SUPABASE_PROJECT_REF"
+        # CLI v3+ requires --yes when stdout is not a TTY (GitHub Actions).
+        run: supabase secrets set ALLOWED_ORIGINS="$ALLOWED_ORIGINS" --remote="$SUPABASE_PROJECT_REF" --yes
       - name: Deploy Edge Functions
         if: steps.config.outputs.ready == 'true'
         run: |
-          supabase functions deploy account-delete --project-ref "$SUPABASE_PROJECT_REF"
-          supabase functions deploy deezer-proxy --no-verify-jwt --project-ref "$SUPABASE_PROJECT_REF"
+          supabase functions deploy account-delete --remote="$SUPABASE_PROJECT_REF" --yes
+          supabase functions deploy deezer-proxy --no-verify-jwt --remote="$SUPABASE_PROJECT_REF" --yes
