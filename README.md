@@ -82,7 +82,7 @@ O botão só aparece quando o Client ID estiver configurado. A autorização usa
 
 Mapa do ambiente (páginas, migrações `001`–`008`, RPCs, Storage, variáveis e workflows): [Arquitetura](./docs/ARQUITETURA.md).
 
-O backend opcional é um único projeto Supabase (ex.: **Cacia**). `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` ligam o cliente; `SUPABASE_SERVICE_ROLE_KEY` fica só no Actions para `sync-catalog`. Com `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` e `SUPABASE_PROJECT_REF`, o workflow `.github/workflows/supabase.yml` aplica as migrações com `supabase db push --include-all --remote` e publica as Edge Functions. **Sem um Deploy Supabase verde, Auth pode funcionar e mesmo assim ranking, favoritas sync, perfil e pedidos retornam 404.**
+O backend opcional é um único projeto Supabase (ex.: **Cacia**). `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` ligam o cliente; `SUPABASE_SERVICE_ROLE_KEY` fica só no Actions para `sync-catalog`. Com `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` e `SUPABASE_PROJECT_REF`, o workflow `.github/workflows/supabase.yml` aplica as migrações pelo **session pooler IPv4** (o Actions não alcança o host direto IPv6) e publica as Edge Functions. Se o host auto falhar, use o secret `SUPABASE_DB_URL` (URI Session do Dashboard → Connect). **Sem um Deploy Supabase verde, Auth pode funcionar e mesmo assim perfil (`PGRST205`), ranking e favoritas falham.**
 
 ## Ranking compartilhado (opcional)
 
