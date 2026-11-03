@@ -250,7 +250,8 @@ function spotifySearchUrl(artist, title) {
 }
 
 const ACTION_ICONS = {
-  code: { paths: ['<path d="M7 8H5.5A2.5 2.5 0 0 0 3 10.5v5A2.5 2.5 0 0 0 5.5 18H7"/><path d="M17 8h1.5A2.5 2.5 0 0 1 21 10.5v5a2.5 2.5 0 0 1-2.5 2.5H17"/><path d="M9 12h6M9 15h4"/>'] },
+  // Hash mark reads clearly at 18px on the amber Código button.
+  code: { paths: ['<path d="M10 4 7.5 20M16.5 4 14 20M5 9h14M4 15h14"/>'] },
   heart: { paths: ['<path d="M12 20.2S4 15.3 4 8.9A4.1 4.1 0 0 1 11.2 6L12 7l.8-1A4.1 4.1 0 0 1 20 8.9c0 6.4-8 11.3-8 11.3z"/>'] },
   heartFilled: {
     fill: true,
@@ -258,13 +259,11 @@ const ACTION_ICONS = {
   },
   play: { paths: ['<path d="M8 5.5v13l11-6.5z"/>'] },
   pause: { paths: ['<path d="M8 5h3v14H8zM13 5h3v14h-3z"/>'] },
+  // Stroke-based mark stays visible on transparent dark action chips.
   spotify: {
-    fill: true,
     paths: [
-      '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/>',
-      '<path fill="var(--bg, #141414)" d="M16.7 16.3a.75.75 0 0 1-1.03.25c-2.82-1.72-6.37-2.11-10.55-1.16a.75.75 0 1 1-.33-1.46c4.55-1.03 8.45-.59 11.66 1.37a.75.75 0 0 1 .25 1z"/>',
-      '<path fill="var(--bg, #141414)" d="M17.7 13.2a.9.9 0 0 1-1.24.3c-3.23-1.98-8.15-2.56-11.97-1.4a.9.9 0 1 1-.52-1.72c4.27-1.3 9.64-.66 13.33 1.6a.9.9 0 0 1 .4 1.22z"/>',
-      '<path fill="var(--bg, #141414)" d="M18.6 9.95a1.08 1.08 0 0 1-1.48.36c-3.7-2.2-9.34-2.4-12.7-1.32a1.08 1.08 0 1 1-.62-2.07c3.86-1.16 10.1-.93 14.34 1.6a1.08 1.08 0 0 1 .46 1.43z"/>',
+      '<circle cx="12" cy="12" r="9"/>',
+      '<path d="M7.2 14.2c2.9-.8 6-.5 8.5 1"/><path d="M6.8 11c3.5-1 7.3-.6 10.3 1.3"/><path d="M6.5 7.8c4-1.2 8.4-.7 11.9 1.5"/>',
     ],
   },
 };
