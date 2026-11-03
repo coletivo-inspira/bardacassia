@@ -101,7 +101,7 @@ Navegador (GitHub Pages) ──PKCE──> Supabase Auth (hash bcrypt, JWT de 1h
 
 ### Banco de dados (`supabase/migrations/002_auth_profiles.sql`)
 
-- `public.profiles`: `id` (FK para `auth.users`, com `on delete cascade`), `display_name`, `created_at`, `updated_at`. RLS permite `select` e `update` apenas do próprio perfil e não permite nada para `anon` ou para sessões anônimas. O perfil é criado por trigger quando surge uma conta permanente, inclusive na conversão de uma conta anônima.
+- `public.profiles`: `id` (FK para `auth.users`, com `on delete cascade`), `display_name`, `birth_date` (opcional), `avatar_url` (opcional), `data_consent_at` / `data_consent_version` (LGPD), `created_at`, `updated_at`. RLS permite `select` e `update` apenas do próprio perfil e não permite nada para `anon` ou para sessões anônimas. O perfil é criado por trigger quando surge uma conta permanente, inclusive na conversão de uma conta anônima. Fotos vão no bucket Storage público `avatars` (gravação só na pasta do próprio `user_id`); ver `008_profile_extras.sql`.
 - `private.consume_write()` passa a aceitar contas logadas, além das anônimas, mantendo o limite de 120 gravações por minuto.
 - **Criptografia de colunas sensíveis:** dados como telefone ficam em `private.profile_secrets`, cifrados com `pgp_sym_encrypt` (pgcrypto). A chave fica no **Supabase Vault** e só é lida por funções `security definer` (`set_my_phone` / `get_my_phone`), restritas ao dono. Crie a chave uma vez no SQL Editor:
 

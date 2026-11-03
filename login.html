@@ -5,7 +5,7 @@
     <!-- The sha256 hash matches the inline theme script below; update it whenever that script changes. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'sha256-iMFbpV45oV/4dFfphWv2il23OZMpif8M2Qnjm7bec0k=' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'"
+      content="default-src 'self'; script-src 'self' 'sha256-iMFbpV45oV/4dFfphWv2il23OZMpif8M2Qnjm7bec0k=' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#141414" />
@@ -151,18 +151,69 @@
 
           <div class="auth-legal" data-modes="entrar cadastrar link">
             <p>Ao continuar, você concorda que o Bar da Cácia use seu e-mail e nome apenas para identificar sua conta neste site.</p>
+            <label class="auth-checkbox auth-consent" data-modes="cadastrar">
+              <input id="auth-consent" type="checkbox" />
+              <span class="auth-checkbox-box" aria-hidden="true"></span>
+              <span>Li e autorizo o uso dos meus dados conforme a LGPD, só para a conta e as favoritas neste site.</span>
+            </label>
+            <div id="auth-consent-error" class="auth-error" data-modes="cadastrar" aria-live="polite"></div>
             <details>
               <summary>Como protegemos seus dados</summary>
-              <p>Sua senha nunca é armazenada em texto: ela é transformada em hash pelo serviço de autenticação e o site não tem acesso a ela. Os dados ficam em banco cifrado, cada pessoa só lê o próprio perfil e você pode excluir sua conta quando quiser.</p>
+              <p>Sua senha nunca é armazenada em texto: ela é transformada em hash pelo serviço de autenticação e o site não tem acesso a ela. Os dados ficam em banco cifrado, cada pessoa só lê o próprio perfil e você pode excluir sua conta quando quiser. Foto e data de aniversário são opcionais e podem ser removidas a qualquer momento.</p>
             </details>
           </div>
 
           <div id="auth-account" class="auth-account" data-modes="conta">
+            <div class="auth-profile-hero">
+              <div class="auth-avatar" aria-hidden="true">
+                <img id="auth-account-avatar" alt="" hidden />
+                <span id="auth-account-initials">?</span>
+              </div>
+              <div class="auth-avatar-actions">
+                <label class="auth-secondary auth-avatar-upload">
+                  Trocar foto
+                  <input id="auth-avatar-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+                </label>
+                <p id="auth-avatar-status" class="auth-hint" role="status" aria-live="polite"></p>
+              </div>
+            </div>
             <dl class="auth-account-info">
               <div><dt>Nome</dt><dd id="auth-account-name">—</dd></div>
               <div><dt>E-mail</dt><dd id="auth-account-email">—</dd></div>
             </dl>
+            <form id="auth-profile-form" class="auth-profile-form">
+              <div class="auth-field">
+                <label class="auth-label" for="auth-birth-date">Data de aniversário</label>
+                <div class="auth-input-wrap">
+                  <input id="auth-birth-date" class="auth-input" name="birthDate" type="date" maxlength="10" aria-describedby="auth-birth-date-hint auth-birth-date-error" />
+                </div>
+                <p id="auth-birth-date-hint" class="auth-hint">Opcional — ajuda o bar a lembrar da promoção de aniversariante.</p>
+                <div id="auth-birth-date-error" class="auth-error" aria-live="polite"></div>
+              </div>
+              <fieldset class="auth-lgpd">
+                <legend>Privacidade e LGPD</legend>
+                <p id="auth-lgpd-status" class="auth-hint">Carregando suas preferências…</p>
+                <label class="auth-checkbox auth-consent">
+                  <input id="auth-account-consent" type="checkbox" />
+                  <span class="auth-checkbox-box" aria-hidden="true"></span>
+                  <span>Autorizo o Bar da Cácia a usar nome, e-mail, foto e aniversário só para minha conta, favoritas e comunicação sobre o bar.</span>
+                </label>
+                <details>
+                  <summary>Como usamos e protegemos seus dados</summary>
+                  <p>Guardamos o mínimo necessário. Senha só em hash no serviço de autenticação. Perfil e favoritas ficam no seu usuário, com acesso restrito. Você pode alterar a foto, a data de aniversário, retirar o consentimento ao excluir a conta, ou pedir exclusão a qualquer momento.</p>
+                </details>
+              </fieldset>
+              <button id="auth-profile-save" class="auth-secondary" type="submit">Salvar perfil</button>
+            </form>
+            <div class="auth-account-theme">
+              <button id="auth-theme-toggle" class="theme-toggle auth-theme-toggle" type="button" data-theme-toggle aria-label="Ativar tema claro">
+                <svg class="theme-icon-sun" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+                <svg class="theme-icon-moon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.2 15.1A8.4 8.4 0 0 1 8.9 3.8 8.5 8.5 0 1 0 20.2 15.1Z"/></svg>
+                <span class="theme-toggle-label">Modo claro</span>
+              </button>
+            </div>
             <div class="auth-account-actions">
+              <a id="auth-favorites" class="auth-secondary" href="index.html#favoritas">Meus favoritos</a>
               <a id="auth-continue" class="auth-submit" href="index.html">Continuar para o site</a>
               <a class="auth-link" href="#nova-senha">Alterar senha</a>
               <button id="auth-signout" class="auth-secondary" type="button">Sair</button>
