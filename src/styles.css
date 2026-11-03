@@ -628,6 +628,24 @@ input:focus-visible {
   cursor: pointer;
 }
 
+.view-toggle-btn--icon {
+  width: 34px;
+  min-width: 34px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+
+.view-toggle-btn--icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .view-toggle-btn.is-active,
 .view-toggle-btn[aria-pressed="true"] {
   background: var(--amber);
@@ -698,6 +716,13 @@ input:focus-visible {
   min-height: 32px;
   padding: 0.28rem 0.55rem;
   font-size: 0.72rem;
+}
+
+.songs-list--list .action-link.icon-action,
+.songs-list--list .action-btn.icon-action {
+  width: 32px;
+  min-width: 32px;
+  padding: 0;
 }
 
 .songs-list--grid {
@@ -795,6 +820,13 @@ input:focus-visible {
   white-space: normal;
   line-height: 1.15;
   text-align: center;
+}
+
+.songs-list--grid .action-link.icon-action,
+.songs-list--grid .action-btn.icon-action {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
 }
 
 .songs-list--grid .preview-btn[hidden] {
@@ -899,6 +931,37 @@ input:focus-visible {
   text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
+}
+
+.action-link.icon-action,
+.action-btn.icon-action {
+  width: 34px;
+  min-width: 34px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+
+.action-link.icon-action svg,
+.action-btn.icon-action svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.action-link.icon-action svg:not(.icon-fill),
+.action-btn.icon-action svg:not(.icon-fill) {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.action-link.icon-action svg.icon-fill,
+.action-btn.icon-action svg.icon-fill {
+  fill: currentColor;
+  stroke: none;
 }
 
 .action-link:hover,
@@ -1285,6 +1348,16 @@ input:focus-visible {
   font-size: 0.8rem !important;
 }
 
+.footer-place a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.footer-place a:hover {
+  color: var(--amber);
+}
+
 .instagram-footer {
   display: inline-flex;
   min-height: 48px;
@@ -1299,6 +1372,12 @@ input:focus-visible {
   font-weight: 700;
   text-decoration: none;
   transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.instagram-footer--icon {
+  width: 48px;
+  min-width: 48px;
+  padding: 0;
 }
 
 .instagram-footer:hover {
@@ -2371,6 +2450,13 @@ body {
     font-size: 0.78rem;
   }
 
+  .action-link.icon-action,
+  .action-btn.icon-action {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+  }
+
   /* Lista on phones: single dense row; Spotify/Preview live in the DJ dialog */
   .songs-list--list {
     gap: 0;
@@ -2510,10 +2596,6 @@ body {
 
   .mobile-tab[aria-current="page"],
   .mobile-tab.is-active {
-    color: var(--text);
-  }
-
-  .mobile-tab-primary {
     color: var(--amber);
   }
 
@@ -2737,7 +2819,7 @@ body {
 :root[data-theme="light"] .mobile-tabbar { background: rgba(250, 248, 242, 0.97); border-top-color: rgba(32, 35, 31, 0.14); }
 :root[data-theme="light"] .mobile-tab { color: #59615d; }
 :root[data-theme="light"] .mobile-tab[aria-current="page"],
-:root[data-theme="light"] .mobile-tab.is-active { color: var(--text); }
+:root[data-theme="light"] .mobile-tab.is-active { color: #9a7b00; }
 
 /* Header shortcuts stay within reach as the page scrolls. */
 .header-actions { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }

@@ -249,6 +249,72 @@ function spotifySearchUrl(artist, title) {
   return `https://open.spotify.com/search/${encodeURIComponent(`${artist} ${title}`)}`;
 }
 
+const ACTION_ICONS = {
+  code: { paths: ['<path d="M7 8H5.5A2.5 2.5 0 0 0 3 10.5v5A2.5 2.5 0 0 0 5.5 18H7"/><path d="M17 8h1.5A2.5 2.5 0 0 1 21 10.5v5a2.5 2.5 0 0 1-2.5 2.5H17"/><path d="M9 12h6M9 15h4"/>'] },
+  heart: { paths: ['<path d="M12 20.2S4 15.3 4 8.9A4.1 4.1 0 0 1 11.2 6L12 7l.8-1A4.1 4.1 0 0 1 20 8.9c0 6.4-8 11.3-8 11.3z"/>'] },
+  heartFilled: {
+    fill: true,
+    paths: ['<path d="M12 20.2S4 15.3 4 8.9A4.1 4.1 0 0 1 11.2 6L12 7l.8-1A4.1 4.1 0 0 1 20 8.9c0 6.4-8 11.3-8 11.3z"/>'],
+  },
+  play: { paths: ['<path d="M8 5.5v13l11-6.5z"/>'] },
+  pause: { paths: ['<path d="M8 5h3v14H8zM13 5h3v14h-3z"/>'] },
+  spotify: {
+    fill: true,
+    paths: [
+      '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/>',
+      '<path fill="var(--bg, #141414)" d="M16.7 16.3a.75.75 0 0 1-1.03.25c-2.82-1.72-6.37-2.11-10.55-1.16a.75.75 0 1 1-.33-1.46c4.55-1.03 8.45-.59 11.66 1.37a.75.75 0 0 1 .25 1z"/>',
+      '<path fill="var(--bg, #141414)" d="M17.7 13.2a.9.9 0 0 1-1.24.3c-3.23-1.98-8.15-2.56-11.97-1.4a.9.9 0 1 1-.52-1.72c4.27-1.3 9.64-.66 13.33 1.6a.9.9 0 0 1 .4 1.22z"/>',
+      '<path fill="var(--bg, #141414)" d="M18.6 9.95a1.08 1.08 0 0 1-1.48.36c-3.7-2.2-9.34-2.4-12.7-1.32a1.08 1.08 0 1 1-.62-2.07c3.86-1.16 10.1-.93 14.34 1.6a1.08 1.08 0 0 1 .46 1.43z"/>',
+    ],
+  },
+};
+
+function createIcon(name) {
+  const spec = ACTION_ICONS[name];
+  if (!spec) return document.createTextNode("");
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  if (spec.fill) svg.classList.add("icon-fill");
+  svg.innerHTML = spec.paths.join("");
+  return svg;
+}
+
+function setIconAction(el, iconName) {
+  el.classList.add("icon-action");
+  el.replaceChildren(createIcon(iconName));
+}
+
+function paintFavoriteButton(button, saved, title) {
+  button.classList.toggle("is-favorite", saved);
+  button.setAttribute("aria-pressed", String(saved));
+  button.setAttribute("aria-label", `${saved ? "Remover das favoritas" : "Adicionar às favoritas"}: ${title}`);
+  if (button.classList.contains("icon-action")) setIconAction(button, saved ? "heartFilled" : "heart");
+  else button.textContent = saved ? "Salva" : "Favoritar";
+}
+
+function paintPreviewButton(button, playing) {
+  button.classList.toggle("is-playing", playing);
+  if (button.classList.contains("icon-action")) {
+    setIconAction(button, playing ? "pause" : "play");
+    return;
+  }
+  button.textContent = playing ? "Pausar" : (button.dataset.idleLabel || "Preview");
+}
+
+function updateMobileTabs() {
+  const tabs = document.querySelectorAll(".mobile-tabbar [data-mobile-tab]");
+  if (!tabs.length) return;
+  const hash = (location.hash.split("?")[0] || "#inicio").toLowerCase();
+  let active = favoritesOnly ? "favoritas" : hash === "#inicio" ? "inicio" : "buscar";
+  tabs.forEach((tab) => {
+    const on = tab.dataset.mobileTab === active;
+    tab.classList.toggle("is-active", on);
+    if (on) tab.setAttribute("aria-current", "page");
+    else tab.removeAttribute("aria-current");
+  });
+}
+
 function loadDiscovery() {
   try {
     const saved = JSON.parse(localStorage.getItem(DISCOVERY_KEY) || "null");
@@ -289,19 +355,17 @@ function renderArtistSongsDialog(artist) {
     actions.className = "night-list-item-actions";
     const djBtn = document.createElement("button");
     djBtn.type = "button";
-    djBtn.className = "action-btn dj-btn";
-    djBtn.textContent = "Código";
+    djBtn.className = "action-btn dj-btn icon-action";
+    setIconAction(djBtn, "code");
     djBtn.setAttribute("aria-label", `Código ao DJ: ${song.code}`);
+    djBtn.title = "Código";
     djBtn.addEventListener("click", () => showSongToDJ(song));
     const favoriteBtn = document.createElement("button");
     favoriteBtn.type = "button";
-    favoriteBtn.className = "action-btn favorite-btn";
+    favoriteBtn.className = "action-btn favorite-btn icon-action";
     favoriteBtn.dataset.code = song.code;
-    const isFavorite = favoriteCodes.has(song.code);
-    favoriteBtn.textContent = isFavorite ? "Salva" : "Favoritar";
-    favoriteBtn.classList.toggle("is-favorite", isFavorite);
-    favoriteBtn.setAttribute("aria-pressed", String(isFavorite));
-    favoriteBtn.setAttribute("aria-label", `${isFavorite ? "Remover das favoritas" : "Adicionar às favoritas"}: ${displayTitle(song.title)}`);
+    favoriteBtn.title = "Favoritar";
+    paintFavoriteButton(favoriteBtn, favoriteCodes.has(song.code), displayTitle(song.title));
     favoriteBtn.addEventListener("click", () => toggleFavorite(song));
     actions.append(djBtn, favoriteBtn);
     row.append(title, code, actions);
@@ -779,12 +843,12 @@ function updateFavoriteControls() {
 
   if (els.mobileFavoritesButton) {
     els.mobileFavoritesButton.setAttribute("aria-pressed", String(favoritesOnly));
-    els.mobileFavoritesButton.classList.toggle("is-active", favoritesOnly);
   }
   if (els.mobileFavoritesCount) {
     els.mobileFavoritesCount.textContent = count;
     els.mobileFavoritesCount.hidden = favoriteCodes.size === 0;
   }
+  updateMobileTabs();
 }
 
 async function applyAccountFavorites() {
@@ -837,11 +901,7 @@ function refreshFavoriteButtons(onlyCode = null) {
     if (onlyCode && button.dataset.code !== onlyCode) return;
     const song = songByCode.get(button.dataset.code);
     if (!song) return;
-    const saved = favoriteCodes.has(song.code);
-    button.textContent = saved ? "Salva" : "Favoritar";
-    button.setAttribute("aria-pressed", String(saved));
-    button.setAttribute("aria-label", `${saved ? "Remover das favoritas" : "Adicionar às favoritas"}: ${displayTitle(song.title)}`);
-    button.classList.toggle("is-favorite", saved);
+    paintFavoriteButton(button, favoriteCodes.has(song.code), displayTitle(song.title));
   });
 }
 
@@ -1279,17 +1339,20 @@ function createSongRow(song) {
   actions.className = "song-actions";
 
   const spotify = document.createElement("a");
-  spotify.className = "action-link action-secondary";
+  spotify.className = "action-link action-secondary icon-action";
   spotify.href = spotifySearchUrl(song.artist.replace(/\.\.\.$/, ""), displayTitle(song.title));
   spotify.target = "_blank";
   spotify.rel = "noopener noreferrer";
-  spotify.textContent = "Spotify";
+  setIconAction(spotify, "spotify");
+  spotify.title = "Spotify";
   spotify.setAttribute("aria-label", `Ouvir no Spotify: ${displayTitle(song.title)}`);
 
   const previewBtn = document.createElement("button");
   previewBtn.type = "button";
-  previewBtn.className = "action-btn preview-btn action-secondary";
-  previewBtn.textContent = "Preview";
+  previewBtn.className = "action-btn preview-btn action-secondary icon-action";
+  previewBtn.title = "Preview";
+  previewBtn.setAttribute("aria-label", `Ouvir trecho: ${displayTitle(song.title)}`);
+  setIconAction(previewBtn, "play");
   previewBtn.hidden = true;
   if (catalogMeta.previewUrl) {
     previewBtn.hidden = false;
@@ -1299,20 +1362,18 @@ function createSongRow(song) {
 
   const djBtn = document.createElement("button");
   djBtn.type = "button";
-  djBtn.className = "action-btn dj-btn";
-  djBtn.textContent = "Código";
+  djBtn.className = "action-btn dj-btn icon-action";
+  setIconAction(djBtn, "code");
+  djBtn.title = "Código";
   djBtn.setAttribute("aria-label", `Código ao DJ: ${song.code}`);
   djBtn.addEventListener("click", () => showSongToDJ(song));
 
   const favoriteBtn = document.createElement("button");
   favoriteBtn.type = "button";
-  favoriteBtn.className = "action-btn favorite-btn";
+  favoriteBtn.className = "action-btn favorite-btn icon-action";
   favoriteBtn.dataset.code = song.code;
-  const isFavorite = favoriteCodes.has(song.code);
-  favoriteBtn.textContent = isFavorite ? "Salva" : "Favoritar";
-  favoriteBtn.classList.toggle("is-favorite", isFavorite);
-  favoriteBtn.setAttribute("aria-pressed", String(isFavorite));
-  favoriteBtn.setAttribute("aria-label", `${isFavorite ? "Remover das favoritas" : "Adicionar às favoritas"}: ${displayTitle(song.title)}`);
+  favoriteBtn.title = "Favoritar";
+  paintFavoriteButton(favoriteBtn, favoriteCodes.has(song.code), displayTitle(song.title));
   favoriteBtn.addEventListener("click", () => toggleFavorite(song));
 
   // Código + Favoritar lead; Spotify/Preview are secondary (dialog also has listen actions).
@@ -1481,10 +1542,7 @@ function stopPreview() {
   els.previewAudio.pause();
   els.previewAudio.removeAttribute("src");
   previewCode = null;
-  document.querySelectorAll(".preview-btn.is-playing").forEach((btn) => {
-    btn.classList.remove("is-playing");
-    btn.textContent = btn.dataset.idleLabel || "Preview";
-  });
+  document.querySelectorAll(".preview-btn.is-playing").forEach((btn) => paintPreviewButton(btn, false));
 }
 
 function setDialogCover(song, coverUrl = null) {
@@ -1564,8 +1622,7 @@ function togglePreview(song, button) {
   previewCode = song.code;
   els.previewAudio.src = url;
   els.previewAudio.play().catch(() => stopPreview());
-  button.classList.add("is-playing");
-  button.textContent = "Pausar";
+  paintPreviewButton(button, true);
 }
 
 els.previewAudio.addEventListener("ended", stopPreview);
@@ -2102,7 +2159,22 @@ els.artistSongsDialog?.addEventListener("click", (event) => {
   if (event.target === els.artistSongsDialog) closeArtistSongsDialog();
 });
 els.favoritesButton.addEventListener("click", showFavorites);
-els.mobileFavoritesButton?.addEventListener("click", showFavorites);
+els.mobileFavoritesButton?.addEventListener("click", () => {
+  showFavorites();
+  updateMobileTabs();
+});
+document.querySelectorAll('.mobile-tabbar a[data-mobile-tab]').forEach((link) => {
+  link.addEventListener("click", () => {
+    if (favoritesOnly) {
+      favoritesOnly = false;
+      refreshFilteredSearch();
+    }
+    // Defer so location.hash is updated before we paint the active tab.
+    queueMicrotask(updateMobileTabs);
+  });
+});
+window.addEventListener("hashchange", updateMobileTabs);
+updateMobileTabs();
 initializeTheme();
 initAnalytics();
 initSongRequests();
