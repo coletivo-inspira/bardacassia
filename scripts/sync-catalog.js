@@ -15,5 +15,14 @@ const response = await fetch(`${url}/rest/v1/rpc/sync_catalog_codes`, {
   headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
   body: JSON.stringify({ p_codes: codes }),
 });
-if (!response.ok) throw new Error(`Falha ao sincronizar o catálogo no Supabase (${response.status}): ${await response.text()}`);
+if (!response.ok) {
+  const body = await response.text();
+  // Fresh projects need migrations first (Actions → Deploy Supabase). Don't block Pages deploy.
+  if (response.status === 404 && body.includes("sync_catalog_codes")) {
+    console.warn(`RPC sync_catalog_codes ainda não existe neste projeto (${response.status}). Rode o workflow Deploy Supabase e tente de novo.`);
+    console.warn(body);
+    process.exit(0);
+  }
+  throw new Error(`Falha ao sincronizar o catálogo no Supabase (${response.status}): ${body}`);
+}
 console.log(`${codes.length} códigos ativos sincronizados com o Supabase.`);
