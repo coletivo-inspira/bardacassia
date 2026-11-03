@@ -15,6 +15,7 @@ import {
   signUp,
   updatePassword,
 } from "./integrations/auth.js";
+import { getMyProfile, hasCurrentConsent, updateMyProfile, uploadMyAvatar } from "./integrations/profile.js";
 import { getPersistSession } from "./integrations/supabase.js";
 import {
   authErrorMessage,
@@ -25,6 +26,7 @@ import {
   validateLoginPassword,
   validateNewPassword,
 } from "./lib/auth-validation.js";
+import { DATA_CONSENT_VERSION, profileInitials, validateBirthDate } from "./lib/profile.js";
 
 initializeTheme();
 hideExpiredEventNav();
@@ -52,6 +54,18 @@ const fields = {
   passwordConfirm: { input: $("#auth-password-confirm"), error: $("#auth-password-confirm-error") },
 };
 const persistInput = $("#auth-persist");
+const consentInput = $("#auth-consent");
+const consentError = $("#auth-consent-error");
+const accountConsentInput = $("#auth-account-consent");
+const birthDateInput = $("#auth-birth-date");
+const birthDateError = $("#auth-birth-date-error");
+const profileForm = $("#auth-profile-form");
+const avatarImage = $("#auth-account-avatar");
+const avatarInitials = $("#auth-account-initials");
+const avatarInput = $("#auth-avatar-input");
+const avatarStatus = $("#auth-avatar-status");
+const lgpdStatus = $("#auth-lgpd-status");
+const headerThemeToggle = $("#theme-toggle");
 
 const params = new URLSearchParams(location.search);
 const nextPath = safeNextPath(params.get("next"));
@@ -60,6 +74,7 @@ const urlError = params.get("error_description") || new URLSearchParams(location
 
 let mode = "entrar";
 let currentUser = null;
+let currentProfile = null;
 let busy = false;
 let captchaToken = "";
 let captchaWidget = null;
@@ -97,6 +112,17 @@ function renderValidation({ showAll = false } = {}) {
     const visible = showAll || touched.has(name) ? message : "";
     fields[name].error.textContent = visible;
     fields[name].input.setAttribute("aria-invalid", String(Boolean(visible)));
+  }
+  if (mode === "cadastrar") {
+    const consentOk = Boolean(consentInput?.checked);
+    if (!consentOk) valid = false;
+    if (consentError) {
+      consentError.textContent = (showAll || touched.has("consent")) && !consentOk
+        ? "Marque a autorização de uso dos dados para criar a conta."
+        : "";
+    }
+  } else if (consentError) {
+    consentError.textContent = "";
   }
   const needsCaptcha = captchaSiteKey && CAPTCHA_MODES.has(mode);
   submit.disabled = busy || !authConfigured || !valid || Boolean(needsCaptcha && !captchaToken);
@@ -137,7 +163,9 @@ function setMode(next, { keepStatus = false } = {}) {
   });
   $("#auth-social").hidden = !authProviders.length || !["entrar", "cadastrar"].includes(mode);
   $("#auth-captcha").hidden = !(captchaSiteKey && CAPTCHA_MODES.has(mode));
-  if (mode === "conta") renderAccount();
+  if (headerThemeToggle) headerThemeToggle.hidden = mode === "conta";
+  if (mode === "conta") void renderAccount();
+  initializeTheme();
 
   touched.clear();
   if (!keepStatus) setStatus("");
@@ -148,10 +176,51 @@ function setMode(next, { keepStatus = false } = {}) {
   }
 }
 
-function renderAccount() {
+function renderAvatar(profile) {
+  const name = displayName(currentUser);
+  const url = profile?.avatar_url || "";
+  avatarInitials.textContent = profileInitials(name, currentUser?.email);
+  if (url) {
+    avatarImage.hidden = false;
+    avatarImage.src = url;
+    avatarImage.alt = `Foto de ${name}`;
+  } else {
+    avatarImage.hidden = true;
+    avatarImage.removeAttribute("src");
+    avatarImage.alt = "";
+  }
+}
+
+function renderLgpd(profile) {
+  if (hasCurrentConsent(profile)) {
+    const when = profile.data_consent_at ? new Date(profile.data_consent_at) : null;
+    const stamp = when && !Number.isNaN(when.getTime())
+      ? when.toLocaleDateString("pt-BR")
+      : "agora";
+    lgpdStatus.textContent = `Consentimento LGPD ativo (versão ${DATA_CONSENT_VERSION}) desde ${stamp}.`;
+    accountConsentInput.checked = true;
+  } else {
+    lgpdStatus.textContent = "Ainda falta sua autorização atualizada para uso dos dados (LGPD).";
+    accountConsentInput.checked = false;
+  }
+}
+
+async function renderAccount() {
   $("#auth-account-name").textContent = displayName(currentUser);
   $("#auth-account-email").textContent = currentUser?.email || "—";
   $("#auth-continue").href = nextPath;
+  $("#auth-favorites").href = new URL("index.html#favoritas", location.href).href;
+  birthDateError.textContent = "";
+  avatarStatus.textContent = "";
+  try {
+    currentProfile = await getMyProfile();
+  } catch {
+    currentProfile = null;
+    lgpdStatus.textContent = "Não foi possível carregar o perfil agora. Você ainda pode usar o catálogo.";
+  }
+  birthDateInput.value = currentProfile?.birth_date || "";
+  renderAvatar(currentProfile);
+  renderLgpd(currentProfile);
 }
 
 async function setupCaptcha() {
@@ -210,9 +279,14 @@ async function handleSubmit(event) {
     }
     if (mode === "cadastrar") {
       const result = await signUp({ email, password, persist, captchaToken, displayName: fields.displayName.input.value, next: nextPath });
-      if (!result.needsConfirmation) { goNext(); return; }
+      if (!result.needsConfirmation) {
+        try { await updateMyProfile({ grantConsent: true }); } catch { /* perfil pode ser preenchido depois em Minha conta */ }
+        goNext();
+        return;
+      }
       form.reset();
       persistInput.checked = persist;
+      if (consentInput) consentInput.checked = false;
       setMode("entrar", { keepStatus: true });
       setStatus(result.needsPassword
         ? "Enviamos um link de confirmação para o seu e-mail. Ao abrir, você vai criar a senha da conta."
@@ -258,6 +332,58 @@ function bindEvents() {
       if (input.value) touched.add(name);
       renderValidation();
     });
+  });
+  consentInput?.addEventListener("change", () => {
+    touched.add("consent");
+    renderValidation();
+  });
+  birthDateInput?.addEventListener("change", () => {
+    birthDateError.textContent = validateBirthDate(birthDateInput.value);
+  });
+  profileForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (busy) return;
+    const birthError = validateBirthDate(birthDateInput.value);
+    birthDateError.textContent = birthError;
+    if (birthError) {
+      birthDateInput.focus();
+      return;
+    }
+    if (!accountConsentInput.checked && !hasCurrentConsent(currentProfile)) {
+      lgpdStatus.textContent = "Marque a autorização LGPD para salvar o perfil.";
+      accountConsentInput.focus();
+      return;
+    }
+    busy = true;
+    try {
+      currentProfile = await updateMyProfile({
+        birthDate: birthDateInput.value,
+        grantConsent: accountConsentInput.checked,
+      });
+      renderAvatar(currentProfile);
+      renderLgpd(currentProfile);
+      setStatus("Perfil atualizado.", "success");
+    } catch (error) {
+      setStatus(authErrorMessage(error), "error");
+    } finally {
+      busy = false;
+    }
+  });
+  avatarInput?.addEventListener("change", async () => {
+    const file = avatarInput.files?.[0];
+    avatarInput.value = "";
+    if (!file || busy) return;
+    busy = true;
+    avatarStatus.textContent = "Enviando foto…";
+    try {
+      currentProfile = await uploadMyAvatar(file);
+      renderAvatar(currentProfile);
+      avatarStatus.textContent = "Foto atualizada.";
+    } catch (error) {
+      avatarStatus.textContent = authErrorMessage(error);
+    } finally {
+      busy = false;
+    }
   });
 
   const toggle = $("#auth-toggle-password");

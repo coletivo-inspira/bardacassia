@@ -112,8 +112,8 @@ const els = {
   previewAudio: document.querySelector("#preview-audio"),
   favoritesButton: document.querySelector("#show-favorites"),
   favoritesCount: document.querySelector("#favorites-count"),
-  mobileFavoritesButton: document.querySelector("#mobile-favorites"),
-  mobileFavoritesCount: document.querySelector("#mobile-favorites-count"),
+  favoritasIntro: document.querySelector("#favoritas-intro"),
+  searchSection: document.querySelector("#buscar"),
   spotifyButton: document.querySelector("#spotify-connect"),
   themeToggle: document.querySelector("#theme-toggle"),
   spotifyStatus: document.querySelector("#spotify-status"),
@@ -305,7 +305,7 @@ function updateMobileTabs() {
   const tabs = document.querySelectorAll(".mobile-tabbar [data-mobile-tab]");
   if (!tabs.length) return;
   const hash = (location.hash.split("?")[0] || "#inicio").toLowerCase();
-  let active = favoritesOnly ? "favoritas" : hash === "#inicio" ? "inicio" : "buscar";
+  const active = hash === "#inicio" ? "inicio" : "buscar";
   tabs.forEach((tab) => {
     const on = tab.dataset.mobileTab === active;
     tab.classList.toggle("is-active", on);
@@ -837,15 +837,12 @@ function activeTab() {
 function updateFavoriteControls() {
   const count = favoriteCodes.size.toLocaleString("pt-BR");
   els.favoritesCount.textContent = count;
-  els.favoritesButton.setAttribute("aria-pressed", String(favoritesOnly));
-  els.favoritesButton.classList.toggle("is-active", favoritesOnly);
-
-  if (els.mobileFavoritesButton) {
-    els.mobileFavoritesButton.setAttribute("aria-pressed", String(favoritesOnly));
-  }
-  if (els.mobileFavoritesCount) {
-    els.mobileFavoritesCount.textContent = count;
-    els.mobileFavoritesCount.hidden = favoriteCodes.size === 0;
+  const onFavoritesScreen = favoritesOnly && favoritesTabView;
+  els.favoritesButton.setAttribute("aria-pressed", String(onFavoritesScreen));
+  els.favoritesButton.classList.toggle("is-active", onFavoritesScreen);
+  setFavoritesScreen(onFavoritesScreen);
+  if (!onFavoritesScreen && location.hash === "#favoritas") {
+    history.replaceState(null, "", `${location.pathname}${location.search}#buscar`);
   }
   updateMobileTabs();
 }
@@ -1106,23 +1103,65 @@ function showArtistSongs(artist) {
   els.resultsView.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function showFavorites() {
-  if (favoritesOnly) {
-    favoritesOnly = false;
-    refreshFilteredSearch();
-    return;
+function setFavoritesScreen(active) {
+  els.searchSection?.classList.toggle("is-favorites-screen", active);
+  if (els.favoritasIntro) els.favoritasIntro.hidden = !active;
+  if (els.backToBrowse) {
+    els.backToBrowse.textContent = active ? "Voltar ao catálogo" : "Voltar ao catálogo";
   }
+}
+
+function openFavoritesScreen({ updateHash = true } = {}) {
   favoritesOnly = true;
   favoritesTabView = true;
   els.popularView.hidden = true;
   els.songsList.hidden = false;
   activeCategory = null;
+  selectedLanguage = "";
+  selectedArtist = "";
   els.searchInput.value = "";
   els.clearButton.hidden = true;
   hideRelatedArtists();
   setBrowseMode(false);
+  setFavoritesScreen(true);
   showFavoritesTab();
+  if (updateHash && location.hash !== "#favoritas") {
+    history.replaceState(null, "", `${location.pathname}${location.search}#favoritas`);
+  }
+  updateFavoriteControls();
   els.resultsView.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function closeFavoritesScreen({ updateHash = true } = {}) {
+  const wasFavoritesScreen = favoritesOnly && favoritesTabView;
+  favoritesOnly = false;
+  favoritesTabView = false;
+  setFavoritesScreen(false);
+  if (wasFavoritesScreen && updateHash && location.hash === "#favoritas") {
+    history.replaceState(null, "", `${location.pathname}${location.search}#buscar`);
+  }
+  updateFavoriteControls();
+}
+
+function showFavorites() {
+  if (favoritesOnly && favoritesTabView) {
+    closeFavoritesScreen();
+    refreshFilteredSearch();
+    return;
+  }
+  openFavoritesScreen();
+}
+
+function syncFavoritesRoute() {
+  const hash = (location.hash.split("?")[0] || "").toLowerCase();
+  if (hash === "#favoritas") {
+    if (!(favoritesOnly && favoritesTabView)) openFavoritesScreen({ updateHash: false });
+    return;
+  }
+  if (favoritesOnly && favoritesTabView) {
+    closeFavoritesScreen({ updateHash: false });
+    if (hash === "#buscar" || hash === "#inicio" || !hash) refreshFilteredSearch();
+  }
 }
 
 function initials(artist, title) {
@@ -1161,7 +1200,10 @@ function syncFilterControls() {
   const entries = [
     selectedLanguage && [LANG_LABELS[selectedLanguage], () => { selectedLanguage = ""; }],
     selectedArtist && !browsingArtist && [selectedArtist, () => { selectedArtist = ""; }],
-    favoritesOnly && ["Favoritas", () => { favoritesOnly = false; }],
+    favoritesOnly && ["Favoritas", () => {
+      if (favoritesTabView) closeFavoritesScreen({ updateHash: true });
+      else favoritesOnly = false;
+    }],
     activeCategory && ["letter", "artists"].includes(activeCategory.type) && [activeCategory.label, () => { activeCategory = null; }],
   ].filter(Boolean);
   for (const [label, remove] of entries) {
@@ -1234,9 +1276,10 @@ document.querySelector("#filter-favorites").addEventListener("change", (event) =
   collapseFiltersPanel();
 });
 document.querySelector("#clear-filters").addEventListener("click", () => {
-  selectedLanguage = ""; selectedArtist = ""; favoritesOnly = false; activeCategory = null;
+  selectedLanguage = ""; selectedArtist = ""; favoritesOnly = false; favoritesTabView = false; activeCategory = null;
   document.querySelector("#filter-artist-search").value = "";
   populateArtistFilter();
+  updateFavoriteControls();
   refreshFilteredSearch();
   collapseFiltersPanel();
 });
@@ -1276,6 +1319,12 @@ function showCategory(category) {
 }
 
 function backToBrowse() {
+  if (favoritesOnly && favoritesTabView) closeFavoritesScreen();
+  else {
+    favoritesOnly = false;
+    favoritesTabView = false;
+    setFavoritesScreen(false);
+  }
   activeCategory = null;
   syncFilterControls();
   hideRelatedArtists();
@@ -1929,10 +1978,9 @@ els.discoverDialog.addEventListener("close", () => {
 });
 els.goToFavorites.addEventListener("click", () => {
   closeDiscover();
-  favoritesOnly = false;
   favoritesState = setActiveTab(favoritesState, DRAFT_TAB_ID);
   persistFavorites();
-  showFavorites();
+  openFavoritesScreen();
 });
 els.newFavoriteTab.addEventListener("click", promptNewFavoriteTab);
 els.renameFavoriteTab.addEventListener("click", promptRenameFavoriteTab);
@@ -2157,14 +2205,18 @@ els.closeArtistSongs?.addEventListener("click", closeArtistSongsDialog);
 els.artistSongsDialog?.addEventListener("click", (event) => {
   if (event.target === els.artistSongsDialog) closeArtistSongsDialog();
 });
-els.favoritesButton.addEventListener("click", showFavorites);
-els.mobileFavoritesButton?.addEventListener("click", () => {
-  showFavorites();
-  updateMobileTabs();
+els.favoritesButton.addEventListener("click", (event) => {
+  // Keep hash navigation for deep links; prevent double-toggle with showFavorites.
+  if (favoritesOnly && favoritesTabView) {
+    event.preventDefault();
+    closeFavoritesScreen();
+    refreshFilteredSearch();
+  }
 });
 document.querySelectorAll('.mobile-tabbar a[data-mobile-tab]').forEach((link) => {
   link.addEventListener("click", () => {
-    if (favoritesOnly) {
+    if (favoritesOnly && favoritesTabView) closeFavoritesScreen({ updateHash: false });
+    else if (favoritesOnly) {
       favoritesOnly = false;
       refreshFilteredSearch();
     }
@@ -2172,7 +2224,11 @@ document.querySelectorAll('.mobile-tabbar a[data-mobile-tab]').forEach((link) =>
     queueMicrotask(updateMobileTabs);
   });
 });
-window.addEventListener("hashchange", updateMobileTabs);
+window.addEventListener("hashchange", () => {
+  syncFavoritesRoute();
+  updateMobileTabs();
+});
+syncFavoritesRoute();
 updateMobileTabs();
 initializeTheme();
 initAnalytics();
@@ -2248,9 +2304,11 @@ async function init() {
     els.spotifyStatus.textContent = error.message;
   }
 
-  // Deep-link: #buscar?q=…
+  // Deep-link: #buscar?q=… or #favoritas
   const hash = location.hash;
-  if (hash.startsWith("#buscar")) {
+  if (hash.toLowerCase().startsWith("#favoritas")) {
+    openFavoritesScreen({ updateHash: false });
+  } else if (hash.startsWith("#buscar")) {
     const params = new URLSearchParams(hash.split("?")[1] || "");
     const q = params.get("q");
     if (q) {

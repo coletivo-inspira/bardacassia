@@ -135,9 +135,9 @@
           </div>
 
           <div class="discovery-tools" aria-label="Descubra e salve músicas">
-            <button id="show-favorites" class="discovery-button" type="button" aria-pressed="false">
+            <a id="show-favorites" class="discovery-button" href="#favoritas" aria-pressed="false">
               Favoritas <span id="favorites-count" class="favorite-count">0</span>
-            </button>
+            </a>
             <button id="spotify-connect" class="discovery-button spotify-button" type="button" hidden>
               Conectar ao Spotify
             </button>
@@ -160,6 +160,11 @@
           </div>
 
           <div id="results-view" class="results-view" hidden>
+            <header id="favoritas-intro" class="favoritas-intro" hidden>
+              <p class="eyebrow">Sua lista</p>
+              <h2 id="favoritas-title">Minhas favoritas</h2>
+              <p>Organize as músicas que você quer cantar e mostre o código ao DJ.</p>
+            </header>
             <div class="results-toolbar">
               <div class="results-toolbar-main">
                 <button type="button" id="back-to-browse" class="text-button">Voltar ao catálogo</button>
@@ -235,15 +240,6 @@
         </svg>
         <span>Buscar</span>
       </a>
-      <button id="mobile-favorites" class="mobile-tab" type="button" data-mobile-tab="favoritas" aria-pressed="false" aria-controls="results-view">
-        <span class="mobile-tab-icon-wrap">
-          <svg aria-hidden="true" viewBox="0 0 24 24">
-            <path d="M12 20.2S4 15.3 4 8.9A4.1 4.1 0 0 1 11.2 6L12 7l.8-1A4.1 4.1 0 0 1 20 8.9c0 6.4-8 11.3-8 11.3z" />
-          </svg>
-          <span id="mobile-favorites-count" class="mobile-tab-badge" hidden>0</span>
-        </span>
-        <span>Favoritas</span>
-      </button>
     </nav>
 
     <dialog id="dj-dialog" aria-labelledby="dialog-song">
