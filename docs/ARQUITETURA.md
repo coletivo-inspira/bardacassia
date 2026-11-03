@@ -12,7 +12,7 @@ Visão ponta a ponta do portal de karaokê: o que roda onde, como as peças se c
 | Catálogo | `public/data/songs.json` (gerado de `data/musicas.csv`) | Fonte de verdade de músicas e códigos |
 | Backend opcional | Supabase (Auth + Postgres + Storage + Edge Functions) | Conta, ranking, favoritas sync, pedidos, avatar |
 | CI | `.github/workflows/ci.yml` | Testes Node + `deno check` nas Edge Functions |
-| Deploy DB | `.github/workflows/supabase.yml` | `supabase db push --include-all --remote` + Edge Functions |
+| Deploy DB | `.github/workflows/supabase.yml` | `db push` via session pooler IPv4 + Edge Functions |
 
 Sem as variáveis `VITE_SUPABASE_*`, o site continua útil: busca, descoberta, favoritas locais e código ao DJ funcionam só no navegador.
 
@@ -90,7 +90,7 @@ Painel (`garcom.html`): abas Fila, A pagar (remoto), Rodada, Resultados (`owner_
 
 ## Modelo de dados (migrações)
 
-Aplicar **sempre** com o workflow (ou `supabase db push --include-all --remote`). A ordem no diretório `supabase/migrations/` é a ordem de aplicação.
+Aplicar **sempre** com o workflow (session pooler IPv4 no Actions). A ordem no diretório `supabase/migrations/` é a ordem de aplicação.
 
 | Migração | Objetos principais | RPCs / APIs públicas |
 | --- | --- | --- |
@@ -133,7 +133,8 @@ Quase todas as tabelas usam **RLS com revoke** para `anon`/`authenticated` e ace
 | Nome | Uso |
 | --- | --- |
 | `SUPABASE_ACCESS_TOKEN` | CLI no workflow de deploy |
-| `SUPABASE_DB_PASSWORD` | `supabase link` / `db push --remote` |
+| `SUPABASE_DB_PASSWORD` | Monta a URI do session pooler no `db push` |
+| `SUPABASE_DB_URL` (opcional) | URI Session pooler do Dashboard → Connect; sobrescreve o host auto `aws-0-<region>` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Sync do catálogo e Edge Functions (injetada pela plataforma nas functions) |
 | `SUPABASE_PROJECT_REF` (variável) | Ref do projeto (`ajhokdqtpufpfceszyfo` no Cacia) |
 | `ALLOWED_ORIGINS` (variável) | CORS do `deezer-proxy` |
@@ -146,13 +147,13 @@ Modelo local: copiar [`.env.example`](../.env.example) para `.env.local`.
 | --- | --- | --- |
 | `ci.yml` | PR / push | `npm test`, build; `deno check` nas functions |
 | `static.yml` | push `main` | `vite build`, `sync-catalog` (service role), publish Pages |
-| `supabase.yml` | push em `supabase/**` ou manual | `db push --include-all --remote`, secrets das functions, deploy `account-delete` e `deezer-proxy` |
+| `supabase.yml` | push em `supabase/**` / o YAML, ou manual | `db push` no session pooler IPv4, secrets das functions, deploy `account-delete` e `deezer-proxy` |
 
-Se `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` ou `SUPABASE_PROJECT_REF` faltarem, o deploy Supabase **só avisa e sai** (não falha). Com secrets presentes, o push **precisa** de `--remote`: sem isso o CLI tenta `127.0.0.1:54322` (stack local) e o schema de produção fica vazio — sintomas típicos: RPC/`profiles` **404** e upload de avatar **400**.
+Se `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` ou `SUPABASE_PROJECT_REF` faltarem, o deploy Supabase **só avisa e sai** (não falha). Com secrets presentes, o push usa o **shared session pooler** (IPv4): o host direto do Postgres é IPv6 e o Actions não alcança. Sem esse caminho, o schema de produção fica vazio — sintomas: `PGRST205` em `profiles`, RPC **404**, avatar **400**. Detalhes em [Integrações → Troubleshooting](./INTEGRACOES.md#troubleshooting-do-schema).
 
 ## Checklist operacional (projeto Cacia)
 
-1. Secrets/variáveis do Actions preenchidos (tabela acima).
+1. Secrets/variáveis do Actions preenchidos (tabela acima). Se o pooler auto falhar, adicione `SUPABASE_DB_URL` (Session, porta 5432).
 2. Painel Auth: Anonymous Sign-Ins, e-mail com confirmação, Redirect URLs do domínio + Pages + localhost.
 3. **Actions → Deploy Supabase** verde (migrações `001`–`008` + functions).
 4. SQL Editor (uma vez): chave Vault `profile_encryption_key` (ver Integrações).

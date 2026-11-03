@@ -69,7 +69,7 @@ Sugestão de preço: o piloto é grátis, e depois entra uma mensalidade baixa q
 
 ## Checklist para o fim de semana
 
-1. Garantir secrets/variáveis do Deploy Supabase (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_REF`) e rodar **Actions → Deploy Supabase** até ficar verde (`db push --include-all --remote` aplica `001`–`008`, inclusive perfil/avatar). Ver [Arquitetura](./ARQUITETURA.md).
+1. Garantir secrets/variáveis do Deploy Supabase (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_REF`; se o Actions reclamar de IPv6/tenant, `SUPABASE_DB_URL` do Session pooler) e rodar **Actions → Deploy Supabase** até ficar verde (aplica `001`–`008`, inclusive perfil/avatar). Ver [Arquitetura](./ARQUITETURA.md).
 2. No SQL Editor, criar a chave Vault `profile_encryption_key` se ainda não existir (comando em [Integrações](./INTEGRACOES.md#autenticação-login-e-contas)).
 3. Cadastrar os garçons e o dono (`role = 'dono'`), conforme [Integrações](./INTEGRACOES.md#pedidos-de-música-e-painel-do-garçom).
 4. Conferir as variáveis do GitHub Actions: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `ENABLE_REQUESTS` vazia ou `true` e `REQUEST_MODE` vazia ou `qr`. Opcionalmente, definir `ANALYTICS_ID` e `SITE_URL`. Reexecutar o deploy do site para sincronizar o catálogo.
