@@ -135,6 +135,8 @@ const els = {
   artistSearch: document.querySelector("#artist-search"),
   artistOptions: document.querySelector("#artist-options"),
   artistSelectionCount: document.querySelector("#artist-selection-count"),
+  artistSelectionToggle: document.querySelector("#artist-selection-toggle"),
+  artistSelected: document.querySelector("#artist-selected"),
   artistViewGrid: document.querySelector("#artist-view-grid"),
   artistViewList: document.querySelector("#artist-view-list"),
   startDiscovery: document.querySelector("#start-discovery"),
@@ -438,6 +440,7 @@ function showDiscoverStep(step) {
   if (step === "artists") {
     artistOptions = artistsForGenres(discovery.genres, allCatalogArtists);
     els.artistSearch.value = "";
+    artistSelectionOpen = discovery.artists.length > 0;
     renderArtistOptions();
   }
   if (step === "cards") renderDiscoveryCard();
@@ -556,12 +559,61 @@ const artistPhotoObserver = typeof IntersectionObserver === "function"
   }, { rootMargin: "200px" })
   : null;
 
+let artistSelectionOpen = false;
+
+function setArtistSelectionOpen(open) {
+  artistSelectionOpen = open && discovery.artists.length > 0;
+  if (els.artistSelectionToggle) {
+    els.artistSelectionToggle.setAttribute("aria-expanded", String(artistSelectionOpen));
+    els.artistSelectionToggle.classList.toggle("is-open", artistSelectionOpen);
+  }
+  if (els.artistSelected) els.artistSelected.hidden = !artistSelectionOpen;
+}
+
 function updateArtistSelectionCount() {
   const count = discovery.artists.length;
   els.artistSelectionCount.textContent = count
     ? `${count} artista${count === 1 ? "" : "s"} selecionado${count === 1 ? "" : "s"}`
     : "Nenhum artista selecionado";
+  if (els.artistSelectionToggle) {
+    els.artistSelectionToggle.disabled = count === 0;
+    els.artistSelectionToggle.hidden = false;
+  }
   els.startDiscovery.disabled = count === 0;
+  if (count === 0) setArtistSelectionOpen(false);
+}
+
+function createArtistTile(name, { selected = false, compact = false } = {}) {
+  const key = normalize(name);
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = compact ? "artist-tile artist-tile--selected" : "artist-tile";
+  button.setAttribute("aria-pressed", String(selected));
+  button.setAttribute("aria-label", `${selected ? "Remover" : "Selecionar"} ${name}`);
+  if (compact) button.setAttribute("role", "listitem");
+  const photo = document.createElement("span");
+  photo.className = "artist-photo";
+  photo.dataset.artist = name;
+  photo.append(createArtistPlaceholder(name));
+  const badge = document.createElement("span");
+  badge.className = "artist-tile-check";
+  badge.setAttribute("aria-hidden", "true");
+  badge.textContent = selected ? "×" : "+";
+  const label = document.createElement("span");
+  label.className = "artist-tile-name";
+  label.textContent = name;
+  button.append(photo, badge, label);
+  button.addEventListener("click", () => {
+    discovery.artists = selected
+      ? discovery.artists.filter((artist) => normalize(artist) !== key)
+      : [...discovery.artists, name];
+    persistDiscovery();
+    if (!selected) setArtistSelectionOpen(true);
+    renderArtistOptions();
+  });
+  if (artistPhotoObserver) artistPhotoObserver.observe(photo);
+  else loadArtistPhoto(photo);
+  return button;
 }
 
 function renderArtistOptions() {
@@ -569,49 +621,32 @@ function renderArtistOptions() {
   const query = els.artistSearch.value.trim();
   const styleKeys = new Set(artistOptions.map((artist) => artist.key));
   const pool = query ? [...artistOptions, ...allCatalogArtists.filter((artist) => !styleKeys.has(artist.key))] : artistOptions;
-  const matches = filterArtists(pool, query).slice(0, 120);
-  artistPhotoObserver?.disconnect();
-  els.artistOptions.replaceChildren(...matches.map(({ name, key }) => {
-    let isSelected = selected.has(key);
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "artist-tile";
-    button.setAttribute("aria-pressed", String(isSelected));
-    button.setAttribute("aria-label", `${isSelected ? "Remover" : "Selecionar"} ${name}`);
-    const photo = document.createElement("span");
-    photo.className = "artist-photo";
-    photo.dataset.artist = name;
-    photo.append(createArtistPlaceholder(name));
-    const badge = document.createElement("span");
-    badge.className = "artist-tile-check";
-    badge.setAttribute("aria-hidden", "true");
-    badge.textContent = isSelected ? "✓" : "+";
-    const label = document.createElement("span");
-    label.className = "artist-tile-name";
-    label.textContent = name;
-    button.append(photo, badge, label);
-    button.addEventListener("click", () => {
-      discovery.artists = isSelected
-        ? discovery.artists.filter((artist) => normalize(artist) !== key)
-        : [...discovery.artists, name];
-      isSelected = !isSelected;
-      persistDiscovery();
-      button.setAttribute("aria-pressed", String(isSelected));
-      button.setAttribute("aria-label", `${isSelected ? "Remover" : "Selecionar"} ${name}`);
-      badge.textContent = isSelected ? "✓" : "+";
-      updateArtistSelectionCount();
+  const matches = filterArtists(pool, query)
+    .filter(({ key }) => !selected.has(key))
+    .slice(0, 120);
+  const chosen = discovery.artists
+    .map((name) => {
+      const key = normalize(name);
+      const fromOptions = artistOptions.find((artist) => artist.key === key)
+        || allCatalogArtists.find((artist) => artist.key === key);
+      return fromOptions?.name || name;
     });
-    if (artistPhotoObserver) artistPhotoObserver.observe(photo);
-    else loadArtistPhoto(photo);
-    return button;
-  }));
+
+  artistPhotoObserver?.disconnect();
+  els.artistOptions.replaceChildren(...matches.map(({ name }) => createArtistTile(name, { selected: false })));
   if (!matches.length) {
     const empty = document.createElement("p");
     empty.className = "empty-state";
-    empty.textContent = "Nenhum artista encontrado nestes estilos.";
+    empty.textContent = selected.size
+      ? "Todos os artistas desta busca já foram selecionados."
+      : "Nenhum artista encontrado nestes estilos.";
     els.artistOptions.append(empty);
   }
+  if (els.artistSelected) {
+    els.artistSelected.replaceChildren(...chosen.map((name) => createArtistTile(name, { selected: true, compact: true })));
+  }
   updateArtistSelectionCount();
+  setArtistSelectionOpen(artistSelectionOpen && chosen.length > 0);
 }
 
 function hasDiscoverySession() {
@@ -1971,6 +2006,10 @@ els.artistSearch.addEventListener("input", renderArtistOptions);
 els.artistViewGrid.addEventListener("click", () => setArtistView("grid"));
 els.artistViewList.addEventListener("click", () => setArtistView("list"));
 els.confirmGenres.addEventListener("click", () => { if (discovery.genres.length) showDiscoverStep("artists"); });
+els.artistSelectionToggle?.addEventListener("click", () => {
+  if (!discovery.artists.length) return;
+  setArtistSelectionOpen(!artistSelectionOpen);
+});
 els.startDiscovery.addEventListener("click", () => startDiscovery());
 els.skipArtistPicker.addEventListener("click", () => startDiscovery([]));
 els.changeArtists.addEventListener("click", () => showDiscoverStep("genres"));
