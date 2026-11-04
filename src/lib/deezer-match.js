@@ -57,10 +57,11 @@ export function scoreDeezerCandidate(track, song) {
 
 /** Meta already stored on the catalog song (by code). */
 export function metaFromCatalog(song) {
-  if (!song) return { cover: null, previewUrl: null };
+  if (!song) return { cover: null, previewUrl: null, deezerId: null };
   const cover = String(song.coverUrl || song.cover || "").trim() || null;
   const previewUrl = String(song.previewUrl || song.preview || "").trim() || null;
-  return { cover, previewUrl };
+  const deezerId = String(song.deezerId || song.deezer_id || "").trim() || null;
+  return { cover, previewUrl, deezerId };
 }
 
 export function pickBestDeezerTrack(candidates, song) {
@@ -72,9 +73,15 @@ export function pickBestDeezerTrack(candidates, song) {
 }
 
 export function metaFromDeezerTrack(track) {
-  if (!track) return { cover: null, previewUrl: null };
+  if (!track) return { cover: null, previewUrl: null, deezerId: null, deezerArtistId: null, duration: null };
+  const deezerId = track.id != null ? String(track.id) : null;
+  const deezerArtistId = track.artist?.id != null ? String(track.artist.id) : null;
+  const duration = Number.isFinite(Number(track.duration)) ? Number(track.duration) : null;
   return {
     cover: track?.album?.cover_medium || track?.album?.cover || track?.album?.cover_big || null,
     previewUrl: track?.preview || null,
+    deezerId,
+    deezerArtistId,
+    duration,
   };
 }

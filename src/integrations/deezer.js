@@ -145,7 +145,7 @@ export async function fetchDeezerMeta(song) {
       persistCache();
       return value;
     } catch {
-      return { cover: null, previewUrl: null };
+      return { cover: null, previewUrl: null, deezerId: null };
     }
   }, song.code);
   pending.set(song.code, promise);
@@ -153,6 +153,63 @@ export async function fetchDeezerMeta(song) {
     return await promise;
   } finally {
     pending.delete(song.code);
+  }
+}
+
+const previewPending = new Map();
+
+/**
+ * Resolve a playable preview URL on demand (click), never during scroll.
+ * Prefers catalog preview, then /track/{deezerId}, then search contingency.
+ */
+export async function resolvePreview(song) {
+  if (!song) return null;
+  const fromCatalog = metaFromCatalog(song);
+  if (fromCatalog.previewUrl) return fromCatalog.previewUrl;
+
+  const cached = metaCache.get(song.code);
+  if (cached?.expires > Date.now() && cached.value?.previewUrl) return cached.value.previewUrl;
+  if (previewPending.has(song.code)) return previewPending.get(song.code);
+
+  const promise = limited(async () => {
+    try {
+      const deezerId = fromCatalog.deezerId || cached?.value?.deezerId || null;
+      if (deezerId) {
+        const track = await request(`/track/${encodeURIComponent(deezerId)}`);
+        const preview = track?.preview || null;
+        if (preview) {
+          const prev = cached?.value || fromCatalog;
+          metaCache.set(song.code, {
+            value: { ...prev, previewUrl: preview, deezerId },
+            expires: Date.now() + META_TTL,
+          });
+          persistCache();
+          return preview;
+        }
+      }
+      const query = `${cleanArtist(song.artist)} ${song.title}`;
+      const response = await request("/search", { q: query, limit: "8" });
+      const track = pickBestDeezerTrack(response?.data, song);
+      const value = metaFromDeezerTrack(track);
+      metaCache.set(song.code, {
+        value: {
+          cover: fromCatalog.cover || value.cover,
+          previewUrl: value.previewUrl,
+          deezerId: value.deezerId || deezerId,
+        },
+        expires: Date.now() + (track ? META_TTL : EMPTY_TTL),
+      });
+      persistCache();
+      return value.previewUrl || null;
+    } catch {
+      return null;
+    }
+  }, `preview:${song.code}`);
+  previewPending.set(song.code, promise);
+  try {
+    return await promise;
+  } finally {
+    previewPending.delete(song.code);
   }
 }
 

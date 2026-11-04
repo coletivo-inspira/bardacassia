@@ -42,10 +42,36 @@ function roundRobinByArtist(songs, artists, source) {
 }
 
 /**
+ * Expand seed codes through an offline connections map into ranked related songs.
+ * Used as a Spotify/TikTok-like secondary lane ("related to what you already like").
+ */
+export function relatedSongsFromConnections(songs, connections, seedCodes = [], { excludeCodes = [], limit = 200 } = {}) {
+  if (!connections || typeof connections !== "object") return [];
+  const byCode = new Map(songs.map((song) => [String(song.code), song]));
+  const excluded = new Set([...excludeCodes, ...seedCodes].map(String));
+  const ranked = new Map();
+  for (const seed of seedCodes) {
+    const related = connections[String(seed)];
+    if (!Array.isArray(related)) continue;
+    related.forEach((code, index) => {
+      const key = String(code);
+      if (excluded.has(key) || !byCode.has(key)) return;
+      const score = (ranked.get(key) || 0) + Math.max(1, 20 - index);
+      ranked.set(key, score);
+    });
+  }
+  return [...ranked.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([code]) => ({ ...byCode.get(code), source: "Relacionada" }));
+}
+
+/**
  * Chosen artists lead; songs from the chosen styles' artists follow, then popular/editorial.
  * `selection` may be a plain artist list (legacy) or `{ artists, genreArtists }`.
+ * Optional `connections` + `seedCodes` interleave offline related songs in the secondary lane.
  */
-export function buildDiscoveryQueue(songs, selection, popularSongs = [], editorialArtists = [], { excludeCodes = [] } = {}) {
+export function buildDiscoveryQueue(songs, selection, popularSongs = [], editorialArtists = [], { excludeCodes = [], connections = null, seedCodes = [] } = {}) {
   const { artists = [], genreArtists = [] } = Array.isArray(selection) ? { artists: selection } : selection || {};
   const excluded = new Set([...excludeCodes].map(String));
   const chosenKeys = new Set(artists.map(normalizeText));
@@ -64,7 +90,23 @@ export function buildDiscoveryQueue(songs, selection, popularSongs = [], editori
     const song = typeof entry === "string" ? songs.find((item) => item.code === entry) : entry;
     return song ? { ...song, source: "Mais popular" } : null;
   }).filter(Boolean);
-  const secondary = popular.length ? popular : editorial;
+  const related = relatedSongsFromConnections(songs, connections, seedCodes, { excludeCodes });
+  const secondary = [];
+  const secondarySeen = new Set();
+  const pushSecondary = (song) => {
+    const code = String(song.code);
+    if (secondarySeen.has(code) || excluded.has(code)) return;
+    secondarySeen.add(code);
+    secondary.push(song);
+  };
+  // Interleave related with popular/editorial so connections surface early.
+  const baseSecondary = popular.length ? popular : editorial;
+  let relatedIndex = 0;
+  let baseIndex = 0;
+  while (relatedIndex < related.length || baseIndex < baseSecondary.length) {
+    if (relatedIndex < related.length) pushSecondary(related[relatedIndex++]);
+    if (baseIndex < baseSecondary.length) pushSecondary(baseSecondary[baseIndex++]);
+  }
   const result = [];
   const seen = new Set();
   let personalIndex = 0;
