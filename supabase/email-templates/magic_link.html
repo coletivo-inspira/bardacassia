@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seu link de entrada</title>
+</head>
+<body style="margin:0;padding:0;background:#141414;color:#eff2f1;font-family:Georgia,'Times New Roman',serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#141414;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;background:#202020;border:1px solid #333;border-radius:16px;overflow:hidden;">
+          <tr>
+            <td align="center" style="padding:28px 24px 8px;">
+              <img src="https://cacia.inspira.dev.br/email-logo.png" width="160" height="120" alt="Bar da Cácia" style="display:block;border:0;max-width:160px;height:auto;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 28px 0;text-align:center;">
+              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#dec949;">Bar da Cácia</p>
+              <h1 style="margin:12px 0 0;font-size:26px;line-height:1.2;font-weight:700;color:#eff2f1;">Seu link de entrada</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 28px 8px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#c8ccc9;">
+              Use o botão abaixo para entrar na sua conta. O link expira em breve e só pode ser usado uma vez.
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:20px 28px 8px;">
+              <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 28px;background:#dec949;color:#141414;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;text-decoration:none;border-radius:8px;">Entrar</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 28px 28px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#8b908c;word-break:break-all;">
+              Se o botão não funcionar, copie e cole este link:<br />
+              <a href="{{ .ConfirmationURL }}" style="color:#dec949;">{{ .ConfirmationURL }}</a>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:20px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6a6f6c;">Bar da Cácia — conta e favoritas do karaokê</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

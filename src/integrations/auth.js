@@ -10,8 +10,21 @@ export const authProviders = String(import.meta.env.VITE_AUTH_PROVIDERS || "")
   .filter((name, index, list) => KNOWN_PROVIDERS.includes(name) && list.indexOf(name) === index);
 export const captchaSiteKey = String(import.meta.env.VITE_AUTH_CAPTCHA_SITE_KEY || "");
 
+/** Prefer VITE_SITE_URL (Pages `SITE_URL`) so Auth e-mails never fall back to a stale Site URL like localhost:3000. */
+function authRedirectBase() {
+  const site = String(import.meta.env.VITE_SITE_URL || "").trim();
+  if (site) {
+    try {
+      return new URL(site.endsWith("/") ? site : `${site}/`);
+    } catch {
+      /* invalid SITE_URL — use the current page */
+    }
+  }
+  return new URL(location.href);
+}
+
 function loginUrl(hash = "", next = "") {
-  const url = new URL("login.html", location.href);
+  const url = new URL("login.html", authRedirectBase());
   url.search = next ? `?next=${encodeURIComponent(next)}` : "";
   url.hash = hash;
   return url.href;

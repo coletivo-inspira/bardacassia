@@ -34,6 +34,15 @@ import { mergeFavoriteCodes } from "./lib/favorites.js";
 import { clearSongRequest, initSongRequests, prepareSongRequest } from "./song-requests.js";
 import { initAnalytics, trackEvent } from "./integrations/analytics.js";
 
+// Auth e-mails sometimes land on /?code= when Site URL was wrong; send PKCE to login.html.
+(() => {
+  const params = new URLSearchParams(location.search);
+  if (!params.has("code")) return;
+  const login = new URL("login.html", location.href);
+  for (const [key, value] of params) login.searchParams.set(key, value);
+  location.replace(login.href);
+})();
+
 const BASE = import.meta.env.BASE_URL || "/";
 const PAGE_SIZE = 40;
 const DISCOVERY_ENABLED = String(import.meta.env.VITE_ENABLE_DISCOVERY || "true") !== "false";

@@ -154,7 +154,7 @@ Se `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` ou `SUPABASE_PROJECT_REF` fal
 ## Checklist operacional (projeto Cacia)
 
 1. Secrets/variáveis do Actions preenchidos (tabela acima). Se o pooler auto falhar, adicione `SUPABASE_DB_URL` (Session, porta 5432).
-2. Painel Auth: Anonymous Sign-Ins, e-mail com confirmação, Redirect URLs do domínio + Pages + localhost.
+2. Painel Auth: Anonymous Sign-Ins, e-mail com confirmação, **Site URL** = `…/login.html` (não `localhost:3000`), Redirect URLs do domínio + Pages + `localhost:5173`, templates de e-mail a partir de `supabase/email-templates/`.
 3. **Actions → Deploy Supabase** verde (migrações `001`–`008` + functions).
 4. SQL Editor (uma vez): chave Vault `profile_encryption_key` (ver Integrações).
 5. **Deploy Vite site to Pages** (ou push em `main`) para embutir `VITE_*` e rodar `sync-catalog`.
