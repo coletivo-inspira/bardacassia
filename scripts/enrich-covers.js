@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Backfill coverUrl / previewUrl onto the karaoke catalog by Deezer search.
+ * Backfill coverUrl + stable Deezer ids onto the karaoke catalog by Deezer search.
  * Only fills songs that do not already have coverUrl linked to their code.
+ * Does not persist previewUrl (signed Deezer links expire).
  *
  * Usage:
  *   node scripts/enrich-covers.js
@@ -19,6 +20,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
 const csvPath = join(root, "data", "musicas.csv");
 const jsonPath = join(root, "public", "data", "songs.json");
+const CHECKPOINT_EVERY = 100;
 
 function parseArgs(argv) {
   const args = { limit: Infinity, concurrency: 3, dryRun: false, delayMs: 120 };
@@ -60,9 +62,20 @@ async function searchDeezer(song) {
 
 function writeCsv(songs, path) {
   mkdirSync(dirname(path), { recursive: true });
-  const header = "code,artist,title,lyricStart,lang,coverUrl,previewUrl";
+  const header = "code,artist,title,lyricStart,lang,coverUrl,previewUrl,deezerId,deezerArtistId,duration";
   const lines = songs.map((s) =>
-    [s.code, s.artist, s.title, s.lyricStart, s.lang, s.coverUrl || "", s.previewUrl || ""]
+    [
+      s.code,
+      s.artist,
+      s.title,
+      s.lyricStart,
+      s.lang,
+      s.coverUrl || "",
+      "",
+      s.deezerId || "",
+      s.deezerArtistId || "",
+      s.duration != null ? s.duration : "",
+    ]
       .map(csvEscape)
       .join(",")
   );
@@ -73,6 +86,11 @@ function writeJson(songs, path) {
   mkdirSync(dirname(path), { recursive: true });
   const body = `[\n${songs.map((s) => JSON.stringify(s)).join(",\n")}\n]\n`;
   writeFileSync(path, body, "utf8");
+}
+
+function persistCatalog(songs) {
+  writeCsv(songs, csvPath);
+  writeJson(songs, jsonPath);
 }
 
 async function mapPool(items, concurrency, worker) {
@@ -89,30 +107,56 @@ async function mapPool(items, concurrency, worker) {
   return results;
 }
 
+function applyMeta(song, meta) {
+  if (!meta?.cover && !meta?.deezerId) return false;
+  delete song.previewUrl;
+  let changed = false;
+  if (meta.cover && !String(song.coverUrl || "").trim()) {
+    song.coverUrl = meta.cover;
+    changed = true;
+  }
+  if (meta.deezerId && !String(song.deezerId || "").trim()) {
+    song.deezerId = meta.deezerId;
+    changed = true;
+  }
+  if (meta.deezerArtistId && !String(song.deezerArtistId || "").trim()) {
+    song.deezerArtistId = meta.deezerArtistId;
+    changed = true;
+  }
+  if (meta.duration != null && song.duration == null) {
+    song.duration = meta.duration;
+    changed = true;
+  }
+  return changed;
+}
+
+function needsEnrichment(song) {
+  return !String(song.coverUrl || "").trim() || !String(song.deezerId || "").trim();
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!existsSync(jsonPath)) throw new Error(`Missing ${jsonPath}`);
   const songs = JSON.parse(readFileSync(jsonPath, "utf8"));
-  const missing = songs.filter((s) => !String(s.coverUrl || "").trim());
+  const missing = songs.filter(needsEnrichment);
   const batch = missing.slice(0, args.limit === Infinity ? missing.length : args.limit);
 
   console.log(`Catalog: ${songs.length} songs`);
-  console.log(`Missing coverUrl: ${missing.length}`);
+  console.log(`Missing coverUrl or deezerId: ${missing.length}`);
   console.log(`Enriching: ${batch.length} (concurrency ${args.concurrency}, delay ${args.delayMs}ms)`);
 
   let filled = 0;
   let failed = 0;
   let empty = 0;
+  let sinceCheckpoint = 0;
 
   await mapPool(batch, args.concurrency, async (song, i) => {
     try {
       if (args.delayMs) await sleep(args.delayMs);
       const meta = await searchDeezer(song);
-      if (meta.cover) {
-        // Persist only coverUrl: Deezer preview links are signed and expire.
-        song.coverUrl = meta.cover;
-        delete song.previewUrl;
+      if (applyMeta(song, meta)) {
         filled += 1;
+        sinceCheckpoint += 1;
       } else {
         empty += 1;
       }
@@ -123,11 +167,15 @@ async function main() {
     if ((i + 1) % 50 === 0 || i + 1 === batch.length) {
       console.log(`Progress ${i + 1}/${batch.length} · filled ${filled} · empty ${empty} · fail ${failed}`);
     }
+    if (!args.dryRun && sinceCheckpoint >= CHECKPOINT_EVERY) {
+      persistCatalog(songs);
+      console.log(`Checkpoint saved (${songs.filter((s) => s.coverUrl).length} with coverUrl)`);
+      sinceCheckpoint = 0;
+    }
   });
 
   if (!args.dryRun) {
-    writeCsv(songs, csvPath);
-    writeJson(songs, jsonPath);
+    persistCatalog(songs);
     const withCover = songs.filter((s) => s.coverUrl).length;
     console.log(`Wrote ${csvPath}`);
     console.log(`Wrote ${jsonPath} (${withCover} songs with coverUrl)`);
