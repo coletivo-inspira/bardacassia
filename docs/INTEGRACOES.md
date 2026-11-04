@@ -157,7 +157,7 @@ Ordem sugerida para um projeto Supabase novo (ex.: **Cacia**):
 6. **Google / Facebook (opcional):** crie os apps OAuth, cadastre o callback `https://<projeto>.supabase.co/auth/v1/callback`, ative os provedores e defina `VITE_AUTH_PROVIDERS=google,facebook`. Sem isso, os botões ficam ocultos.
 7. Mantenha os Anonymous Sign-Ins ativos para o ranking de visitantes.
 8. Confirme o bucket Storage `avatars` (criado pela `008`) após o primeiro deploy bem-sucedido.
-9. **E-mails Auth (marca Bar da Cácia):** em **Authentication → Email Templates**, cole o *Subject* e o HTML de cada arquivo em [`supabase/email-templates/`](../supabase/email-templates/) (`confirm_signup`, `magic_link`, `recovery`, `email_change`). Notas e URL do logo: [`_notes.md`](../supabase/email-templates/_notes.md). Depois do deploy Pages, confira se `https://cacia.inspira.dev.br/email-logo.png` abre. O remetente `Supabase Auth` só muda com **Custom SMTP** (opcional).
+9. **E-mails Auth (marca Bar da Cácia):** em **Authentication → Email Templates**, cole o *Subject* e o HTML de cada arquivo em [`supabase/email-templates/`](../supabase/email-templates/) (`confirm_signup`, `magic_link`, `recovery`, `email_change`). Notas, variáveis Go e URL do logo: [`_layout-notes.md`](../supabase/email-templates/_layout-notes.md). Depois do deploy Pages, confira se `https://cacia.inspira.dev.br/email-logo.png` abre. O remetente `Supabase Auth <noreply@mail.app.supabase.io>` e o rodapé genérico do mailer gratuito **só mudam** com **Custom SMTP** no Dashboard (Resend/SendGrid/etc.; opcional e fora do app).
 
 ### Publicação automática (`.github/workflows/supabase.yml`)
 
