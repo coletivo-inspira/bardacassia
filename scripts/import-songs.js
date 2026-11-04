@@ -83,6 +83,17 @@ function optionalUrl(value) {
   return s || undefined;
 }
 
+function optionalId(value) {
+  const s = String(value ?? "").trim();
+  return s || undefined;
+}
+
+function optionalDuration(value) {
+  if (value == null || value === "") return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
 function normalizeSong(raw) {
   const song = {
     code: String(raw.code ?? "").trim(),
@@ -93,8 +104,15 @@ function normalizeSong(raw) {
   };
   const coverUrl = optionalUrl(raw.coverUrl ?? raw.cover_url ?? raw.cover);
   const previewUrl = optionalUrl(raw.previewUrl ?? raw.preview_url ?? raw.preview);
+  const deezerId = optionalId(raw.deezerId ?? raw.deezer_id);
+  const deezerArtistId = optionalId(raw.deezerArtistId ?? raw.deezer_artist_id);
+  const duration = optionalDuration(raw.duration);
   if (coverUrl) song.coverUrl = coverUrl;
+  // Preview URLs from Deezer expire; keep only if explicitly present in source.
   if (previewUrl) song.previewUrl = previewUrl;
+  if (deezerId) song.deezerId = deezerId;
+  if (deezerArtistId) song.deezerArtistId = deezerArtistId;
+  if (duration != null) song.duration = duration;
   return song;
 }
 
@@ -106,7 +124,11 @@ function mergeEnrichment(songs, previousByCode) {
     if (!prev) return song;
     const next = { ...song };
     if (!next.coverUrl && prev.coverUrl) next.coverUrl = prev.coverUrl;
-    if (!next.previewUrl && prev.previewUrl) next.previewUrl = prev.previewUrl;
+    if (!next.deezerId && prev.deezerId) next.deezerId = prev.deezerId;
+    if (!next.deezerArtistId && prev.deezerArtistId) next.deezerArtistId = prev.deezerArtistId;
+    if (next.duration == null && prev.duration != null) next.duration = prev.duration;
+    // Do not revive expired previewUrl from previous enrichments.
+    delete next.previewUrl;
     return next;
   });
 }
@@ -221,6 +243,9 @@ async function loadCsv(csvPath) {
       lang: row.lang ?? row.idioma,
       coverUrl: row.coverurl ?? row.cover_url ?? row.cover,
       previewUrl: row.previewurl ?? row.preview_url ?? row.preview,
+      deezerId: row.deezerid ?? row.deezer_id,
+      deezerArtistId: row.deezerartistid ?? row.deezer_artist_id,
+      duration: row.duration,
     });
     if (isValidSong(song)) songs.push(song);
   }
@@ -229,10 +254,21 @@ async function loadCsv(csvPath) {
 
 function writeCsv(songs, csvPath) {
   mkdirSync(dirname(csvPath), { recursive: true });
-  const header = "code,artist,title,lyricStart,lang,coverUrl,previewUrl";
+  const header = "code,artist,title,lyricStart,lang,coverUrl,previewUrl,deezerId,deezerArtistId,duration";
   const lines = songs.map(
     (s) =>
-      [s.code, s.artist, s.title, s.lyricStart, s.lang, s.coverUrl || "", s.previewUrl || ""]
+      [
+        s.code,
+        s.artist,
+        s.title,
+        s.lyricStart,
+        s.lang,
+        s.coverUrl || "",
+        "",
+        s.deezerId || "",
+        s.deezerArtistId || "",
+        s.duration != null ? s.duration : "",
+      ]
         .map(csvEscape)
         .join(",")
   );

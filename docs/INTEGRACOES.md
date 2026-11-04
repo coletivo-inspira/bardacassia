@@ -18,14 +18,24 @@ A visão de arquitetura (páginas, migrações `001`–`008`, fluxos e variávei
 
 ## Deezer
 
+### Offline-first (capas e IDs no catálogo)
+
+Capas e IDs estáveis ficam no próprio catálogo para o navegador **não** bater na API ao rolar a lista:
+
+1. Rode `npm run enrich-covers` (opcional `--limit`, `--concurrency`, `--delay`, `--dry-run`). O script preenche `coverUrl`, `deezerId`, `deezerArtistId` e `duration` em `public/data/songs.json` / `data/musicas.csv` só onde faltam.
+2. **Não** persiste `previewUrl`: links de preview da Deezer são assinados e expiram. Preview resolve **no clique** via `resolvePreview` (`/track/{deezerId}` ou busca como contingência).
+3. Rode `npm run build-connections` para gerar `public/data/song-connections.json` (grafo leve código → códigos relacionados a partir do catálogo + estilos curados). A descoberta e o dialog usam esse sidecar antes de qualquer chamada Deezer de “relacionados”.
+
+### Contingência no navegador
+
 O adaptador está em `src/integrations/deezer.js`:
 
-1. Busca metadados sob demanda apenas quando a linha aparece na tela.
-2. Limita a **quatro requisições simultâneas**, evitando rajadas de chamadas.
-3. Valida **artista e título** antes de associar capa e preview; uma busca externa não prova que a faixa está no catálogo.
-4. Mantém cache por até sete dias para acertos e um dia para resultados vazios; o cache local tem limite de 500 entradas.
-5. Consulta artistas relacionados via busca do artista e endpoint de relacionados. Só mostra os nomes que também existem no catálogo local.
-6. Se o endpoint falhar, tenta sugestões editoriais de artistas dos grupos curados, quando existirem.
+1. Se a faixa já tem `coverUrl` no catálogo, a lista/descoberta **não** chama a Deezer só para pintar a capa.
+2. Sem capa no catálogo, busca metadados sob demanda quando a linha aparece na tela (contingência).
+3. Limita a **quatro requisições simultâneas**, evitando rajadas de chamadas.
+4. Valida **artista e título** antes de associar capa e preview; uma busca externa não prova que a faixa está no catálogo.
+5. Mantém cache por até sete dias para acertos e um dia para resultados vazios; o cache local tem limite de 500 entradas.
+6. Artistas relacionados: preferem o sidecar offline; só então consultam Deezer; se falhar, usam sugestões editoriais dos grupos curados.
 
 **Transporte e segurança:** a ordem de preferência é:
 

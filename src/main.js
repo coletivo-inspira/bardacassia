@@ -1,7 +1,8 @@
 import { displayTitle, filterCatalog, filtersForArtistSelection, countActiveFilterChips, filtersToggleLabel, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
-import { fetchDeezerMeta, fetchRelatedArtists, fetchArtistPicture, cancelPendingDeezerMeta, metaFromCatalog } from "./integrations/deezer.js";
+import { fetchDeezerMeta, fetchRelatedArtists, fetchArtistPicture, cancelPendingDeezerMeta, metaFromCatalog, resolvePreview } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
 import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState, emptyDiscoveryState } from "./lib/discovery.js";
+import { relatedCodesFor } from "./lib/connections.js";
 import { GENRES, artistsForGenres, genreById, genreForSong } from "./lib/genres.js";
 import {
   DRAFT_TAB_ID,
@@ -129,6 +130,8 @@ const els = {
   relatedSection: document.querySelector("#related-artists"),
   relatedTitle: document.querySelector("#related-title"),
   relatedList: document.querySelector("#related-list"),
+  dialogRelated: document.querySelector("#dialog-related"),
+  dialogRelatedList: document.querySelector("#dialog-related-list"),
   discoverFab: document.querySelector("#open-discover"),
   discoverDialog: document.querySelector("#discover-dialog"),
   discoverBack: document.querySelector("#discover-back"),
@@ -205,6 +208,8 @@ let discoverStep = "genres";
 let artistView = loadArtistView();
 let popularSongs = [];
 let spotifySuggestions = [];
+/** @type {Record<string, string[]>|null} */
+let songConnections = null;
 let activeSong = null;
 let dialogReturnFocus = null;
 let copyTimer = null;
@@ -699,12 +704,13 @@ async function startDiscovery(passedArtists = discovery.artists) {
   }
   const genreArtists = artistsForGenres(discovery.genres, allCatalogArtists).map((artist) => artist.name);
   const editorialArtists = CURATED.flatMap((pack) => pack.artists);
+  const seedCodes = [...favoriteCodes, ...discovery.list, ...discovery.seen].map(String);
   const queue = buildDiscoveryQueue(
     songs,
     { artists: discovery.artists, genreArtists },
     [...spotifySuggestions, ...popularSongs],
     editorialArtists,
-    { excludeCodes: favoriteCodes },
+    { excludeCodes: favoriteCodes, connections: songConnections, seedCodes },
   );
   const fallback = [...new Set(editorialArtists.map(normalize))];
   const fallbackSongs = queue.length ? queue : songs
@@ -720,6 +726,7 @@ async function startDiscovery(passedArtists = discovery.artists) {
 }
 
 function discoverySourceLabel(song) {
+  if (song.source === "Relacionada") return "Relacionada";
   const isSpotify = spotifySuggestions.some((item) => item.code === song.code);
   const isChosenArtist = discovery.artists.some((name) => normalize(name) === normalize(cleanArtist(song.artist)));
   const genre = isChosenArtist ? null : genreForSong(song, discovery.genres);
@@ -836,7 +843,8 @@ function renderDiscoveryCard() {
   previewBtn.title = "Ouvir trecho";
   previewBtn.setAttribute("aria-label", `Ouvir trecho: ${displayTitle(song.title)}`);
   previewBtn.dataset.idleLabel = "Ouvir trecho";
-  previewBtn.hidden = !catalogMeta.previewUrl;
+  const canPreview = Boolean(catalogMeta.previewUrl || catalogMeta.deezerId);
+  previewBtn.hidden = !canPreview;
   if (catalogMeta.previewUrl) previewBtn.dataset.preview = catalogMeta.previewUrl;
   previewBtn.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -856,7 +864,8 @@ function renderDiscoveryCard() {
   actions.append(details, remind, previewBtn, spotify);
   card.append(media, metaBlock, actions);
   els.discoveryCard.replaceChildren(card);
-  if (!catalogMeta.cover || !catalogMeta.previewUrl) enrichDiscoveryCover(cover, song, previewBtn);
+  // Only hit Deezer when the catalog has no cover — preview resolves on click.
+  if (!catalogMeta.cover) enrichDiscoveryCover(cover, song, previewBtn);
 }
 
 async function enrichDiscoveryCover(cover, song, previewBtn) {
@@ -1211,26 +1220,57 @@ function hideRelatedArtists() {
   els.relatedList.replaceChildren();
 }
 
+function relatedArtistsFromConnections(artist) {
+  if (!songConnections) return [];
+  const artistNorm = normalize(artist);
+  const seeds = songs.filter((song) => normalize(cleanArtist(song.artist)) === artistNorm).slice(0, 8);
+  const names = [];
+  const seen = new Set([artistNorm]);
+  for (const seed of seeds) {
+    for (const code of relatedCodesFor(songConnections, seed.code, { limit: 12 })) {
+      const related = songByCode.get(String(code));
+      if (!related) continue;
+      const name = cleanArtist(related.artist);
+      const key = normalize(name);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      names.push(name);
+      if (names.length >= 8) return names;
+    }
+  }
+  return names;
+}
+
 async function renderRelatedArtists(artist) {
   const request = ++relatedRequest;
   els.relatedSection.hidden = false;
   els.relatedTitle.textContent = "Buscando artistas relacionados…";
   els.relatedList.replaceChildren();
-  const names = await fetchRelatedArtists(artist);
-  if (request !== relatedRequest) return;
 
-  const byName = new Map(songs.map((song) => [normalize(cleanArtist(song.artist)), cleanArtist(song.artist)]));
-  let suggestions = names
-    .map((name) => byName.get(normalize(name)))
-    .filter((name) => name && normalize(name) !== normalize(artist));
-  suggestions = [...new Set(suggestions)].slice(0, 8);
-  const fromDeezer = suggestions.length > 0;
-  if (!suggestions.length) suggestions = curatedArtistSuggestions(songs, artist, CURATED);
+  let suggestions = relatedArtistsFromConnections(artist);
+  let source = suggestions.length ? "offline" : null;
+
+  if (!suggestions.length) {
+    const names = await fetchRelatedArtists(artist);
+    if (request !== relatedRequest) return;
+    const byName = new Map(songs.map((song) => [normalize(cleanArtist(song.artist)), cleanArtist(song.artist)]));
+    suggestions = names
+      .map((name) => byName.get(normalize(name)))
+      .filter((name) => name && normalize(name) !== normalize(artist));
+    suggestions = [...new Set(suggestions)].slice(0, 8);
+    if (suggestions.length) source = "deezer";
+  }
+
+  if (!suggestions.length) {
+    suggestions = curatedArtistSuggestions(songs, artist, CURATED);
+    if (suggestions.length) source = "curated";
+  }
+  if (request !== relatedRequest) return;
   if (!suggestions.length) {
     els.relatedSection.hidden = true;
     return;
   }
-  els.relatedTitle.textContent = fromDeezer ? "Artistas relacionados no catálogo" : "Explore também";
+  els.relatedTitle.textContent = source === "curated" ? "Explore também" : "Artistas relacionados no catálogo";
   for (const name of suggestions) {
     const button = document.createElement("button");
     button.type = "button";
@@ -1238,6 +1278,27 @@ async function renderRelatedArtists(artist) {
     button.textContent = name;
     button.addEventListener("click", () => showArtistSongs(name));
     els.relatedList.append(button);
+  }
+}
+
+function renderDialogRelated(song) {
+  if (!els.dialogRelated || !els.dialogRelatedList) return;
+  els.dialogRelatedList.replaceChildren();
+  const codes = relatedCodesFor(songConnections, song.code, { limit: 8 });
+  const relatedSongs = codes.map((code) => songByCode.get(String(code))).filter(Boolean)
+    .filter((item) => String(item.code) !== String(song.code));
+  if (!relatedSongs.length) {
+    els.dialogRelated.hidden = true;
+    return;
+  }
+  els.dialogRelated.hidden = false;
+  for (const related of relatedSongs) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "artist-chip";
+    button.textContent = `${displayTitle(related.title)} — ${cleanArtist(related.artist)}`;
+    button.addEventListener("click", () => showSongToDJ(related));
+    els.dialogRelatedList.append(button);
   }
 }
 
@@ -1562,9 +1623,9 @@ function createSongRow(song) {
   previewBtn.setAttribute("aria-label", `Ouvir trecho: ${displayTitle(song.title)}`);
   setIconAction(previewBtn, "play");
   previewBtn.hidden = true;
-  if (catalogMeta.previewUrl) {
+  if (catalogMeta.previewUrl || catalogMeta.deezerId) {
     previewBtn.hidden = false;
-    previewBtn.dataset.preview = catalogMeta.previewUrl;
+    if (catalogMeta.previewUrl) previewBtn.dataset.preview = catalogMeta.previewUrl;
   }
   previewBtn.addEventListener("click", () => togglePreview(song, previewBtn));
 
@@ -1779,6 +1840,10 @@ function resetDialogListen(song) {
     els.dialogPreview.classList.remove("is-playing");
     els.dialogPreview.textContent = els.dialogPreview.dataset.idleLabel || "Ouvir trecho";
   }
+  if (els.dialogRelated) {
+    els.dialogRelated.hidden = true;
+    els.dialogRelatedList?.replaceChildren();
+  }
   if (els.dialogSpotify) {
     const artist = song.artist.replace(/\.\.\.$/, "");
     const title = displayTitle(song.title);
@@ -1819,13 +1884,23 @@ function applyDialogMeta(song, meta) {
   }
 }
 
-function togglePreview(song, button) {
-  const url = button.dataset.preview;
-  if (!url) return;
+async function togglePreview(song, button) {
   if (previewCode === song.code && !els.previewAudio.paused) {
     stopPreview();
     return;
   }
+  let url = button.dataset.preview || "";
+  if (!url) {
+    button.disabled = true;
+    try {
+      url = (await resolvePreview(song)) || "";
+      if (url) button.dataset.preview = url;
+    } finally {
+      button.disabled = false;
+    }
+  }
+  if (!url) return;
+  if (!button.isConnected) return;
   stopPreview();
   previewCode = song.code;
   els.previewAudio.src = url;
@@ -1864,14 +1939,15 @@ function showSongToDJ(song) {
     || (discoveryMatch ? els.discoveryCard?.querySelector(".preview-btn")?.dataset.preview : null)
     || null;
   setDialogCover(song, liveCover);
-  if (livePreview && els.dialogPreview) {
+  if (els.dialogPreview && (livePreview || catalogMeta.deezerId)) {
     els.dialogPreview.hidden = false;
-    els.dialogPreview.dataset.preview = livePreview;
+    if (livePreview) els.dialogPreview.dataset.preview = livePreview;
     if (previewCode === song.code && !els.previewAudio.paused) {
       els.dialogPreview.classList.add("is-playing");
       els.dialogPreview.textContent = "Pausar";
     }
   }
+  renderDialogRelated(song);
 
   // Skip network when the catalog already has the cover for this code.
   if (!catalogMeta.cover) {
@@ -2434,6 +2510,13 @@ async function init() {
     els.resultsCount.textContent = "Não foi possível carregar o catálogo.";
     console.error(err);
     return;
+  }
+
+  try {
+    const connectionsRes = await fetch(`${BASE}data/song-connections.json`);
+    if (connectionsRes.ok) songConnections = await connectionsRes.json();
+  } catch {
+    songConnections = null;
   }
 
   buildCategories();
