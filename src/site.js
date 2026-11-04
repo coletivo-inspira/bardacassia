@@ -1,6 +1,8 @@
 import "./styles.css";
 import { authConfigured, displayName, getCurrentUser, onAuthChange, signOut } from "./integrations/auth.js";
+import { getMyProfile } from "./integrations/profile.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
+import { providerAvatarUrl } from "./lib/profile.js";
 
 const THEME_KEY = "bdc-theme-v1";
 const THEME_ICON_SUN = `<svg class="theme-icon-sun" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`;
@@ -92,6 +94,44 @@ function renderSignedOut(link) {
   setHeaderThemeVisible(true);
 }
 
+function setHeaderAccountAvatar(button, url) {
+  const src = String(url || "").trim();
+  if (!button || !src) return;
+  const icon = button.querySelector("svg");
+  let img = button.querySelector(".header-account-avatar");
+  if (img?.dataset.src === src) {
+    icon?.setAttribute("hidden", "");
+    return;
+  }
+  if (!img) {
+    img = document.createElement("img");
+    img.className = "header-account-avatar";
+    img.alt = "";
+    img.decoding = "async";
+    img.referrerPolicy = "no-referrer";
+    button.prepend(img);
+  }
+  img.dataset.src = src;
+  img.src = src;
+  icon?.setAttribute("hidden", "");
+  img.addEventListener("error", () => {
+    img.remove();
+    icon?.removeAttribute("hidden");
+  }, { once: true });
+}
+
+async function loadHeaderAccountAvatar(button, user) {
+  const quick = providerAvatarUrl(user);
+  if (quick) setHeaderAccountAvatar(button, quick);
+  try {
+    const profile = await getMyProfile();
+    const url = String(profile?.avatar_url || quick || "").trim();
+    if (url) setHeaderAccountAvatar(button, url);
+  } catch {
+    /* keep silhouette or provider picture */
+  }
+}
+
 function renderSignedIn(link, user) {
   link.hidden = true;
   setHeaderThemeVisible(false);
@@ -115,11 +155,12 @@ function renderSignedIn(link, user) {
       </button>
       <button role="menuitem" type="button" data-action="signout">Sair</button>
     </div>`;
-  const button = wrapper.querySelector("button");
+  const button = wrapper.querySelector("button.header-account");
   const menu = wrapper.querySelector("[role=menu]");
   button.querySelector(".theme-toggle-label").textContent = name.split(/\s+/)[0];
   button.setAttribute("aria-label", `Conta de ${name}`);
   wrapper.querySelector(".header-account-email").textContent = user.email || name;
+  void loadHeaderAccountAvatar(button, user);
   const setOpen = (open) => {
     menu.hidden = !open;
     button.setAttribute("aria-expanded", String(open));
