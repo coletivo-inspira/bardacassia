@@ -2482,7 +2482,23 @@ async function init() {
   }
 }
 
+/** Show the static hero logo immediately; swap to the animated SVG once it is ready. */
+function enhanceHeroLogo() {
+  const img = document.querySelector(".hero-artwork img[data-animated-src]");
+  if (!img) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const animatedSrc = String(img.dataset.animatedSrc || "").trim();
+  if (!animatedSrc || img.getAttribute("src") === animatedSrc) return;
+  const preload = new Image();
+  preload.decoding = "async";
+  preload.onload = () => {
+    if (img.isConnected) img.src = animatedSrc;
+  };
+  preload.src = animatedSrc;
+}
+
 hideExpiredEventNav();
+enhanceHeroLogo();
 void initializeAccountMenu();
 void watchAccountFavorites();
 init();
