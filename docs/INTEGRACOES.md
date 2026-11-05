@@ -153,9 +153,9 @@ Ordem sugerida para um projeto Supabase novo (ex.: **Cacia**):
 ### Configuração no painel do Supabase
 
 1. Aplique as migrações em ordem (`001`–`008`), pelo workflow descrito abaixo (preferível) ou pelo SQL Editor.
-2. **Authentication > Providers > Email:** ative a confirmação de e-mail, senha mínima de 8 caracteres com letras e dígitos e a proteção contra senhas vazadas (*leaked password protection*).
-3. **Authentication > URL Configuration:**
-   - **Site URL:** `https://cacia.inspira.dev.br/login.html` (nunca `http://localhost:3000` — se o e-mail de confirmação abrir `localhost:3000/?code=…`, a Site URL do painel está errada ou o redirect não está no allowlist).
+2. **Authentication > Providers > Email:** deixe e-mail/senha e **Magic Link** ativos (padrão). Confirmação de e-mail ligada; senha mínima de 8 caracteres com letras e dígitos; proteção contra senhas vazadas (*leaked password protection*). Limite típico: 1 Magic Link a cada 60 s; link expira em ~1 h.
+3. **Authentication > URL Configuration** (obrigatório para Magic Link e OAuth — só estes destinos são aceitos após o clique no e-mail / retorno do provedor):
+   - **Site URL:** `https://cacia.inspira.dev.br/login.html` (nunca `http://localhost:3000` — se o e-mail abrir `localhost:3000/?code=…`, a Site URL do painel está errada ou o redirect não está no allowlist).
    - **Redirect URLs** (todas as origens onde o login roda):
      - `https://cacia.inspira.dev.br/login.html`
      - `https://cacia.inspira.dev.br/**`
@@ -164,7 +164,11 @@ Ordem sugerida para um projeto Supabase novo (ex.: **Cacia**):
    - Em produção, defina a variável GitHub `SITE_URL` (`VITE_SITE_URL`) com a base pública (`https://cacia.inspira.dev.br/`). O app usa isso em `emailRedirectTo` / OAuth para o link do e-mail apontar sempre para `login.html` no domínio certo.
 4. **Authentication > Attack Protection:** ative o CAPTCHA com Cloudflare Turnstile (secret key no painel) e defina `VITE_AUTH_CAPTCHA_SITE_KEY` / variável `AUTH_CAPTCHA_SITE_KEY` com a site key pública (opcional no início).
 5. **Sessions:** mantenha o JWT com expiração de 1h e a rotação de refresh token ativada (padrão).
-6. **Google / Facebook (opcional):** crie os apps OAuth, cadastre o callback `https://<projeto>.supabase.co/auth/v1/callback`, ative os provedores e defina `VITE_AUTH_PROVIDERS=google,facebook`. Sem isso, os botões ficam ocultos.
+6. **Provedores sociais (opcional):** Google, Facebook, Apple e Spotify.
+   - Callback único do Supabase (cadastre em cada console OAuth): `https://<projeto>.supabase.co/auth/v1/callback`.
+   - Ative o provedor em **Authentication → Providers** e preencha Client ID / Secret (Apple exige Services ID + Key; Spotify Auth usa *Client ID/Secret* do [Developer Dashboard](https://developer.spotify.com/dashboard) — escopos de identidade, não `user-top-read`).
+   - Variável GitHub `AUTH_PROVIDERS` (vira `VITE_AUTH_PROVIDERS`), ex.: `google,facebook,apple,spotify`. Só os nomes listados aparecem; sem a variável, os botões ficam ocultos.
+   - **Spotify login ≠ importar mais ouvidas:** o login Auth usa este provedor Supabase; o botão “Importar minhas mais ouvidas” continua com `VITE_SPOTIFY_CLIENT_ID` e PKCE próprio.
 7. Mantenha os Anonymous Sign-Ins ativos para o ranking de visitantes.
 8. Confirme o bucket Storage `avatars` (criado pela `008`) após o primeiro deploy bem-sucedido.
 9. **E-mails Auth (marca Bar da Cácia):** em **Authentication → Email Templates**, cole o *Subject* e o HTML de cada arquivo em [`supabase/email-templates/`](../supabase/email-templates/) (`confirm_signup`, `magic_link`, `recovery`, `email_change`). Notas, variáveis Go e URL do logo: [`_layout-notes.md`](../supabase/email-templates/_layout-notes.md). Depois do deploy Pages, confira se `https://cacia.inspira.dev.br/email-logo.png` abre. O remetente `Supabase Auth <noreply@mail.app.supabase.io>` e o rodapé genérico do mailer gratuito **só mudam** com **Custom SMTP** no Dashboard (Resend/SendGrid/etc.; opcional e fora do app).
