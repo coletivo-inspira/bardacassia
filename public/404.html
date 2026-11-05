@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#133824" />
+    <meta name="robots" content="noindex" />
+    <meta
+      name="description"
+      content="Página não encontrada — Bar da Cácia. Volte ao início para buscar músicas ou conhecer o bar."
+    />
+    <title>Página não encontrada — Bar da Cácia</title>
+    <link rel="icon" type="image/svg+xml" href="./logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Syne:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --off-white: #f7f7f4;
+        --floresta: #133824;
+        --lima: #baff29;
+        --menta: #a3e5c2;
+        --mostarda: #e5a93c;
+        --ink: var(--floresta);
+        --surface: var(--off-white);
+        --focus: #133824;
+        --radius: 0.35rem;
+        --space: clamp(1.25rem, 4vw, 2.5rem);
+        --max: 40rem;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        color-scheme: light;
+        -webkit-text-size-adjust: 100%;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        font-family: "DM Sans", system-ui, sans-serif;
+        font-optical-sizing: auto;
+        font-weight: 400;
+        font-size: 1.0625rem;
+        line-height: 1.55;
+        color: var(--ink);
+        background: var(--surface);
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Soft atmosphere: menta wash + mostarda glow — not a flat fill */
+      .atmosphere {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background:
+          radial-gradient(ellipse 90% 55% at 12% -10%, color-mix(in srgb, var(--menta) 55%, transparent), transparent 60%),
+          radial-gradient(ellipse 70% 45% at 95% 15%, color-mix(in srgb, var(--mostarda) 28%, transparent), transparent 55%),
+          radial-gradient(ellipse 80% 50% at 50% 110%, color-mix(in srgb, var(--lima) 22%, transparent), transparent 50%),
+          var(--surface);
+      }
+
+      .atmosphere::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        opacity: 0.35;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cpath fill='none' stroke='%23133824' stroke-opacity='0.06' stroke-width='1' d='M0 60h120M60 0v120'/%3E%3C/svg%3E");
+        background-size: 120px 120px;
+        animation: grid-drift 48s linear infinite;
+      }
+
+      @keyframes grid-drift {
+        from {
+          background-position: 0 0;
+        }
+        to {
+          background-position: 120px 60px;
+        }
+      }
+
+      @keyframes rise-in {
+        from {
+          opacity: 0;
+          transform: translateY(0.85rem);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes pulse-soft {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.03);
+        }
+      }
+
+      .skip-link {
+        position: absolute;
+        left: var(--space);
+        top: 0.75rem;
+        z-index: 10;
+        padding: 0.5rem 0.85rem;
+        background: var(--floresta);
+        color: var(--lima);
+        font-weight: 500;
+        text-decoration: none;
+        border-radius: var(--radius);
+        transform: translateY(-150%);
+      }
+
+      .skip-link:focus {
+        transform: translateY(0);
+        outline: 3px solid var(--lima);
+        outline-offset: 2px;
+      }
+
+      .shell {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        width: min(100%, calc(var(--max) + 2 * var(--space)));
+        margin-inline: auto;
+        padding: var(--space);
+        padding-block: clamp(1.75rem, 6vh, 3.5rem);
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: inherit;
+        text-decoration: none;
+        animation: rise-in 0.55s ease both;
+      }
+
+      .brand:focus-visible {
+        outline: 3px solid var(--floresta);
+        outline-offset: 4px;
+        border-radius: var(--radius);
+      }
+
+      .brand img {
+        width: clamp(2.75rem, 12vw, 3.5rem);
+        height: auto;
+        flex-shrink: 0;
+        animation: pulse-soft 5.5s ease-in-out infinite;
+      }
+
+      .brand-text {
+        font-family: "Syne", sans-serif;
+        font-weight: 800;
+        font-size: clamp(1.05rem, 3.5vw, 1.25rem);
+        letter-spacing: 0.04em;
+        line-height: 1.1;
+        text-transform: uppercase;
+      }
+
+      .brand-text strong {
+        font-weight: 800;
+        color: var(--floresta);
+      }
+
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding-block: clamp(2rem, 8vh, 4.5rem);
+        gap: 1.35rem;
+      }
+
+      .code {
+        margin: 0;
+        font-family: "Syne", sans-serif;
+        font-weight: 800;
+        font-size: clamp(4.5rem, 22vw, 7.5rem);
+        line-height: 0.9;
+        letter-spacing: -0.04em;
+        color: var(--floresta);
+        animation: rise-in 0.6s 0.08s ease both;
+      }
+
+      .code span {
+        color: color-mix(in srgb, var(--floresta) 72%, var(--mostarda));
+      }
+
+      h1 {
+        margin: 0;
+        font-family: "Syne", sans-serif;
+        font-weight: 700;
+        font-size: clamp(1.45rem, 5vw, 2rem);
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+        max-width: 18ch;
+        animation: rise-in 0.6s 0.14s ease both;
+      }
+
+      .lead {
+        margin: 0;
+        max-width: 34ch;
+        font-size: 1.0625rem;
+        font-weight: 400;
+        color: color-mix(in srgb, var(--floresta) 82%, #000);
+        animation: rise-in 0.6s 0.2s ease both;
+      }
+
+      .actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1.25rem;
+        margin-top: 0.35rem;
+        animation: rise-in 0.6s 0.26s ease both;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        min-height: 3rem;
+        padding: 0.75rem 1.35rem;
+        border-radius: var(--radius);
+        background: var(--lima);
+        color: var(--floresta);
+        font-family: "DM Sans", system-ui, sans-serif;
+        font-weight: 500;
+        font-size: 1rem;
+        text-decoration: none;
+        border: 2px solid var(--floresta);
+        box-shadow: 4px 4px 0 var(--floresta);
+        transition:
+          transform 0.15s ease,
+          box-shadow 0.15s ease,
+          background-color 0.15s ease;
+      }
+
+      .button:hover {
+        background: color-mix(in srgb, var(--lima) 85%, white);
+        transform: translate(-1px, -1px);
+        box-shadow: 5px 5px 0 var(--floresta);
+      }
+
+      .button:active {
+        transform: translate(2px, 2px);
+        box-shadow: 2px 2px 0 var(--floresta);
+      }
+
+      .button:focus-visible {
+        outline: 3px solid var(--floresta);
+        outline-offset: 3px;
+      }
+
+      .useful {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem 1.15rem;
+        font-size: 0.95rem;
+        font-weight: 500;
+      }
+
+      .useful a {
+        color: var(--floresta);
+        text-decoration: underline;
+        text-decoration-color: color-mix(in srgb, var(--menta) 80%, var(--floresta));
+        text-underline-offset: 0.2em;
+        text-decoration-thickness: 0.1em;
+      }
+
+      .useful a:hover {
+        text-decoration-color: var(--mostarda);
+      }
+
+      .useful a:focus-visible {
+        outline: 3px solid var(--floresta);
+        outline-offset: 3px;
+        border-radius: 2px;
+      }
+
+      footer {
+        margin-top: auto;
+        padding-top: 1.5rem;
+        font-size: 0.8125rem;
+        font-weight: 400;
+        letter-spacing: 0.02em;
+        color: color-mix(in srgb, var(--floresta) 55%, var(--off-white));
+        animation: rise-in 0.6s 0.32s ease both;
+      }
+
+      footer a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      footer a:hover {
+        color: var(--floresta);
+        text-decoration: underline;
+        text-underline-offset: 0.15em;
+      }
+
+      footer a:focus-visible {
+        outline: 2px solid var(--floresta);
+        outline-offset: 2px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+
+      @media (min-width: 640px) {
+        .actions {
+          flex-direction: row;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true"></div>
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+
+    <div class="shell">
+      <header>
+        <a class="brand" href="./" aria-label="Bar da Cácia — início">
+          <img src="./logo_bar_da_cacia.svg" alt="" width="56" height="42" decoding="async" />
+          <span class="brand-text">Bar da <strong>Cácia</strong></span>
+        </a>
+      </header>
+
+      <main id="conteudo">
+        <p class="code" aria-hidden="true">4<span>0</span>4</p>
+        <h1>Essa página não foi encontrada ou mudou de endereço.</h1>
+        <p class="lead">
+          Sem drama — ela não entrou na setlist. Volte ao início e escolha a próxima música.
+        </p>
+
+        <div class="actions">
+          <a class="button" href="./">Voltar ao início</a>
+          <ul class="useful" aria-label="Links úteis">
+            <li><a href="./index.html#buscar">Buscar</a></li>
+            <li><a href="./o-bar.html">O bar</a></li>
+            <li>
+              <a
+                href="https://www.instagram.com/bardacaciaoficial/"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Instagram</a
+              >
+            </li>
+          </ul>
+        </div>
+      </main>
+
+      <footer>
+        <a href="https://inspira.dev.br" rel="noopener noreferrer">Coletivo Inspira</a>
+      </footer>
+    </div>
+  </body>
+</html>
