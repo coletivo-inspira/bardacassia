@@ -9,7 +9,7 @@ Visão ponta a ponta do portal de karaokê: o que roda onde, como as peças se c
 | Frontend | Vite multi-page (HTML + JS ES modules) | Catálogo, login, painel do garçom, cartaz |
 | Hospedagem | GitHub Pages | `dist/` publicado por `.github/workflows/static.yml` |
 | Domínios | `https://cacia.inspira.dev.br/` e `https://coletivo-inspira.github.io/bardacassia/` | Produção e espelho Pages |
-| Catálogo | `public/data/songs.json` (gerado de `data/musicas.csv`) | Fonte de verdade de músicas e códigos |
+| Catálogo | `public/data/songs.json` + `song-covers.json` (gerados de `data/musicas.csv`) | Fonte de verdade de músicas/códigos; capas em sidecar |
 | Backend opcional | Supabase (Auth + Postgres + Storage + Edge Functions) | Conta, ranking, favoritas sync, pedidos, avatar |
 | CI | `.github/workflows/ci.yml` | Testes Node + `deno check` nas Edge Functions |
 | Deploy DB | `.github/workflows/supabase.yml` | `db push` via session pooler IPv4 + Edge Functions |

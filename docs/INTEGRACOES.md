@@ -22,15 +22,15 @@ A visão de arquitetura (páginas, migrações `001`–`008`, fluxos e variávei
 
 Capas e IDs estáveis ficam no próprio catálogo para o navegador **não** bater na API ao rolar a lista:
 
-1. Rode `npm run enrich-covers` (opcional `--limit`, `--concurrency`, `--delay`, `--dry-run`). O script preenche `coverUrl`, `deezerId`, `deezerArtistId` e `duration` em `public/data/songs.json` / `data/musicas.csv` só onde faltam.
+1. Rode `npm run enrich-covers` (opcional `--limit`, `--concurrency`, `--delay`, `--dry-run`). O script preenche `coverUrl`, `deezerId`, `deezerArtistId` e `duration` em `data/musicas.csv` e publica o catálogo enxuto (`public/data/songs.json` sem `coverUrl`) + mapa `public/data/song-covers.json` (`code → url`) só onde faltam.
 2. **Não** persiste `previewUrl`: links de preview da Deezer são assinados e expiram. Preview resolve **no clique** via `resolvePreview` (`/track/{deezerId}` ou busca como contingência).
-3. Rode `npm run build-connections` para gerar `public/data/song-connections.json` (grafo leve código → códigos relacionados a partir do catálogo + estilos curados). A descoberta e o dialog usam esse sidecar antes de qualquer chamada Deezer de “relacionados”.
+3. Rode `npm run build-connections` para gerar `public/data/song-connections.json` (grafo leve código → códigos relacionados a partir do catálogo + estilos curados). A descoberta e o dialog carregam esse sidecar sob demanda (não no primeiro paint).
 
 ### Contingência no navegador
 
 O adaptador está em `src/integrations/deezer.js`:
 
-1. Se a faixa já tem `coverUrl` no catálogo, a lista/descoberta **não** chama a Deezer só para pintar a capa.
+1. Se a faixa já tem capa no mapa `song-covers.json` (anexada em memória ao catálogo), a lista/descoberta **não** chama a Deezer só para pintar a capa.
 2. Sem capa no catálogo, busca metadados sob demanda quando a linha aparece na tela (contingência).
 3. Limita a **quatro requisições simultâneas**, evitando rajadas de chamadas.
 4. Valida **artista e título** antes de associar capa e preview; uma busca externa não prova que a faixa está no catálogo.
@@ -317,7 +317,7 @@ As favoritas são códigos de música salvos **neste navegador**, organizados em
 
 **Com conta, só a lista plana de códigos sincroniza entre aparelhos** (`003_favorites_sync.sql`, `src/integrations/favorites-sync.js`):
 
-- Ao abrir o catálogo logado — e de novo em `SIGNED_IN` / `USER_UPDATED` — o navegador envia as favoritas locais e recebe a lista da conta em uma única chamada (`sync_my_favorites`, até 1.000 códigos). O resultado é a união das duas, sem códigos que saíram do catálogo.
+- Ao abrir o catálogo logado — e de novo em `SIGNED_IN` / `USER_UPDATED` — o navegador envia as favoritas locais e recebe a lista da conta (`sync_my_favorites`, até 1.000 códigos). Chamadas concorrentes no boot são coalescidas (mutex) e o primeiro `SIGNED_IN` de recuperação é ignorado se o `init` já disparou o sync. O resultado é a união das duas, sem códigos que saíram do catálogo.
 - As **abas** (nomes e agrupamentos) permanecem só neste aparelho; o Postgres guarda `favorited` em `song_interactions`, não a estrutura de abas.
 - Marcar ou desmarcar uma favorita logado envia a mudança pela mesma fila do ranking (`set_song_favorite`), inclusive com `VITE_ENABLE_POPULARITY=false`. Assim, uma remoção feita em um aparelho não "volta" no outro.
 - Sem conta, ao salvar a primeira favorita o catálogo sugere entrar (`login.html`) para guardar a lista entre aparelhos.

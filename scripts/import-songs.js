@@ -16,6 +16,7 @@ import { createReadStream, existsSync, mkdirSync, readFileSync, writeFileSync } 
 import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
+import { loadPublishedSongs, writePublishedCatalog } from "./lib/publish-catalog.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
@@ -135,19 +136,15 @@ function mergeEnrichment(songs, previousByCode) {
 
 function loadPreviousByCode() {
   const map = new Map();
-  for (const path of [outJson, defaultCsv]) {
-    if (!existsSync(path)) continue;
-    try {
-      if (path.endsWith(".json")) {
-        const list = JSON.parse(readFileSync(path, "utf8"));
-        for (const item of list) {
-          const song = normalizeSong(item);
-          if (song.code) map.set(song.code, song);
-        }
+  try {
+    if (existsSync(outJson)) {
+      for (const item of loadPublishedSongs(root)) {
+        const song = normalizeSong(item);
+        if (song.code) map.set(song.code, song);
       }
-    } catch {
-      /* ignore corrupt previous catalog */
     }
+  } catch {
+    /* ignore corrupt previous catalog */
   }
   return map;
 }
@@ -275,13 +272,6 @@ function writeCsv(songs, csvPath) {
   writeFileSync(csvPath, `${header}\n${lines.join("\n")}\n`, "utf8");
 }
 
-function writeJson(songs, jsonPath) {
-  mkdirSync(dirname(jsonPath), { recursive: true });
-  // Compact single-line array for smaller git blobs / faster parse
-  const body = `[\n${songs.map((s) => JSON.stringify(s)).join(",\n")}\n]\n`;
-  writeFileSync(jsonPath, body, "utf8");
-}
-
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const pdfPath = resolve(args.pdf || defaultPdf);
@@ -324,7 +314,7 @@ async function main() {
   const enriched = mergeEnrichment(unique, loadPreviousByCode());
 
   writeCsv(enriched, csvPath);
-  writeJson(enriched, outJson);
+  const published = writePublishedCatalog(enriched, root);
 
   const bytes = Buffer.byteLength(readFileSync(outJson));
   const langCounts = enriched.reduce((acc, s) => {
@@ -335,7 +325,8 @@ async function main() {
 
   console.log(`Imported ${enriched.length} songs from ${source}`);
   console.log(`Wrote ${csvPath}`);
-  console.log(`Wrote ${outJson} (${(bytes / (1024 * 1024)).toFixed(2)} MB)`);
+  console.log(`Wrote lean ${outJson} (${(bytes / (1024 * 1024)).toFixed(2)} MB)`);
+  console.log(`Wrote ${published.coversPath} (${published.coverCount} covers)`);
   console.log(`Songs with coverUrl: ${withCover}`);
   console.log("Languages:", langCounts);
 }

@@ -31,6 +31,7 @@ import { fetchPopularSongs, popularityNeedsUpdate, recordSongOpen, setFavoriteSy
 import { authConfigured, getCurrentUser, onAuthChange } from "./integrations/auth.js";
 import { hideExpiredEventNav, initializeAccountMenu, initializeTheme } from "./site.js";
 import { syncAccountFavorites } from "./integrations/favorites-sync.js";
+import { hasStoredAuthSession } from "./integrations/supabase.js";
 import { mergeFavoriteCodes } from "./lib/favorites.js";
 import { clearSongRequest, initSongRequests, prepareSongRequest } from "./song-requests.js";
 import { initAnalytics, trackEvent } from "./integrations/analytics.js";
@@ -210,6 +211,12 @@ let popularSongs = [];
 let spotifySuggestions = [];
 /** @type {Record<string, string[]>|null} */
 let songConnections = null;
+/** @type {Promise<Record<string, string[]>|null>|null} */
+let songConnectionsPromise = null;
+/** @type {Promise<void>|null} */
+let songCoversPromise = null;
+/** Skip the first auth-recovery SIGNED_IN when init already started favorites sync. */
+let favoritesBootSyncStarted = false;
 let activeSong = null;
 let dialogReturnFocus = null;
 let copyTimer = null;
@@ -691,6 +698,42 @@ function discoverBack() {
   else if (discoverStep === "artists") showDiscoverStep("genres");
 }
 
+async function ensureSongConnections() {
+  if (songConnections) return songConnections;
+  if (songConnectionsPromise) return songConnectionsPromise;
+  songConnectionsPromise = (async () => {
+    try {
+      const connectionsRes = await fetch(`${BASE}data/song-connections.json`);
+      if (connectionsRes.ok) songConnections = await connectionsRes.json();
+      else songConnections = null;
+    } catch {
+      songConnections = null;
+    }
+    return songConnections;
+  })();
+  return songConnectionsPromise;
+}
+
+/** Load coverUrl sidecar and attach onto in-memory catalog songs. */
+function ensureSongCovers() {
+  if (songCoversPromise) return songCoversPromise;
+  songCoversPromise = (async () => {
+    try {
+      const res = await fetch(`${BASE}data/song-covers.json`);
+      if (!res.ok) return;
+      const covers = await res.json();
+      if (!covers || typeof covers !== "object") return;
+      for (const song of songs) {
+        const url = covers[String(song.code)];
+        if (url) song.coverUrl = url;
+      }
+    } catch {
+      /* covers stay empty; Deezer contingency still works */
+    }
+  })();
+  return songCoversPromise;
+}
+
 async function startDiscovery(passedArtists = discovery.artists) {
   if (!discovery.genres.length) {
     showDiscoverStep("genres");
@@ -702,6 +745,7 @@ async function startDiscovery(passedArtists = discovery.artists) {
     els.spotifyStatus.hidden = false;
     els.spotifyStatus.textContent = "Ranking exibido com dados salvos; atualização pendente.";
   }
+  const [connections] = await Promise.all([ensureSongConnections(), ensureSongCovers()]);
   const genreArtists = artistsForGenres(discovery.genres, allCatalogArtists).map((artist) => artist.name);
   const editorialArtists = CURATED.flatMap((pack) => pack.artists);
   const seedCodes = [...favoriteCodes, ...discovery.list, ...discovery.seen].map(String);
@@ -710,7 +754,7 @@ async function startDiscovery(passedArtists = discovery.artists) {
     { artists: discovery.artists, genreArtists },
     [...spotifySuggestions, ...popularSongs],
     editorialArtists,
-    { excludeCodes: favoriteCodes, connections: songConnections, seedCodes },
+    { excludeCodes: favoriteCodes, connections, seedCodes },
   );
   const fallback = [...new Set(editorialArtists.map(normalize))];
   const fallbackSongs = queue.length ? queue : songs
@@ -1017,6 +1061,7 @@ function updateFavoriteControls() {
 }
 
 async function applyAccountFavorites() {
+  if (hasStoredAuthSession()) favoritesBootSyncStarted = true;
   const remote = await syncAccountFavorites(favoriteCodes);
   if (!remote) return;
   const merged = mergeFavoriteCodes(favoriteCodes, remote, (code) => songByCode.has(code));
@@ -1050,12 +1095,20 @@ async function maybePromptAccountForFavorites() {
 
 async function watchAccountFavorites() {
   if (!authConfigured) return;
+  let skipRecoverySignedIn = true;
   await onAuthChange(async (event) => {
     if (event === "SIGNED_OUT") {
       setFavoriteSyncActive(false);
+      favoritesBootSyncStarted = false;
+      skipRecoverySignedIn = false;
       return;
     }
     if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+      if (event === "SIGNED_IN" && skipRecoverySignedIn && favoritesBootSyncStarted) {
+        skipRecoverySignedIn = false;
+        return;
+      }
+      skipRecoverySignedIn = false;
       await applyAccountFavorites();
     }
   });
@@ -1247,6 +1300,8 @@ async function renderRelatedArtists(artist) {
   els.relatedTitle.textContent = "Buscando artistas relacionados…";
   els.relatedList.replaceChildren();
 
+  await ensureSongConnections();
+  if (request !== relatedRequest) return;
   let suggestions = relatedArtistsFromConnections(artist);
   let source = suggestions.length ? "offline" : null;
 
@@ -1281,9 +1336,11 @@ async function renderRelatedArtists(artist) {
   }
 }
 
-function renderDialogRelated(song) {
+async function renderDialogRelated(song) {
   if (!els.dialogRelated || !els.dialogRelatedList) return;
   els.dialogRelatedList.replaceChildren();
+  await ensureSongConnections();
+  if (!els.dialogRelated || !els.dialogRelatedList) return;
   const codes = relatedCodesFor(songConnections, song.code, { limit: 8 });
   const relatedSongs = codes.map((code) => songByCode.get(String(code))).filter(Boolean)
     .filter((item) => String(item.code) !== String(song.code));
@@ -1713,6 +1770,9 @@ async function enrichRow(row) {
   const song = songByCode.get(code);
   if (!song) return;
 
+  await ensureSongCovers();
+  if (!row.isConnected) return;
+
   // Catalog already has cover linked to this karaoke code — skip Deezer.
   const catalogMeta = metaFromCatalog(song);
   if (catalogMeta.cover) {
@@ -1926,39 +1986,43 @@ function showSongToDJ(song) {
   resetDialogListen(song);
   const row = document.querySelector(`.song-row[data-code="${song.code}"]`);
   const discoveryMatch = currentDiscoverySong()?.code === song.code;
-  const catalogMeta = metaFromCatalog(song);
-  const liveCover =
-    catalogMeta.cover
-    || row?.querySelector(".song-cover img")?.currentSrc
-    || row?.querySelector(".song-cover img")?.src
-    || (discoveryMatch ? els.discoveryCard?.querySelector("img")?.currentSrc || els.discoveryCard?.querySelector("img")?.src : null)
-    || null;
-  const livePreview =
-    catalogMeta.previewUrl
-    || row?.querySelector(".preview-btn")?.dataset.preview
-    || (discoveryMatch ? els.discoveryCard?.querySelector(".preview-btn")?.dataset.preview : null)
-    || null;
-  setDialogCover(song, liveCover);
-  if (els.dialogPreview && (livePreview || catalogMeta.deezerId)) {
-    els.dialogPreview.hidden = false;
-    if (livePreview) els.dialogPreview.dataset.preview = livePreview;
-    if (previewCode === song.code && !els.previewAudio.paused) {
-      els.dialogPreview.classList.add("is-playing");
-      els.dialogPreview.textContent = "Pausar";
+  const paintDialogMeta = () => {
+    if (activeSong?.code !== song.code) return;
+    const catalogMeta = metaFromCatalog(song);
+    const liveCover =
+      catalogMeta.cover
+      || row?.querySelector(".song-cover img")?.currentSrc
+      || row?.querySelector(".song-cover img")?.src
+      || (discoveryMatch ? els.discoveryCard?.querySelector("img")?.currentSrc || els.discoveryCard?.querySelector("img")?.src : null)
+      || null;
+    const livePreview =
+      catalogMeta.previewUrl
+      || row?.querySelector(".preview-btn")?.dataset.preview
+      || (discoveryMatch ? els.discoveryCard?.querySelector(".preview-btn")?.dataset.preview : null)
+      || null;
+    setDialogCover(song, liveCover);
+    if (els.dialogPreview && (livePreview || catalogMeta.deezerId)) {
+      els.dialogPreview.hidden = false;
+      if (livePreview) els.dialogPreview.dataset.preview = livePreview;
+      if (previewCode === song.code && !els.previewAudio.paused) {
+        els.dialogPreview.classList.add("is-playing");
+        els.dialogPreview.textContent = "Pausar";
+      }
     }
-  }
-  renderDialogRelated(song);
 
-  // Skip network when the catalog already has the cover for this code.
-  if (!catalogMeta.cover) {
-    const gen = ++dialogMetaGen;
-    fetchDeezerMeta(song).then((meta) => {
-      if (gen !== dialogMetaGen || activeSong?.code !== song.code) return;
-      applyDialogMeta(song, meta);
-    }).catch(() => { /* Dialog follows without Deezer meta. */ });
-  } else if (catalogMeta.previewUrl || catalogMeta.cover) {
-    applyDialogMeta(song, catalogMeta);
-  }
+    // Skip network when the catalog already has the cover for this code.
+    if (!catalogMeta.cover) {
+      const gen = ++dialogMetaGen;
+      fetchDeezerMeta(song).then((meta) => {
+        if (gen !== dialogMetaGen || activeSong?.code !== song.code) return;
+        applyDialogMeta(song, meta);
+      }).catch(() => { /* Dialog follows without Deezer meta. */ });
+    } else if (catalogMeta.previewUrl || catalogMeta.cover) {
+      applyDialogMeta(song, catalogMeta);
+    }
+  };
+  void ensureSongCovers().then(paintDialogMeta);
+  void renderDialogRelated(song);
 
   if (typeof IntersectionObserver === "function") {
     const observer = new IntersectionObserver(([entry]) => {
@@ -2512,12 +2576,8 @@ async function init() {
     return;
   }
 
-  try {
-    const connectionsRes = await fetch(`${BASE}data/song-connections.json`);
-    if (connectionsRes.ok) songConnections = await connectionsRes.json();
-  } catch {
-    songConnections = null;
-  }
+  // Covers sidecar: start immediately; enrichRow awaits before painting / Deezer.
+  void ensureSongCovers();
 
   buildCategories();
   allCatalogArtists = catalogArtists(songs);
@@ -2565,19 +2625,28 @@ async function init() {
   }
 }
 
-/** Show the static hero logo immediately; swap to the animated SVG once it is ready. */
+/** Show the static hero logo immediately; idle-swap to the animated SVG. */
 function enhanceHeroLogo() {
   const img = document.querySelector(".hero-artwork img[data-animated-src]");
   if (!img) return;
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const animatedSrc = String(img.dataset.animatedSrc || "").trim();
   if (!animatedSrc || img.getAttribute("src") === animatedSrc) return;
-  const preload = new Image();
-  preload.decoding = "async";
-  preload.onload = () => {
-    if (img.isConnected) img.src = animatedSrc;
+
+  const swapWhenIdle = () => {
+    const preload = new Image();
+    preload.decoding = "async";
+    preload.onload = () => {
+      if (img.isConnected) img.src = animatedSrc;
+    };
+    preload.src = animatedSrc;
   };
-  preload.src = animatedSrc;
+
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(swapWhenIdle, { timeout: 2500 });
+  } else {
+    window.setTimeout(swapWhenIdle, 1);
+  }
 }
 
 hideExpiredEventNav();

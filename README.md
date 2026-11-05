@@ -54,7 +54,7 @@ O site é publicado pelo GitHub Pages a partir de `dist/` via `.github/workflows
 
 ## Atualizar o catálogo
 
-A fonte editável é `data/musicas.csv`, com campos `code,artist,title,lyricStart,lang`. O JSON publicado é `public/data/songs.json`.
+A fonte editável é `data/musicas.csv`, com campos `code,artist,title,lyricStart,lang` (e enriquecimento Deezer). O JSON publicado é o catálogo enxuto `public/data/songs.json` mais o mapa de capas `public/data/song-covers.json`.
 
 ```bash
 # Reimportar o CSV
@@ -64,7 +64,7 @@ npm run import-songs -- --csv data/musicas.csv
 npm run import-songs -- --pdf data/lista-musica.pdf
 ```
 
-Revise os dados gerados antes de fazer commit de `public/data/songs.json` e, quando aplicável, `data/musicas.csv`.
+Revise os dados gerados antes de fazer commit de `public/data/songs.json`, `public/data/song-covers.json` e, quando aplicável, `data/musicas.csv`.
 
 ## Integração Spotify (opcional)
 
@@ -125,7 +125,9 @@ supabase/
   migrations/              # 001–008: ranking, auth, favoritas, pedidos, perfil/Storage
   functions/               # Edge Functions (account-delete, deezer-proxy)
 public/
-  data/songs.json          # catálogo publicado
+  data/songs.json          # catálogo publicado (sem coverUrl)
+  data/song-covers.json    # capas Deezer (code → url)
+  data/song-connections.json # grafo offline (lazy no cliente)
   logo_bar_da_cacia_animada.svg
 data/
   musicas.csv              # fonte editável
