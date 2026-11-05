@@ -1899,17 +1899,22 @@ dialog::backdrop {
 }
 .discovery-card.is-dragging { touch-action: none; }
 .discovery-card-content {
+  --swipe-btn: clamp(60px, 21cqi, 88px);
+  --swipe-inset: clamp(.6rem, 3.5cqi, 1rem);
+  --card-btn: clamp(40px, 12cqi, 46px);
+  position: relative;
   display: grid;
-  grid-template-rows: minmax(220px, 1fr) auto auto;
-  min-height: min(68dvh, 520px);
+  grid-template-rows: auto auto auto;
   gap: 0;
   padding: 0;
-  text-align: left;
+  text-align: center;
   overflow: hidden;
+  container-type: inline-size;
 }
+/* Square cover on top of a rectangular card, so album art is never cropped. */
 .discovery-card-media {
   position: relative;
-  min-height: 220px;
+  aspect-ratio: 1 / 1;
   background: #1a1a1a;
   overflow: hidden;
 }
@@ -1950,28 +1955,39 @@ dialog::backdrop {
 }
 .discovery-card-meta {
   display: grid;
-  gap: .2rem;
-  padding: .95rem 1rem .35rem;
+  justify-items: center;
+  gap: .15rem;
+  padding: calc(var(--swipe-btn) / 2 + .2rem) 1rem .2rem;
 }
 .discovery-card-content h4 {
   margin: 0;
   font: 800 clamp(1.25rem, 4.5vw, 1.7rem) / 1.15 var(--font-display);
 }
-.discovery-card-content .discovery-card-meta > p {
+.discovery-card-content .discovery-artist {
   margin: 0;
   color: var(--muted);
   font-size: .95rem;
 }
-.discovery-card-content { container-type: inline-size; }
+.discovery-artist-link {
+  min-height: 32px;
+  padding: .15rem .5rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.discovery-artist-link:hover { color: var(--text); text-decoration-color: currentColor; }
 .discovery-card-links {
-  --swipe-btn: clamp(44px, 15cqi, 58px);
-  --card-btn: clamp(36px, 12cqi, 44px);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: clamp(.25rem, 1.6cqi, .55rem);
+  justify-content: center;
+  gap: clamp(.5rem, 3cqi, .9rem);
   margin: 0;
-  padding: .75rem clamp(.75rem, 4cqi, 1rem) 1rem;
+  padding: .55rem 1rem 1.1rem;
 }
 /* Three classes so this beats the global ≤719px 44px icon-action rule. */
 .discovery-card .discovery-card-links .icon-action {
@@ -1983,11 +1999,17 @@ dialog::backdrop {
   padding: 0;
   border-radius: 50%;
 }
+/* X and heart straddle the bottom corners of the cover (100cqi = cover height). */
 .discovery-card .discovery-card-links .discovery-swipe-btn {
+  position: absolute;
+  top: calc(100cqi - var(--swipe-btn) / 2);
+  z-index: 3;
   width: var(--swipe-btn);
   height: var(--swipe-btn);
 }
-.discovery-card .discovery-card-links .discovery-swipe-btn svg { width: 46%; height: 46%; }
+.discovery-card .discovery-card-links .discovery-pass-btn { left: var(--swipe-inset); }
+.discovery-card .discovery-card-links .discovery-like-btn { right: var(--swipe-inset); }
+.discovery-card .discovery-card-links .discovery-swipe-btn svg { width: 44%; height: 44%; }
 .discovery-card .discovery-card-links .discovery-pass-btn svg { stroke-width: 2.8; }
 .popular-song { display: flex; flex-direction: column; align-items: flex-start; gap: .25rem; padding: .8rem; border-bottom: 1px solid var(--line); }
 .popular-song-title { border: 0; padding: 0; background: transparent; color: var(--text); font: 700 1rem var(--font-body); text-align: left; cursor: pointer; }
@@ -3088,10 +3110,38 @@ body {
 .header-actions { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
 .header-instagram { text-decoration: none; }
 .discovery-deck { position: relative; isolation: isolate; margin: .65rem 8px 0; }
-.discovery-deck::before, .discovery-deck::after { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: 20px; background: var(--bg-soft); border: 1px solid var(--line); transform: translateY(8px) rotate(-2deg); }
-.discovery-deck::after { transform: translateY(13px) rotate(2deg); z-index: -2; }
 .discovery-card { position: relative; cursor: grab; transition: transform 220ms cubic-bezier(.2,.8,.2,1); box-shadow: 0 12px 30px rgba(0,0,0,.18); will-change: transform; }
 .discovery-card.is-dragging { cursor: grabbing; transition: none; }
+/* Next songs wait behind the card; the first one rises into place as the drag grows. */
+.discovery-card.discovery-peek {
+  position: absolute;
+  inset: 0;
+  cursor: default;
+  pointer-events: none;
+  box-shadow: 0 8px 22px rgba(0,0,0,.14);
+}
+.discovery-peek::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, .28);
+  pointer-events: none;
+}
+:root[data-theme="light"] .discovery-peek::after { background: rgba(250, 248, 242, .35); }
+.discovery-peek[data-depth="1"] {
+  transform:
+    translateY(calc((1 - var(--swipe-strength, 0)) * 10px))
+    rotate(calc((1 - var(--swipe-strength, 0)) * -2.5deg))
+    scale(calc(.965 + var(--swipe-strength, 0) * .035));
+}
+.discovery-peek[data-depth="1"]::after { opacity: calc(1 - var(--swipe-strength, 0)); }
+.discovery-peek[data-depth="2"] { transform: translateY(18px) rotate(2.5deg) scale(.93); }
+.discovery-peek .discovery-source { opacity: 1; }
+.discovery-deck:has(.is-dragging) .discovery-peek,
+.discovery-deck.is-settling .discovery-card { transition: none; }
+@media (min-width: 720px) {
+  .discovery-cards { max-width: clamp(340px, calc(100dvh - 340px), 540px); }
+}
 .discovery-cards { overflow: clip; padding: 0 8px; }
 .swipe-hint { margin: 1.25rem 0 .5rem; color: var(--muted); font-size: .8rem; text-align: center; }
 @media (max-width: 719px) {
@@ -3240,8 +3290,6 @@ body {
   .spotify-search-control { flex-wrap: nowrap; gap: .4rem; }
   .spotify-search-control input { flex: 1; width: 0; font-size: 16px; }
   .hero-inner { padding-top: 1rem; }
-  .discovery-card-content { min-height: min(62dvh, 480px); }
-  .discovery-card-media { min-height: 200px; }
 }
 
 /* Descobrir minha música: floating entry point + full-screen flow. */

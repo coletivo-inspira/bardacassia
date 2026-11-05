@@ -155,6 +155,7 @@ const els = {
   startDiscovery: document.querySelector("#start-discovery"),
   skipArtistPicker: document.querySelector("#skip-artist-picker"),
   discoveryCards: document.querySelector("#discovery-cards"),
+  discoveryDeck: document.querySelector("#discovery-deck"),
   discoveryCard: document.querySelector("#discovery-card"),
   cardPosition: document.querySelector("#card-position"),
   undoDiscovery: document.querySelector("#undo-discovery"),
@@ -822,6 +823,7 @@ function renderDiscoveryCard() {
   els.undoDiscovery.disabled = discovery.history.length === 0;
   if (!song) {
     els.discoveryCard.replaceChildren();
+    renderDiscoveryPeeks();
     els.cardPosition.textContent = "Sugestões concluídas";
     const saved = draftTab().codes.length;
     els.discoveryDescription.textContent = saved
@@ -836,41 +838,18 @@ function renderDiscoveryCard() {
   els.cardPosition.textContent = `Sugestão ${discovery.index + 1} · ${remaining} restante${remaining === 1 ? "" : "s"}`;
   els.restartPassed.hidden = false;
 
-  const card = document.createElement("div");
-  card.className = "discovery-card-content";
-
-  const media = document.createElement("div");
-  media.className = "discovery-card-media";
-  let cover = createCoverFallback(song);
-  cover.className = "cover-fallback discovery-cover";
   const catalogMeta = metaFromCatalog(song);
-  if (catalogMeta.cover) {
-    const img = document.createElement("img");
-    img.alt = "";
-    img.decoding = "async";
-    img.referrerPolicy = "no-referrer";
-    img.className = "discovery-cover";
-    img.src = catalogMeta.cover;
-    img.addEventListener("error", () => {
-      if (img.isConnected) img.replaceWith(createCoverFallback(song));
-    }, { once: true });
-    cover = img;
-  }
-  const record = document.createElement("span");
-  record.className = "discovery-source";
-  record.textContent = discoverySourceLabel(song);
+  const { content: card, media, cover, artist } = createDiscoveryCardBody(song);
   const stamp = document.createElement("span");
   stamp.className = "discovery-stamp";
   stamp.setAttribute("aria-hidden", "true");
-  media.append(cover, record, stamp);
-
-  const metaBlock = document.createElement("div");
-  metaBlock.className = "discovery-card-meta";
-  const title = document.createElement("h4");
-  title.textContent = displayTitle(song.title);
-  const artist = document.createElement("p");
-  artist.textContent = cleanArtist(song.artist);
-  metaBlock.append(title, artist);
+  media.append(stamp);
+  artist.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const name = cleanArtist(song.artist);
+    closeDiscover();
+    showArtistSongs(name);
+  });
 
   const actions = document.createElement("div");
   actions.className = "discovery-card-links";
@@ -951,30 +930,98 @@ function renderDiscoveryCard() {
   spotify.addEventListener("click", (event) => event.stopPropagation());
 
   actions.append(pass, details, remind, previewBtn, spotify, choose);
-  card.append(media, metaBlock, actions);
+  card.append(actions);
   els.discoveryCard.replaceChildren(card);
+  renderDiscoveryPeeks();
   // Only hit Deezer when the catalog has no cover — preview resolves on click.
   if (!catalogMeta.cover) enrichDiscoveryCover(cover, song, previewBtn);
+}
+
+function createDiscoveryCover(song, src) {
+  if (!src) {
+    const fallback = createCoverFallback(song);
+    fallback.className = "cover-fallback discovery-cover";
+    return fallback;
+  }
+  const img = document.createElement("img");
+  img.alt = "";
+  img.decoding = "async";
+  img.referrerPolicy = "no-referrer";
+  img.className = "discovery-cover";
+  img.src = src;
+  img.addEventListener("error", () => {
+    if (img.isConnected) img.replaceWith(createDiscoveryCover(song));
+  }, { once: true });
+  return img;
+}
+
+function createDiscoveryCardBody(song, { interactive = true } = {}) {
+  const content = document.createElement("div");
+  content.className = "discovery-card-content";
+
+  const media = document.createElement("div");
+  media.className = "discovery-card-media";
+  const cover = createDiscoveryCover(song, metaFromCatalog(song).cover);
+  const record = document.createElement("span");
+  record.className = "discovery-source";
+  record.textContent = discoverySourceLabel(song);
+  media.append(cover, record);
+
+  const metaBlock = document.createElement("div");
+  metaBlock.className = "discovery-card-meta";
+  const title = document.createElement("h4");
+  title.textContent = displayTitle(song.title);
+  const name = cleanArtist(song.artist);
+  const artist = document.createElement(interactive ? "button" : "p");
+  artist.className = "discovery-artist";
+  artist.textContent = name;
+  if (interactive) {
+    artist.type = "button";
+    artist.classList.add("discovery-artist-link");
+    artist.title = `Ver músicas de ${name}`;
+  }
+  metaBlock.append(title, artist);
+
+  content.append(media, metaBlock);
+  return { content, media, cover, artist };
+}
+
+function upcomingDiscoverySongs(count) {
+  const upcoming = [];
+  for (let i = discovery.index + 1; i < discovery.queue.length && upcoming.length < count; i++) {
+    const code = discovery.queue[i];
+    if (favoriteCodes.has(String(code))) continue;
+    const song = songByCode.get(code);
+    if (song) upcoming.push(song);
+  }
+  return upcoming;
+}
+
+// The next songs sit behind the card, already loaded, so a swipe reveals them.
+function renderDiscoveryPeeks() {
+  els.discoveryDeck.querySelectorAll(".discovery-peek").forEach((el) => el.remove());
+  if (!currentDiscoverySong()) return;
+  upcomingDiscoverySongs(2).forEach((song, depth) => {
+    const peek = document.createElement("div");
+    peek.className = "discovery-card discovery-peek";
+    peek.dataset.depth = String(depth + 1);
+    peek.setAttribute("aria-hidden", "true");
+    const { content, cover } = createDiscoveryCardBody(song, { interactive: false });
+    peek.append(content);
+    els.discoveryDeck.prepend(peek);
+    if (!metaFromCatalog(song).cover) {
+      fetchDeezerMeta(song).then((meta) => {
+        if (meta?.cover && cover.isConnected) cover.replaceWith(createDiscoveryCover(song, meta.cover));
+      }).catch(() => { /* fallback cover stays */ });
+    }
+  });
 }
 
 async function enrichDiscoveryCover(cover, song, previewBtn) {
   try {
     const meta = await fetchDeezerMeta(song);
     if (!meta || currentDiscoverySong()?.code !== song.code) return;
-    if (meta.cover && cover.isConnected) {
-      const img = document.createElement("img");
-      img.alt = "";
-      img.decoding = "async";
-      img.referrerPolicy = "no-referrer";
-      img.className = "discovery-cover";
-      img.src = meta.cover;
-      img.addEventListener("error", () => {
-        if (cover.isConnected && currentDiscoverySong()?.code === song.code) {
-          cover.replaceWith(createCoverFallback(song));
-        }
-      }, { once: true });
-      cover.replaceWith(img);
-    }
+    if (meta.cover && cover.isConnected) cover.replaceWith(createDiscoveryCover(song, meta.cover));
     if (meta.previewUrl && previewBtn?.isConnected) {
       previewBtn.hidden = false;
       previewBtn.dataset.preview = meta.previewUrl;
@@ -2354,7 +2401,7 @@ function resetCardDrag({ keepSuppress = false } = {}) {
   if (!keepSuppress) cardSuppressClick = false;
   els.discoveryCard.classList.remove("is-dragging");
   els.discoveryCard.style.removeProperty("transform");
-  els.discoveryCard.style.removeProperty("--swipe-strength");
+  els.discoveryDeck.style.removeProperty("--swipe-strength");
   delete els.discoveryCard.dataset.direction;
   if (start?.captured && start.id != null) {
     try {
@@ -2373,12 +2420,16 @@ function animateDiscovery(action) {
   const direction = action === "choose" ? 1 : -1;
   els.discoveryCard.classList.remove("is-dragging");
   els.discoveryCard.dataset.direction = action;
-  els.discoveryCard.style.setProperty("--swipe-strength", "1");
+  els.discoveryDeck.style.setProperty("--swipe-strength", "1");
   els.discoveryCard.style.transform = `translateX(${direction * (els.discoveryCard.offsetWidth + 80)}px) rotate(${direction * 18}deg)`;
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   window.setTimeout(() => {
+    // The risen peek already sits where the next card goes, so snap into place instead of sliding back.
+    els.discoveryDeck.classList.add("is-settling");
     resetCardDrag();
     if (currentDiscoverySong()?.code === committedCode) moveDiscovery(action);
+    void els.discoveryDeck.offsetWidth;
+    els.discoveryDeck.classList.remove("is-settling");
     cardAnimating = false;
   }, reduced ? 0 : 220);
 }
@@ -2410,7 +2461,7 @@ function lockCardHorizontal(start, pointerId) {
 
 function paintCardDrag(dx) {
   els.discoveryCard.dataset.direction = swipeActionFromDx(dx);
-  els.discoveryCard.style.setProperty("--swipe-strength", String(swipeStrength(dx)));
+  els.discoveryDeck.style.setProperty("--swipe-strength", String(swipeStrength(dx)));
   // translate3d keeps iOS Safari on the compositor during drag
   els.discoveryCard.style.transform = `translate3d(${dx}px, 0, 0) rotate(${dx / 22}deg)`;
 }
@@ -2458,7 +2509,7 @@ function endCardSwipe(clientX, clientY, pointerId) {
   }
   cardSuppressClick = suppress;
   els.discoveryCard.style.removeProperty("transform");
-  els.discoveryCard.style.removeProperty("--swipe-strength");
+  els.discoveryDeck.style.removeProperty("--swipe-strength");
   delete els.discoveryCard.dataset.direction;
 }
 
