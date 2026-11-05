@@ -10,11 +10,12 @@
  *   node scripts/enrich-covers.js --dry-run --limit 20
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cleanArtist } from "../src/lib/catalog.js";
 import { metaFromDeezerTrack, pickBestDeezerTrack } from "../src/lib/deezer-match.js";
+import { loadPublishedSongs, writePublishedCatalog } from "./lib/publish-catalog.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
@@ -82,15 +83,9 @@ function writeCsv(songs, path) {
   writeFileSync(path, `${header}\n${lines.join("\n")}\n`, "utf8");
 }
 
-function writeJson(songs, path) {
-  mkdirSync(dirname(path), { recursive: true });
-  const body = `[\n${songs.map((s) => JSON.stringify(s)).join(",\n")}\n]\n`;
-  writeFileSync(path, body, "utf8");
-}
-
 function persistCatalog(songs) {
   writeCsv(songs, csvPath);
-  writeJson(songs, jsonPath);
+  writePublishedCatalog(songs, root);
 }
 
 async function mapPool(items, concurrency, worker) {
@@ -137,7 +132,7 @@ function needsEnrichment(song) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!existsSync(jsonPath)) throw new Error(`Missing ${jsonPath}`);
-  const songs = JSON.parse(readFileSync(jsonPath, "utf8"));
+  const songs = loadPublishedSongs(root);
   const missing = songs.filter(needsEnrichment);
   const batch = missing.slice(0, args.limit === Infinity ? missing.length : args.limit);
 
@@ -178,7 +173,7 @@ async function main() {
     persistCatalog(songs);
     const withCover = songs.filter((s) => s.coverUrl).length;
     console.log(`Wrote ${csvPath}`);
-    console.log(`Wrote ${jsonPath} (${withCover} songs with coverUrl)`);
+    console.log(`Wrote lean ${jsonPath} + song-covers.json (${withCover} songs with coverUrl)`);
   } else {
     console.log("Dry run — no files written");
   }
