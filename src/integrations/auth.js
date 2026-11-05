@@ -1,13 +1,10 @@
 import { getSupabase, setPersistSession, supabaseConfigured } from "./supabase.js";
-import { normalizeEmail } from "../lib/auth-validation.js";
+import { normalizeEmail, KNOWN_AUTH_PROVIDERS, parseAuthProviders } from "../lib/auth-validation.js";
 
-const KNOWN_PROVIDERS = ["google", "facebook"];
+export { KNOWN_AUTH_PROVIDERS, parseAuthProviders };
 
 export const authConfigured = supabaseConfigured && String(import.meta.env.VITE_ENABLE_AUTH || "true") !== "false";
-export const authProviders = String(import.meta.env.VITE_AUTH_PROVIDERS || "")
-  .split(",")
-  .map((name) => name.trim().toLowerCase())
-  .filter((name, index, list) => KNOWN_PROVIDERS.includes(name) && list.indexOf(name) === index);
+export const authProviders = parseAuthProviders(import.meta.env.VITE_AUTH_PROVIDERS);
 export const captchaSiteKey = String(import.meta.env.VITE_AUTH_CAPTCHA_SITE_KEY || "");
 
 /** Prefer VITE_SITE_URL (Pages `SITE_URL`) so Auth e-mails never fall back to a stale Site URL like localhost:3000. */
@@ -127,10 +124,11 @@ export async function signInWithEmailLink({ email, persist = true, captchaToken,
 }
 
 export async function signInWithProvider(provider, { persist = true, next = "" } = {}) {
-  if (!authProviders.includes(provider)) throw new Error("Provedor indisponível.");
+  const name = String(provider || "").trim().toLowerCase();
+  if (!authProviders.includes(name)) throw new Error("Provedor indisponível.");
   const supabase = await client();
   setPersistSession(persist);
-  const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: loginUrl("", next) } });
+  const { error } = await supabase.auth.signInWithOAuth({ provider: name, options: { redirectTo: loginUrl("", next) } });
   if (error) throw error;
 }
 

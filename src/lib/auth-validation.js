@@ -3,6 +3,16 @@ export const PASSWORD_MAX = 72;
 export const EMAIL_MAX = 254;
 export const NAME_MAX = 60;
 
+/** Supabase Auth OAuth providers the login UI can show (not Spotify top-tracks import). */
+export const KNOWN_AUTH_PROVIDERS = ["google", "facebook", "apple", "spotify"];
+
+export function parseAuthProviders(raw) {
+  return String(raw || "")
+    .split(",")
+    .map((name) => name.trim().toLowerCase())
+    .filter((name, index, list) => KNOWN_AUTH_PROVIDERS.includes(name) && list.indexOf(name) === index);
+}
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export function normalizeEmail(value) {
