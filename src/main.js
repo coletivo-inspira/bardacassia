@@ -267,20 +267,32 @@ function spotifySearchUrl(artist, title) {
 }
 
 const ACTION_ICONS = {
-  // Hash mark reads clearly at 18px on the amber Código button.
-  code: { paths: ['<path d="M10 4 7.5 20M16.5 4 14 20M5 9h14M4 15h14"/>'] },
-  heart: { paths: ['<path d="M12 20.2S4 15.3 4 8.9A4.1 4.1 0 0 1 11.2 6L12 7l.8-1A4.1 4.1 0 0 1 20 8.9c0 6.4-8 11.3-8 11.3z"/>'] },
+  // Ticket with code lines — clearer than a bare hash at small sizes.
+  code: {
+    paths: [
+      '<rect x="4.5" y="5" width="15" height="14" rx="2.5"/>',
+      '<path d="M8 9.5h8M8 12.5h8M8 15.5h5"/>',
+    ],
+  },
+  heart: {
+    paths: ['<path d="M12 20S5 14.8 5 9.2A3.9 3.9 0 0 1 12 6.4 3.9 3.9 0 0 1 19 9.2C19 14.8 12 20 12 20z"/>'],
+  },
   heartFilled: {
     fill: true,
-    paths: ['<path d="M12 20.2S4 15.3 4 8.9A4.1 4.1 0 0 1 11.2 6L12 7l.8-1A4.1 4.1 0 0 1 20 8.9c0 6.4-8 11.3-8 11.3z"/>'],
+    paths: ['<path d="M12 20S5 14.8 5 9.2A3.9 3.9 0 0 1 12 6.4 3.9 3.9 0 0 1 19 9.2C19 14.8 12 20 12 20z"/>'],
   },
-  play: { paths: ['<path d="M8 5.5v13l11-6.5z"/>'] },
-  pause: { paths: ['<path d="M8 5h3v14H8zM13 5h3v14h-3z"/>'] },
-  // Stroke-based mark stays visible on transparent dark action chips.
+  play: {
+    fill: true,
+    paths: ['<path d="M8.2 5.4v13.2L19.2 12 8.2 5.4z"/>'],
+  },
+  pause: {
+    fill: true,
+    paths: ['<path d="M7.5 5h3.2v14H7.5zm5.8 0H16.5v14h-3.2z"/>'],
+  },
   spotify: {
+    fill: true,
     paths: [
-      '<circle cx="12" cy="12" r="9"/>',
-      '<path d="M7.2 14.2c2.9-.8 6-.5 8.5 1"/><path d="M6.8 11c3.5-1 7.3-.6 10.3 1.3"/><path d="M6.5 7.8c4-1.2 8.4-.7 11.9 1.5"/>',
+      '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.56 14.45a.72.72 0 0 1-.98.25c-2.68-1.64-6.06-2-10.04-1.1a.72.72 0 1 1-.32-1.4c4.35-.99 8.06-.57 11.09 1.28a.72.72 0 0 1 .25.97zm1.27-2.82a.9.9 0 0 1-1.23.3c-3.07-1.89-7.75-2.43-11.38-1.33a.9.9 0 1 1-.52-1.72c4.14-1.25 9.3-.64 12.84 1.53a.9.9 0 0 1 .29 1.22zm.11-2.95C14.67 8.95 8.64 8.77 5.55 9.7a1.07 1.07 0 1 1-.62-2.05c3.55-1.08 10.24-.87 14.26 1.53a1.07 1.07 0 0 1-1.12 1.83z"/>',
     ],
   },
   bookmark: { paths: ['<path d="M7 4h10a1 1 0 0 1 1 1v16l-6-3.5L6 21V5a1 1 0 0 1 1-1z"/>'] },
@@ -303,7 +315,16 @@ function createIcon(name) {
 
 function setIconAction(el, iconName) {
   el.classList.add("icon-action");
+  el.classList.remove("labeled-action");
   el.replaceChildren(createIcon(iconName));
+}
+
+function setLabeledIconAction(el, iconName, label) {
+  el.classList.remove("icon-action");
+  el.classList.add("labeled-action");
+  const text = document.createElement("span");
+  text.textContent = label;
+  el.replaceChildren(createIcon(iconName), text);
 }
 
 function paintFavoriteButton(button, saved, title) {
@@ -1607,6 +1628,9 @@ function createSongRow(song) {
   const actions = document.createElement("div");
   actions.className = "song-actions";
 
+  const secondary = document.createElement("div");
+  secondary.className = "song-actions-secondary";
+
   const spotify = document.createElement("a");
   spotify.className = "action-link action-secondary icon-action";
   spotify.href = spotifySearchUrl(song.artist.replace(/\.\.\.$/, ""), displayTitle(song.title));
@@ -1631,8 +1655,8 @@ function createSongRow(song) {
 
   const djBtn = document.createElement("button");
   djBtn.type = "button";
-  djBtn.className = "action-btn dj-btn icon-action";
-  setIconAction(djBtn, "code");
+  djBtn.className = "action-btn dj-btn";
+  setLabeledIconAction(djBtn, "code", "Código");
   djBtn.title = "Código";
   djBtn.setAttribute("aria-label", `Código ao DJ: ${song.code}`);
   djBtn.addEventListener("click", () => showSongToDJ(song));
@@ -1645,9 +1669,12 @@ function createSongRow(song) {
   paintFavoriteButton(favoriteBtn, favoriteCodes.has(song.code), displayTitle(song.title));
   favoriteBtn.addEventListener("click", () => toggleFavorite(song));
 
-  // Código + Favoritar lead; Spotify/Preview are secondary (dialog also has listen actions).
-  actions.append(djBtn, favoriteBtn, previewBtn, spotify);
-  if (favoritesOnly && favoritesTabView && favoriteCodes.has(song.code)) actions.append(createMoveSelect(song));
+  // Código leads; Favoritar / Preview / Spotify sit in an equal secondary row.
+  secondary.append(favoriteBtn, previewBtn, spotify);
+  actions.append(djBtn, secondary);
+  if (favoritesOnly && favoritesTabView && favoriteCodes.has(song.code)) {
+    row.append(createMoveSelect(song));
+  }
   row.append(coverWrap, info, actions);
   return row;
 }
