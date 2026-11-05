@@ -158,8 +158,6 @@ const els = {
   discoveryCard: document.querySelector("#discovery-card"),
   cardPosition: document.querySelector("#card-position"),
   undoDiscovery: document.querySelector("#undo-discovery"),
-  passSong: document.querySelector("#pass-song"),
-  chooseSong: document.querySelector("#choose-song"),
   changeArtists: document.querySelector("#change-artists"),
   restartPassed: document.querySelector("#restart-passed"),
   goToFavorites: document.querySelector("#go-to-favorites"),
@@ -302,6 +300,7 @@ const ACTION_ICONS = {
       '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.56 14.45a.72.72 0 0 1-.98.25c-2.68-1.64-6.06-2-10.04-1.1a.72.72 0 1 1-.32-1.4c4.35-.99 8.06-.57 11.09 1.28a.72.72 0 0 1 .25.97zm1.27-2.82a.9.9 0 0 1-1.23.3c-3.07-1.89-7.75-2.43-11.38-1.33a.9.9 0 1 1-.52-1.72c4.14-1.25 9.3-.64 12.84 1.53a.9.9 0 0 1 .29 1.22zm.11-2.95C14.67 8.95 8.64 8.77 5.55 9.7a1.07 1.07 0 1 1-.62-2.05c3.55-1.08 10.24-.87 14.26 1.53a1.07 1.07 0 0 1-1.12 1.83z"/>',
     ],
   },
+  pass: { paths: ['<path d="M7 7l10 10M17 7 7 17"/>'] },
   bookmark: { paths: ['<path d="M7 4h10a1 1 0 0 1 1 1v16l-6-3.5L6 21V5a1 1 0 0 1 1-1z"/>'] },
   bookmarkFilled: {
     fill: true,
@@ -820,8 +819,6 @@ function currentDiscoverySong() {
 function renderDiscoveryCard() {
   stopPreview();
   const song = currentDiscoverySong();
-  els.passSong.disabled = !song;
-  els.chooseSong.disabled = !song;
   els.undoDiscovery.disabled = discovery.history.length === 0;
   if (!song) {
     els.discoveryCard.replaceChildren();
@@ -862,7 +859,10 @@ function renderDiscoveryCard() {
   const record = document.createElement("span");
   record.className = "discovery-source";
   record.textContent = discoverySourceLabel(song);
-  media.append(cover, record);
+  const stamp = document.createElement("span");
+  stamp.className = "discovery-stamp";
+  stamp.setAttribute("aria-hidden", "true");
+  media.append(cover, record, stamp);
 
   const metaBlock = document.createElement("div");
   metaBlock.className = "discovery-card-meta";
@@ -875,9 +875,33 @@ function renderDiscoveryCard() {
   const actions = document.createElement("div");
   actions.className = "discovery-card-links";
 
+  const pass = document.createElement("button");
+  pass.type = "button";
+  pass.id = "pass-song";
+  pass.className = "action-btn icon-action glass-btn discovery-swipe-btn discovery-pass-btn";
+  setIconAction(pass, "pass");
+  pass.title = "Passar";
+  pass.setAttribute("aria-label", "Passar");
+  pass.addEventListener("click", (event) => {
+    event.stopPropagation();
+    animateDiscovery("pass");
+  });
+
+  const choose = document.createElement("button");
+  choose.type = "button";
+  choose.id = "choose-song";
+  choose.className = "action-btn icon-action glass-btn discovery-swipe-btn discovery-like-btn";
+  setIconAction(choose, "heartFilled");
+  choose.title = "Quero cantar";
+  choose.setAttribute("aria-label", "Quero cantar");
+  choose.addEventListener("click", (event) => {
+    event.stopPropagation();
+    animateDiscovery("choose");
+  });
+
   const details = document.createElement("button");
   details.type = "button";
-  details.className = "action-btn dj-btn icon-action";
+  details.className = "action-btn dj-btn icon-action glass-btn";
   setIconAction(details, "code");
   details.title = "Código";
   details.setAttribute("aria-label", `Código ao DJ: ${song.code}`);
@@ -888,7 +912,7 @@ function renderDiscoveryCard() {
 
   const remind = document.createElement("button");
   remind.type = "button";
-  remind.className = "action-btn icon-action discovery-remind-btn";
+  remind.className = "action-btn icon-action glass-btn discovery-remind-btn";
   const reminded = favoriteCodes.has(String(song.code));
   setIconAction(remind, reminded ? "bookmarkFilled" : "bookmark");
   remind.title = "Relembrar depois";
@@ -903,7 +927,7 @@ function renderDiscoveryCard() {
 
   const previewBtn = document.createElement("button");
   previewBtn.type = "button";
-  previewBtn.className = "action-btn preview-btn icon-action";
+  previewBtn.className = "action-btn preview-btn icon-action glass-btn";
   setIconAction(previewBtn, "play");
   previewBtn.title = "Ouvir trecho";
   previewBtn.setAttribute("aria-label", `Ouvir trecho: ${displayTitle(song.title)}`);
@@ -920,13 +944,13 @@ function renderDiscoveryCard() {
   spotify.href = spotifySearchUrl(cleanArtist(song.artist), displayTitle(song.title));
   spotify.target = "_blank";
   spotify.rel = "noopener noreferrer";
-  spotify.className = "action-link icon-action";
+  spotify.className = "action-link icon-action glass-btn";
   setIconAction(spotify, "spotify");
   spotify.title = "Spotify";
   spotify.setAttribute("aria-label", `Ouvir no Spotify: ${displayTitle(song.title)}`);
   spotify.addEventListener("click", (event) => event.stopPropagation());
 
-  actions.append(details, remind, previewBtn, spotify);
+  actions.append(pass, details, remind, previewBtn, spotify, choose);
   card.append(media, metaBlock, actions);
   els.discoveryCard.replaceChildren(card);
   // Only hit Deezer when the catalog has no cover — preview resolves on click.
@@ -2317,8 +2341,6 @@ els.newFavoriteTab.addEventListener("click", promptNewFavoriteTab);
 els.renameFavoriteTab.addEventListener("click", promptRenameFavoriteTab);
 els.deleteFavoriteTab.addEventListener("click", confirmDeleteFavoriteTab);
 els.clearFavoriteTab.addEventListener("click", confirmClearFavoriteTab);
-els.passSong.addEventListener("click", () => animateDiscovery("pass"));
-els.chooseSong.addEventListener("click", () => animateDiscovery("choose"));
 let cardPointerStart = null;
 let cardAnimating = false;
 let cardSuppressClick = false;
