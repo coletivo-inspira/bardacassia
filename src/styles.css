@@ -4182,3 +4182,8 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   .auth-submit[aria-busy="true"]::after { animation: none; }
   .auth-avatar-crop-image { will-change: auto; }
 }
+
+/* +INSPIRA orb (brand book embed): sit above the mobile tab bar, level with the Match button. */
+@media (max-width: 719px) {
+  :root .mobile-tabbar ~ a.inspira-orb { bottom: calc(68px + env(safe-area-inset-bottom)); }
+}
