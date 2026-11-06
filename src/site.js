@@ -214,6 +214,13 @@ export function isBeforeExpiry(expires) {
   return todayKey < expires;
 }
 
+export function setFooterYear() {
+  const year = String(new Date().getFullYear());
+  document.querySelectorAll("[data-current-year]").forEach((el) => {
+    el.textContent = year;
+  });
+}
+
 export function hideExpiredEventNav() {
   document.querySelectorAll("[data-expires]").forEach((el) => {
     const expires = el.getAttribute("data-expires");

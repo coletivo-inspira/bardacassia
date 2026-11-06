@@ -29,7 +29,7 @@ import {
 } from "./lib/discovery-swipe.js";
 import { fetchPopularSongs, popularityNeedsUpdate, recordSongOpen, setFavoriteSyncActive, setSongFavorite } from "./integrations/popularity.js";
 import { authConfigured, getCurrentUser, onAuthChange } from "./integrations/auth.js";
-import { hideExpiredEventNav, initializeAccountMenu, initializeTheme } from "./site.js";
+import { hideExpiredEventNav, initializeAccountMenu, initializeTheme, setFooterYear } from "./site.js";
 import { syncAccountFavorites } from "./integrations/favorites-sync.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
 import { mergeFavoriteCodes } from "./lib/favorites.js";
@@ -2750,6 +2750,7 @@ function enhanceHeroLogo() {
 }
 
 hideExpiredEventNav();
+setFooterYear();
 enhanceHeroLogo();
 void initializeAccountMenu();
 void watchAccountFavorites();
