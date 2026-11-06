@@ -3,78 +3,12 @@ import { authConfigured, displayName, getCurrentUser, onAuthChange, signOut } fr
 import { getMyProfile } from "./integrations/profile.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
 import { providerAvatarUrl } from "./lib/profile.js";
+import { initializeTheme } from "./lib/theme.js";
 
-const THEME_KEY = "bdc-theme-v1";
+export { applyTheme, initializeTheme, toggleTheme } from "./lib/theme.js";
+
 const THEME_ICON_SUN = `<svg class="theme-icon-sun" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`;
 const THEME_ICON_MOON = `<svg class="theme-icon-moon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.2 15.1A8.4 8.4 0 0 1 8.9 3.8 8.5 8.5 0 1 0 20.2 15.1Z"/></svg>`;
-
-function themeControls() {
-  return document.querySelectorAll("#theme-toggle, [data-theme-toggle]");
-}
-
-export function applyTheme(theme, save = false) {
-  document.documentElement.dataset.theme = theme;
-  const nextLabel = theme === "dark" ? "Modo claro" : "Modo noturno";
-  const nextAction = theme === "dark" ? "Ativar tema claro" : "Ativar modo noturno";
-  themeControls().forEach((toggle) => {
-    const label = toggle.querySelector(".theme-toggle-label");
-    if (label) label.textContent = nextLabel;
-    toggle.setAttribute("aria-label", nextAction);
-    if (toggle.matches("[data-theme-toggle]")) {
-      toggle.setAttribute("aria-pressed", String(theme === "light"));
-    }
-  });
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = theme === "dark" ? "#141414" : "#f7f3e9";
-  if (save) {
-    try {
-      localStorage.setItem(THEME_KEY, theme);
-    } catch {
-      /* funciona enquanto a página estiver aberta */
-    }
-  }
-}
-
-export function toggleTheme() {
-  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-  applyTheme(next, true);
-  return next;
-}
-
-let themeInitialized = false;
-let manualThemeChoice = false;
-
-export function initializeTheme() {
-  let saved = null;
-  try {
-    saved = localStorage.getItem(THEME_KEY);
-  } catch {
-    /* usa a preferência do aparelho */
-  }
-  if (!themeInitialized) {
-    manualThemeChoice = saved === "light" || saved === "dark";
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const systemTheme = media.matches ? "dark" : "light";
-    applyTheme(manualThemeChoice ? saved : document.documentElement.dataset.theme || systemTheme);
-    const followSystem = (event) => {
-      if (!manualThemeChoice) applyTheme(event.matches ? "dark" : "light");
-    };
-    if (media.addEventListener) media.addEventListener("change", followSystem);
-    else media.addListener(followSystem);
-    themeInitialized = true;
-  } else {
-    applyTheme(document.documentElement.dataset.theme || (saved === "light" || saved === "dark" ? saved : "dark"));
-  }
-
-  themeControls().forEach((toggle) => {
-    if (toggle.dataset.themeBound === "1") return;
-    toggle.dataset.themeBound = "1";
-    toggle.addEventListener("click", () => {
-      manualThemeChoice = true;
-      toggleTheme();
-    });
-  });
-}
 
 function currentPagePath() {
   const page = location.pathname.split("/").pop() || "index.html";
@@ -171,15 +105,12 @@ function renderSignedIn(link, user) {
     if (event.key === "Escape" && !menu.hidden) { setOpen(false); button.focus(); }
   });
   document.addEventListener("click", (event) => { if (!wrapper.contains(event.target)) setOpen(false); });
-  wrapper.querySelector("[data-action=theme]").addEventListener("click", () => {
-    toggleTheme();
-  });
   wrapper.querySelector("[data-action=signout]").addEventListener("click", async () => {
     await signOut();
     renderSignedOut(link);
   });
   link.after(wrapper);
-  applyTheme(document.documentElement.dataset.theme || "dark");
+  // The theme item is a [data-theme-toggle]; initializeTheme gives it its only click listener.
   initializeTheme();
 }
 
