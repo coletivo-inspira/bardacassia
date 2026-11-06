@@ -1379,24 +1379,6 @@ input:focus-visible {
   max-width: 18ch;
 }
 
-.footer-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.85rem 1.2rem;
-  margin-top: 0.55rem;
-}
-
-.footer-nav a {
-  color: var(--muted);
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.footer-nav a:hover {
-  color: var(--amber);
-}
-
 @media (max-width: 860px) {
   .bar-event-grid,
   .bar-block {
@@ -1424,13 +1406,15 @@ input:focus-visible {
   padding: 2rem 1.25rem 2.5rem;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 1rem;
   border-top: 1px solid var(--line);
+  text-align: center;
 }
 
 .footer-main {
   display: grid;
+  justify-items: center;
   gap: 0.35rem;
 }
 
@@ -1450,6 +1434,12 @@ input:focus-visible {
 
 .footer-place {
   font-size: 0.8rem !important;
+  text-wrap: balance;
+}
+
+.footer-place a,
+.footer-address {
+  white-space: nowrap;
 }
 
 .footer-place a {
@@ -1460,6 +1450,27 @@ input:focus-visible {
 
 .footer-place a:hover {
   color: var(--amber);
+}
+
+.site-footer .footer-copy {
+  min-width: min(100%, 20rem);
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.75rem;
+}
+
+.footer-copy a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.footer-copy a:hover,
+.footer-copy a:focus-visible {
+  color: var(--amber);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* Dialog */
@@ -2285,7 +2296,7 @@ body {
     backdrop-filter: saturate(130%) blur(16px);
   }
 
-  /* Mobile tabbar already covers Início/Buscar; O bar stays in the footer. */
+  /* Mobile tabbar already covers Início/Buscar. */
   .site-header .desktop-nav {
     display: none;
   }
@@ -4234,4 +4245,7 @@ dialog.discover-screen::backdrop { background: var(--bg); }
 /* +INSPIRA orb (brand book embed): sit above the mobile tab bar, level with the Match button. */
 @media (max-width: 719px) {
   :root .mobile-tabbar ~ a.inspira-orb { bottom: calc(68px + env(safe-area-inset-bottom)); }
+  /* Keep the centered footer text above the fixed orb when scrolled to the bottom. */
+  .site-footer { padding-bottom: 2.25rem; }
+  .site-footer:has(~ .mobile-tabbar) { padding-bottom: 6rem; }
 }
