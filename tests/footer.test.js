@@ -13,4 +13,11 @@ for (const page of FOOTER_PAGES) {
     assert.match(footer, /©\s*<span data-current-year>\d{4}<\/span>/);
     assert.match(footer, /<a href="https:\/\/inspira\.dev\.br\/"[^>]*>Coletivo Inspira<\/a>\.\s*Todos os direitos reservados\./);
   });
+
+  // The github.io URL redirects to plain http, which browsers block as mixed content.
+  test(`${page} loads the +INSPIRA orb straight from the HTTPS brand book`, () => {
+    const html = readFileSync(new URL(`../${page}`, import.meta.url), "utf8");
+    const src = html.match(/<script[^>]*src="([^"]*inspira-orb\.js)"/)?.[1];
+    assert.equal(src, "https://brandbook.inspira.dev.br/assets/js/inspira-orb.js");
+  });
 }
