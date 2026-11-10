@@ -18,6 +18,7 @@ import {
 import { getMyPhone, getMyProfile, hasCurrentConsent, setMyPhone, updateMyProfile, uploadMyAvatar } from "./integrations/profile.js";
 import { getPersistSession } from "./integrations/supabase.js";
 import {
+  accountReturnUrl,
   authErrorMessage,
   passwordStrength,
   safeNextPath,
@@ -85,6 +86,8 @@ const avatarCropZoom = $("#auth-avatar-crop-zoom");
 const avatarCropCancel = $("#auth-avatar-crop-cancel");
 const avatarCropConfirm = $("#auth-avatar-crop-confirm");
 const lgpdStatus = $("#auth-lgpd-status");
+const saveButton = $("#auth-profile-save");
+const unsavedDialog = $("#auth-unsaved");
 
 const avatarCropState = {
   file: null,
@@ -113,6 +116,11 @@ let mode = "entrar";
 let currentUser = null;
 let currentProfile = null;
 let currentPhone = "";
+let savedAccountSnapshot = null;
+let leavingAccount = false;
+let historyGuardArmed = false;
+let pendingLeave = null;
+let unsavedReturnFocus = null;
 let busy = false;
 let captchaToken = "";
 let captchaWidget = null;
@@ -390,6 +398,7 @@ async function renderAccount() {
   birthDateError.textContent = "";
   setPhoneError("");
   avatarStatus.textContent = "";
+  savedAccountSnapshot = null;
   const [profileResult, phoneResult] = await Promise.allSettled([getMyProfile(), getMyPhone()]);
   currentProfile = profileResult.status === "fulfilled" ? profileResult.value : null;
   currentPhone = phoneResult.status === "fulfilled" ? phoneResult.value || "" : "";
@@ -402,6 +411,189 @@ async function renderAccount() {
   } else if (phoneResult.status === "rejected") {
     setPhoneError("Não foi possível carregar o telefone salvo agora.");
   }
+  markAccountClean();
+}
+
+function accountSnapshot() {
+  return JSON.stringify([birthDateInput.value, phoneDigits(phoneInput.value), accountConsentInput.checked]);
+}
+
+function markAccountClean() {
+  savedAccountSnapshot = accountSnapshot();
+}
+
+function hasUnsavedChanges() {
+  return mode === "conta" && !leavingAccount && savedAccountSnapshot !== null && accountSnapshot() !== savedAccountSnapshot;
+}
+
+/** An extra same-URL history entry lets the browser back button land on `popstate` instead of unloading. */
+function armHistoryGuard() {
+  if (historyGuardArmed || !hasUnsavedChanges()) return;
+  history.pushState({ bdcUnsaved: true }, "", location.href);
+  historyGuardArmed = true;
+}
+
+/** Validates and saves Seus dados; returns whether everything was stored. */
+async function saveAccount() {
+  if (busy) return false;
+  const birthError = validateBirthDate(birthDateInput.value);
+  birthDateError.textContent = birthError;
+  const phoneMessage = validatePhone(phoneInput.value);
+  setPhoneError(phoneMessage);
+  if (birthError || phoneMessage) {
+    (birthError ? birthDateInput : phoneInput).focus();
+    return false;
+  }
+  if (!accountConsentInput.checked && !hasCurrentConsent(currentProfile)) {
+    setLgpdStatus("Marque a autorização para salvar seus dados.", "error");
+    accountConsentInput.focus();
+    return false;
+  }
+  const phone = toE164Phone(phoneInput.value);
+  let profileSaved = false;
+  busy = true;
+  saveButton.setAttribute("aria-busy", "true");
+  setStatus("");
+  try {
+    currentProfile = await updateMyProfile({
+      birthDate: birthDateInput.value,
+      grantConsent: accountConsentInput.checked,
+    });
+    profileSaved = true;
+    renderAvatar(currentProfile);
+    renderLgpd(currentProfile);
+    if (phone !== currentPhone) {
+      await setMyPhone(phone);
+      currentPhone = phone;
+      setPhoneValue(currentPhone);
+    }
+    markAccountClean();
+    return true;
+  } catch (error) {
+    if (!profileSaved) {
+      setStatus(authErrorMessage(error), "error");
+    } else {
+      const message = phoneErrorMessage(error);
+      setPhoneError(message);
+      setStatus(`Aniversário salvo, mas o telefone não. ${message}`, "error");
+    }
+    status.scrollIntoView({ block: "center", behavior: "smooth" });
+    return false;
+  } finally {
+    busy = false;
+    saveButton.removeAttribute("aria-busy");
+  }
+}
+
+function leaveAccount(action) {
+  if (action.type === "hash") {
+    historyGuardArmed = false;
+    location.hash = action.hash;
+    return;
+  }
+  if (action.type === "signout") {
+    void signOutAndReset();
+    return;
+  }
+  leavingAccount = true;
+  if (action.type === "back") history.back();
+  else if (action.type === "replace") location.replace(action.href);
+  else location.assign(action.href);
+}
+
+function openUnsavedDialog(action) {
+  pendingLeave = action;
+  unsavedReturnFocus = document.activeElement;
+  if (typeof unsavedDialog.showModal === "function") unsavedDialog.showModal();
+  else unsavedDialog.setAttribute("open", "");
+  $("#auth-unsaved-save").focus();
+}
+
+function closeUnsavedDialog() {
+  if (unsavedDialog.open) unsavedDialog.close();
+  else unsavedDialog.removeAttribute("open");
+  const action = pendingLeave;
+  pendingLeave = null;
+  return action;
+}
+
+function stayOnAccount() {
+  const action = closeUnsavedDialog();
+  if (action?.type === "back") armHistoryGuard();
+  if (unsavedReturnFocus?.isConnected) unsavedReturnFocus.focus({ preventScroll: true });
+  unsavedReturnFocus = null;
+}
+
+function bindUnsavedGuard() {
+  profileForm.addEventListener("input", armHistoryGuard);
+  profileForm.addEventListener("change", armHistoryGuard);
+
+  document.addEventListener("click", (event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const link = event.target.closest?.("a[href]");
+    if (!link || link.closest("#auth-unsaved") || link.target === "_blank" || link.hasAttribute("download")) return;
+    if (!hasUnsavedChanges()) return;
+    const url = new URL(link.href, location.href);
+    const samePage = url.origin === location.origin && url.pathname === location.pathname && url.search === location.search;
+    if (samePage && url.hash === location.hash) return;
+    event.preventDefault();
+    openUnsavedDialog(samePage && url.hash ? { type: "hash", hash: url.hash } : { type: "href", href: url.href });
+  }, true);
+
+  window.addEventListener("popstate", () => {
+    if (!historyGuardArmed) return;
+    historyGuardArmed = false;
+    if (hasUnsavedChanges()) openUnsavedDialog({ type: "back" });
+    else history.back();
+  });
+
+  window.addEventListener("pageshow", (event) => {
+    if (!event.persisted) return;
+    leavingAccount = false;
+    historyGuardArmed = false;
+    if (mode === "conta") void renderAccount();
+  });
+
+  window.addEventListener("beforeunload", (event) => {
+    if (!hasUnsavedChanges()) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
+
+  $("#auth-unsaved-close").addEventListener("click", stayOnAccount);
+  unsavedDialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    stayOnAccount();
+  });
+  unsavedDialog.addEventListener("click", (event) => {
+    if (event.target === unsavedDialog) stayOnAccount();
+  });
+  unsavedDialog.addEventListener("keydown", (event) => {
+    if (event.key !== "Tab") return;
+    const items = [...unsavedDialog.querySelectorAll("button:not([disabled])")];
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+  $("#auth-unsaved-discard").addEventListener("click", () => {
+    const action = closeUnsavedDialog();
+    savedAccountSnapshot = null;
+    if (action) leaveAccount(action);
+  });
+  $("#auth-unsaved-save").addEventListener("click", async () => {
+    const action = closeUnsavedDialog();
+    if (await saveAccount()) {
+      if (action) leaveAccount(action);
+    } else if (action?.type === "back") {
+      armHistoryGuard();
+    }
+  });
 }
 
 async function setupCaptcha() {
@@ -430,6 +622,13 @@ function resetCaptcha() {
   if (!captchaSiteKey || !window.turnstile || typeof captchaWidget !== "string" || captchaWidget === "loading") return;
   captchaToken = "";
   window.turnstile.reset(captchaWidget);
+}
+
+async function signOutAndReset() {
+  await signOut();
+  currentUser = null;
+  setMode("entrar", { keepStatus: true });
+  setStatus("Você saiu da sua conta.", "success");
 }
 
 function goNext() {
@@ -533,53 +732,13 @@ function bindEvents() {
   });
   profileForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (busy) return;
-    const birthError = validateBirthDate(birthDateInput.value);
-    birthDateError.textContent = birthError;
-    const phoneMessage = validatePhone(phoneInput.value);
-    setPhoneError(phoneMessage);
-    if (birthError || phoneMessage) {
-      (birthError ? birthDateInput : phoneInput).focus();
-      return;
-    }
-    if (!accountConsentInput.checked && !hasCurrentConsent(currentProfile)) {
-      setLgpdStatus("Marque a autorização para salvar seus dados.", "error");
-      accountConsentInput.focus();
-      return;
-    }
-    const phone = toE164Phone(phoneInput.value);
-    const saveButton = $("#auth-profile-save");
-    let profileSaved = false;
-    busy = true;
-    saveButton.setAttribute("aria-busy", "true");
-    setStatus("");
-    try {
-      currentProfile = await updateMyProfile({
-        birthDate: birthDateInput.value,
-        grantConsent: accountConsentInput.checked,
-      });
-      profileSaved = true;
-      renderAvatar(currentProfile);
-      renderLgpd(currentProfile);
-      if (phone !== currentPhone) {
-        await setMyPhone(phone);
-        currentPhone = phone;
-        setPhoneValue(currentPhone);
-      }
-      setStatus("Dados salvos.", "success");
-    } catch (error) {
-      if (!profileSaved) {
-        setStatus(authErrorMessage(error), "error");
-      } else {
-        const message = phoneErrorMessage(error);
-        setPhoneError(message);
-        setStatus(`Aniversário salvo, mas o telefone não. ${message}`, "error");
-      }
-    } finally {
-      busy = false;
-      saveButton.removeAttribute("aria-busy");
-    }
+    if (!(await saveAccount())) return;
+    leaveAccount({
+      type: "replace",
+      href: accountReturnUrl({ next: params.get("next"), referrer: document.referrer, current: location.href }),
+    });
   });
+  bindUnsavedGuard();
   avatarInput?.addEventListener("change", async () => {
     const file = avatarInput.files?.[0];
     avatarInput.value = "";
@@ -700,11 +859,9 @@ function bindEvents() {
     });
   });
 
-  $("#auth-signout").addEventListener("click", async () => {
-    await signOut();
-    currentUser = null;
-    setMode("entrar", { keepStatus: true });
-    setStatus("Você saiu da sua conta.", "success");
+  $("#auth-signout").addEventListener("click", () => {
+    if (hasUnsavedChanges()) openUnsavedDialog({ type: "signout" });
+    else void signOutAndReset();
   });
 
   const deleteButton = $("#auth-delete");

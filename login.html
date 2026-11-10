@@ -221,7 +221,6 @@
                     <p>Guardamos o mínimo: nome, e-mail, foto, aniversário e telefone, só no seu usuário e com acesso restrito. O telefone fica criptografado e a senha só existe em hash no serviço de autenticação. Você pode apagar qualquer campo ou excluir a conta quando quiser.</p>
                   </details>
                 </div>
-                <button id="auth-profile-save" class="auth-submit" type="submit">Salvar</button>
               </form>
             </section>
 
@@ -233,13 +232,15 @@
               </div>
               <button id="auth-delete" class="auth-danger" type="button">Excluir minha conta</button>
             </section>
+
+            <button id="auth-profile-save" class="auth-submit auth-account-save" type="submit" form="auth-profile-form">Salvar</button>
           </div>
         </div>
 
         <div class="auth-card-footer">
           <p data-modes="entrar link">Novo no Bar da Cácia? <a class="auth-footer-link" href="#cadastrar">Cadastrar</a></p>
           <p data-modes="cadastrar redefinir">Já tem conta? <a class="auth-footer-link" href="#entrar">Entrar</a></p>
-          <p data-modes="nova-senha conta"><a class="auth-footer-link" href="index.html">Voltar ao catálogo</a></p>
+          <p data-modes="nova-senha"><a class="auth-footer-link" href="index.html">Voltar ao catálogo</a></p>
         </div>
       </section>
     </main>
@@ -267,6 +268,20 @@
         <div class="auth-avatar-crop-actions">
           <button id="auth-avatar-crop-cancel" class="auth-secondary" type="button">Cancelar</button>
           <button id="auth-avatar-crop-confirm" class="auth-submit" type="button">Definir Foto</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="auth-unsaved" class="auth-confirm" aria-modal="true" aria-labelledby="auth-unsaved-title" aria-describedby="auth-unsaved-text">
+      <div class="auth-confirm-panel">
+        <button id="auth-unsaved-close" class="auth-confirm-close" type="button" aria-label="Continuar editando">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+        </button>
+        <h2 id="auth-unsaved-title" class="auth-confirm-title">Salvar as alterações?</h2>
+        <p id="auth-unsaved-text" class="auth-confirm-text">Você mudou seus dados e ainda não salvou.</p>
+        <div class="auth-confirm-actions">
+          <button id="auth-unsaved-discard" class="auth-secondary" type="button">Não</button>
+          <button id="auth-unsaved-save" class="auth-submit" type="button">Sim</button>
         </div>
       </div>
     </dialog>

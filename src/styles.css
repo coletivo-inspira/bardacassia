@@ -4006,6 +4006,65 @@ dialog.discover-screen::backdrop { background: var(--bg); }
 :root[data-theme="light"] .auth-secondary { border-color: rgba(32, 35, 31, .22); }
 .auth-danger { border: 0; background: transparent; color: var(--coral); font-size: .85rem; }
 .auth-danger:hover { text-decoration: underline; }
+.auth-account-save {
+  justify-self: center;
+  width: min(100%, 320px);
+  margin-top: 0;
+}
+.auth-card[data-mode="conta"] .auth-card-footer { display: none; }
+.auth-confirm {
+  width: min(360px, calc(100% - 2rem));
+  max-width: none;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--text);
+}
+.auth-confirm::backdrop {
+  background: rgba(8, 8, 8, .6);
+  backdrop-filter: blur(4px);
+}
+.auth-confirm-panel {
+  position: relative;
+  display: grid;
+  gap: .6rem;
+  padding: 1.5rem 1.25rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg-soft);
+  box-shadow: 0 22px 48px rgba(0, 0, 0, .45);
+  text-align: center;
+}
+:root[data-theme="light"] .auth-confirm-panel { background: var(--paper); box-shadow: 0 18px 40px rgba(32, 35, 31, .18); }
+.auth-confirm-title { margin: 0; padding: 0 1.75rem; font: 700 1.2rem/1.2 var(--font-display); }
+.auth-confirm-text { margin: 0 0 .4rem; color: var(--muted); font-size: .9rem; line-height: 1.4; }
+.auth-confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
+.auth-confirm-actions .auth-submit { margin: 0; }
+.auth-confirm-close {
+  position: absolute;
+  top: .5rem;
+  right: .5rem;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.auth-confirm-close:hover, .auth-confirm-close:focus-visible { color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
+.auth-confirm-close svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+@media (max-width: 719px) {
+  .auth-confirm { width: 100%; border-radius: 20px 20px 0 0; }
+  .auth-confirm-panel {
+    border-width: 1px 0 0;
+    border-radius: 20px 20px 0 0;
+    padding-bottom: max(1.25rem, calc(1rem + env(safe-area-inset-bottom)));
+  }
+}
 .auth-card-footer { padding: 1.15rem 1.9rem 1.4rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .88rem; text-align: center; }
 .auth-card-footer p { margin: 0; }
 .auth-footer-link { color: var(--auth-primary); font-weight: 700; text-decoration: none; }

@@ -72,6 +72,22 @@ export function safeNextPath(value, fallback = "index.html") {
   return next.replace(/^\/+/, "");
 }
 
+/**
+ * Where Minha conta returns after saving: the `next` param, else a same-origin
+ * referrer that is not the login page itself, else the catalog.
+ */
+export function accountReturnUrl({ next, referrer, current }) {
+  const here = new URL(current);
+  if (String(next ?? "").trim()) return new URL(safeNextPath(next), here).href;
+  try {
+    const from = new URL(referrer);
+    if (from.origin === here.origin && from.pathname !== here.pathname) return from.href;
+  } catch {
+    /* no usable referrer */
+  }
+  return new URL("index.html", here).href;
+}
+
 const ERROR_MESSAGES = [
   [/invalid login credentials|invalid_credentials/i, "E-mail ou senha inválidos."],
   [/email not confirmed|email_not_confirmed/i, "Confirme seu e-mail pelo link que enviamos antes de entrar."],
