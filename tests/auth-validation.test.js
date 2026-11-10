@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  accountReturnUrl,
   authErrorMessage,
   normalizeEmail,
   passwordStrength,
@@ -69,4 +70,15 @@ test("auth errors map to generic Portuguese messages", () => {
   assert.match(authErrorMessage({ code: "over_request_rate_limit" }), /Muitas tentativas/);
   assert.match(authErrorMessage(new TypeError("Failed to fetch")), /conexão/);
   assert.equal(authErrorMessage({ message: "boom" }), "Não foi possível concluir agora. Tente novamente.");
+});
+
+test("accountReturnUrl prefers next, then a same-origin referrer, then the catalog", () => {
+  const current = "https://cacia.example/login.html?next=o-bar.html#conta";
+  assert.equal(accountReturnUrl({ next: "o-bar.html", referrer: "https://cacia.example/evento.html", current }), "https://cacia.example/o-bar.html");
+  assert.equal(accountReturnUrl({ next: "https://evil.example/", referrer: "", current }), "https://cacia.example/index.html");
+  const plain = "https://cacia.example/login.html#conta";
+  assert.equal(accountReturnUrl({ next: null, referrer: "https://cacia.example/evento.html#agenda", current: plain }), "https://cacia.example/evento.html#agenda");
+  assert.equal(accountReturnUrl({ next: "", referrer: "https://other.example/index.html", current: plain }), "https://cacia.example/index.html");
+  assert.equal(accountReturnUrl({ next: "", referrer: "https://cacia.example/login.html#entrar", current: plain }), "https://cacia.example/index.html");
+  assert.equal(accountReturnUrl({ next: undefined, referrer: "", current: plain }), "https://cacia.example/index.html");
 });

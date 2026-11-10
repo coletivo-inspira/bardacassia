@@ -32,6 +32,65 @@ export function validateBirthDate(value) {
   return "";
 }
 
+/** Area codes in use in Brazil (Anatel). */
+const BR_AREA_CODES = new Set([
+  11, 12, 13, 14, 15, 16, 17, 18, 19,
+  21, 22, 24, 27, 28,
+  31, 32, 33, 34, 35, 37, 38,
+  41, 42, 43, 44, 45, 46, 47, 48, 49,
+  51, 53, 54, 55,
+  61, 62, 63, 64, 65, 66, 67, 68, 69,
+  71, 73, 74, 75, 77, 79,
+  81, 82, 83, 84, 85, 86, 87, 88, 89,
+  91, 92, 93, 94, 95, 96, 97, 98, 99,
+]);
+
+/** National digits (DDD + number, at most 11) from typed text or an E.164 `+55…` value. */
+export function phoneDigits(value) {
+  const raw = String(value || "").trim();
+  let digits = raw.replace(/\D/g, "");
+  if (raw.startsWith("+")) {
+    if (!digits.startsWith("55")) return "";
+    digits = digits.slice(2);
+  }
+  return digits.slice(0, 11);
+}
+
+/** Progressive `(00) 00000-0000` mask; 10 digits render as `(00) 0000-0000`. */
+export function formatPhoneMask(value) {
+  const digits = phoneDigits(value);
+  if (!digits) return "";
+  if (digits.length <= 2) return `(${digits}`;
+  const ddd = digits.slice(0, 2);
+  const rest = digits.slice(2);
+  if (rest.length <= 4) return `(${ddd}) ${rest}`;
+  const split = rest.length === 9 ? 5 : 4;
+  return `(${ddd}) ${rest.slice(0, split)}-${rest.slice(split)}`;
+}
+
+export function validatePhone(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("+") && !raw.replace(/\D/g, "").startsWith("55")) {
+    return "Use um telefone do Brasil, com DDD.";
+  }
+  const digits = phoneDigits(raw);
+  if (digits.length < 10) return "Informe o DDD e o número completo.";
+  if (!BR_AREA_CODES.has(Number(digits.slice(0, 2)))) return "DDD inválido.";
+  if (digits.length === 11 && digits[2] !== "9") return "Celular precisa começar com 9 depois do DDD.";
+  if (digits.length === 10 && !/[2-5]/.test(digits[2])) {
+    return "Número inválido. Celular tem 9 dígitos e começa com 9.";
+  }
+  return "";
+}
+
+/** `+55DDNNNNNNNNN` for a valid phone, `""` for empty, `null` for invalid input. */
+export function toE164Phone(value) {
+  if (!String(value || "").trim()) return "";
+  if (validatePhone(value)) return null;
+  return `+55${phoneDigits(value)}`;
+}
+
 export function profileInitials(name, email = "") {
   const fromName = String(name || "")
     .trim()

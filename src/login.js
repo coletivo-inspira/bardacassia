@@ -15,9 +15,10 @@ import {
   signUp,
   updatePassword,
 } from "./integrations/auth.js";
-import { getMyProfile, hasCurrentConsent, updateMyProfile, uploadMyAvatar } from "./integrations/profile.js";
+import { getMyPhone, getMyProfile, hasCurrentConsent, setMyPhone, updateMyProfile, uploadMyAvatar } from "./integrations/profile.js";
 import { getPersistSession } from "./integrations/supabase.js";
 import {
+  accountReturnUrl,
   authErrorMessage,
   passwordStrength,
   safeNextPath,
@@ -31,10 +32,13 @@ import {
   clampAvatarViewport,
   compressAvatarFile,
   cropRectFromViewport,
-  DATA_CONSENT_VERSION,
+  formatPhoneMask,
   minCoverScale,
+  phoneDigits,
   profileInitials,
+  toE164Phone,
   validateBirthDate,
+  validatePhone,
 } from "./lib/profile.js";
 
 initializeTheme();
@@ -68,6 +72,8 @@ const consentError = $("#auth-consent-error");
 const accountConsentInput = $("#auth-account-consent");
 const birthDateInput = $("#auth-birth-date");
 const birthDateError = $("#auth-birth-date-error");
+const phoneInput = $("#auth-phone");
+const phoneError = $("#auth-phone-error");
 const profileForm = $("#auth-profile-form");
 const avatarImage = $("#auth-account-avatar");
 const avatarInitials = $("#auth-account-initials");
@@ -80,7 +86,8 @@ const avatarCropZoom = $("#auth-avatar-crop-zoom");
 const avatarCropCancel = $("#auth-avatar-crop-cancel");
 const avatarCropConfirm = $("#auth-avatar-crop-confirm");
 const lgpdStatus = $("#auth-lgpd-status");
-const headerThemeToggle = $("#theme-toggle");
+const saveButton = $("#auth-profile-save");
+const unsavedDialog = $("#auth-unsaved");
 
 const avatarCropState = {
   file: null,
@@ -108,6 +115,12 @@ const urlError = params.get("error_description") || new URLSearchParams(location
 let mode = "entrar";
 let currentUser = null;
 let currentProfile = null;
+let currentPhone = "";
+let savedAccountSnapshot = null;
+let leavingAccount = false;
+let historyGuardArmed = false;
+let pendingLeave = null;
+let unsavedReturnFocus = null;
 let busy = false;
 let captchaToken = "";
 let captchaWidget = null;
@@ -196,7 +209,6 @@ function setMode(next, { keepStatus = false } = {}) {
   });
   $("#auth-social").hidden = !authProviders.length || !["entrar", "cadastrar"].includes(mode);
   $("#auth-captcha").hidden = !(captchaSiteKey && CAPTCHA_MODES.has(mode));
-  if (headerThemeToggle) headerThemeToggle.hidden = mode === "conta";
   if (mode === "conta") void renderAccount();
   initializeTheme();
 
@@ -325,36 +337,263 @@ function currentAvatarCropRect() {
   });
 }
 
+function setLgpdStatus(message, tone = "info") {
+  lgpdStatus.textContent = message;
+  lgpdStatus.dataset.tone = tone;
+}
+
 function renderLgpd(profile) {
   if (hasCurrentConsent(profile)) {
     const when = profile.data_consent_at ? new Date(profile.data_consent_at) : null;
-    const stamp = when && !Number.isNaN(when.getTime())
-      ? when.toLocaleDateString("pt-BR")
-      : "agora";
-    lgpdStatus.textContent = `Consentimento LGPD ativo (versão ${DATA_CONSENT_VERSION}) desde ${stamp}.`;
+    setLgpdStatus(when && !Number.isNaN(when.getTime()) ? `Autorizado em ${when.toLocaleDateString("pt-BR")}.` : "");
     accountConsentInput.checked = true;
   } else {
-    lgpdStatus.textContent = "Ainda falta sua autorização atualizada para uso dos dados (LGPD).";
+    setLgpdStatus("");
     accountConsentInput.checked = false;
   }
+}
+
+function setPhoneError(message) {
+  phoneError.textContent = message;
+  phoneInput.setAttribute("aria-invalid", String(Boolean(message)));
+}
+
+function phoneErrorMessage(error) {
+  const text = `${error?.code || ""} ${error?.message || ""}`;
+  if (/22023|invalid phone/i.test(text)) return "Telefone inválido. Confira o DDD e o número.";
+  if (/failed to fetch|network|load failed/i.test(text)) return authErrorMessage(error);
+  return "Não foi possível salvar o telefone agora. Tente novamente.";
+}
+
+/** Re-mask while keeping the caret after the same number of digits. */
+function maskPhoneInput(event) {
+  const raw = phoneInput.value;
+  const caret = phoneInput.selectionStart ?? raw.length;
+  let digits = phoneDigits(raw);
+  let digitsBeforeCaret = phoneDigits(raw.slice(0, caret)).length;
+  const previousDigits = phoneDigits(phoneInput.dataset.previous || "");
+  if (event?.inputType === "deleteContentBackward" && digits === previousDigits && digitsBeforeCaret > 0) {
+    digits = digits.slice(0, digitsBeforeCaret - 1) + digits.slice(digitsBeforeCaret);
+    digitsBeforeCaret -= 1;
+  }
+  const masked = formatPhoneMask(digits);
+  phoneInput.value = masked;
+  phoneInput.dataset.previous = masked;
+  if (document.activeElement !== phoneInput) return;
+  let position = 0;
+  for (let seen = 0; position < masked.length && seen < digitsBeforeCaret; position += 1) {
+    if (/\d/.test(masked[position])) seen += 1;
+  }
+  phoneInput.setSelectionRange(position, position);
+}
+
+function setPhoneValue(e164) {
+  phoneInput.value = formatPhoneMask(e164 || "");
+  phoneInput.dataset.previous = phoneInput.value;
 }
 
 async function renderAccount() {
   $("#auth-account-name").textContent = displayName(currentUser);
   $("#auth-account-email").textContent = currentUser?.email || "—";
-  $("#auth-continue").href = nextPath;
-  $("#auth-favorites").href = new URL("index.html#favoritas", location.href).href;
   birthDateError.textContent = "";
+  setPhoneError("");
   avatarStatus.textContent = "";
-  try {
-    currentProfile = await getMyProfile();
-  } catch {
-    currentProfile = null;
-    lgpdStatus.textContent = "Não foi possível carregar o perfil agora. Você ainda pode usar o catálogo.";
-  }
+  savedAccountSnapshot = null;
+  const [profileResult, phoneResult] = await Promise.allSettled([getMyProfile(), getMyPhone()]);
+  currentProfile = profileResult.status === "fulfilled" ? profileResult.value : null;
+  currentPhone = phoneResult.status === "fulfilled" ? phoneResult.value || "" : "";
   birthDateInput.value = currentProfile?.birth_date || "";
+  setPhoneValue(currentPhone);
   renderAvatar(currentProfile);
   renderLgpd(currentProfile);
+  if (profileResult.status === "rejected") {
+    setLgpdStatus("Não foi possível carregar o perfil agora. Você ainda pode usar o catálogo.", "error");
+  } else if (phoneResult.status === "rejected") {
+    setPhoneError("Não foi possível carregar o telefone salvo agora.");
+  }
+  markAccountClean();
+}
+
+function accountSnapshot() {
+  return JSON.stringify([birthDateInput.value, phoneDigits(phoneInput.value), accountConsentInput.checked]);
+}
+
+function markAccountClean() {
+  savedAccountSnapshot = accountSnapshot();
+}
+
+function hasUnsavedChanges() {
+  return mode === "conta" && !leavingAccount && savedAccountSnapshot !== null && accountSnapshot() !== savedAccountSnapshot;
+}
+
+/** An extra same-URL history entry lets the browser back button land on `popstate` instead of unloading. */
+function armHistoryGuard() {
+  if (historyGuardArmed || !hasUnsavedChanges()) return;
+  history.pushState({ bdcUnsaved: true }, "", location.href);
+  historyGuardArmed = true;
+}
+
+/** Validates and saves Seus dados; returns whether everything was stored. */
+async function saveAccount() {
+  if (busy) return false;
+  const birthError = validateBirthDate(birthDateInput.value);
+  birthDateError.textContent = birthError;
+  const phoneMessage = validatePhone(phoneInput.value);
+  setPhoneError(phoneMessage);
+  if (birthError || phoneMessage) {
+    (birthError ? birthDateInput : phoneInput).focus();
+    return false;
+  }
+  if (!accountConsentInput.checked && !hasCurrentConsent(currentProfile)) {
+    setLgpdStatus("Marque a autorização para salvar seus dados.", "error");
+    accountConsentInput.focus();
+    return false;
+  }
+  const phone = toE164Phone(phoneInput.value);
+  let profileSaved = false;
+  busy = true;
+  saveButton.setAttribute("aria-busy", "true");
+  setStatus("");
+  try {
+    currentProfile = await updateMyProfile({
+      birthDate: birthDateInput.value,
+      grantConsent: accountConsentInput.checked,
+    });
+    profileSaved = true;
+    renderAvatar(currentProfile);
+    renderLgpd(currentProfile);
+    if (phone !== currentPhone) {
+      await setMyPhone(phone);
+      currentPhone = phone;
+      setPhoneValue(currentPhone);
+    }
+    markAccountClean();
+    return true;
+  } catch (error) {
+    if (!profileSaved) {
+      setStatus(authErrorMessage(error), "error");
+    } else {
+      const message = phoneErrorMessage(error);
+      setPhoneError(message);
+      setStatus(`Aniversário salvo, mas o telefone não. ${message}`, "error");
+    }
+    status.scrollIntoView({ block: "center", behavior: "smooth" });
+    return false;
+  } finally {
+    busy = false;
+    saveButton.removeAttribute("aria-busy");
+  }
+}
+
+function leaveAccount(action) {
+  if (action.type === "hash") {
+    historyGuardArmed = false;
+    location.hash = action.hash;
+    return;
+  }
+  if (action.type === "signout") {
+    void signOutAndReset();
+    return;
+  }
+  leavingAccount = true;
+  if (action.type === "back") history.back();
+  else if (action.type === "replace") location.replace(action.href);
+  else location.assign(action.href);
+}
+
+function openUnsavedDialog(action) {
+  pendingLeave = action;
+  unsavedReturnFocus = document.activeElement;
+  if (typeof unsavedDialog.showModal === "function") unsavedDialog.showModal();
+  else unsavedDialog.setAttribute("open", "");
+  $("#auth-unsaved-save").focus();
+}
+
+function closeUnsavedDialog() {
+  if (unsavedDialog.open) unsavedDialog.close();
+  else unsavedDialog.removeAttribute("open");
+  const action = pendingLeave;
+  pendingLeave = null;
+  return action;
+}
+
+function stayOnAccount() {
+  const action = closeUnsavedDialog();
+  if (action?.type === "back") armHistoryGuard();
+  if (unsavedReturnFocus?.isConnected) unsavedReturnFocus.focus({ preventScroll: true });
+  unsavedReturnFocus = null;
+}
+
+function bindUnsavedGuard() {
+  profileForm.addEventListener("input", armHistoryGuard);
+  profileForm.addEventListener("change", armHistoryGuard);
+
+  document.addEventListener("click", (event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const link = event.target.closest?.("a[href]");
+    if (!link || link.closest("#auth-unsaved") || link.target === "_blank" || link.hasAttribute("download")) return;
+    if (!hasUnsavedChanges()) return;
+    const url = new URL(link.href, location.href);
+    const samePage = url.origin === location.origin && url.pathname === location.pathname && url.search === location.search;
+    if (samePage && url.hash === location.hash) return;
+    event.preventDefault();
+    openUnsavedDialog(samePage && url.hash ? { type: "hash", hash: url.hash } : { type: "href", href: url.href });
+  }, true);
+
+  window.addEventListener("popstate", () => {
+    if (!historyGuardArmed) return;
+    historyGuardArmed = false;
+    if (hasUnsavedChanges()) openUnsavedDialog({ type: "back" });
+    else history.back();
+  });
+
+  window.addEventListener("pageshow", (event) => {
+    if (!event.persisted) return;
+    leavingAccount = false;
+    historyGuardArmed = false;
+    if (mode === "conta") void renderAccount();
+  });
+
+  window.addEventListener("beforeunload", (event) => {
+    if (!hasUnsavedChanges()) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
+
+  $("#auth-unsaved-close").addEventListener("click", stayOnAccount);
+  unsavedDialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    stayOnAccount();
+  });
+  unsavedDialog.addEventListener("click", (event) => {
+    if (event.target === unsavedDialog) stayOnAccount();
+  });
+  unsavedDialog.addEventListener("keydown", (event) => {
+    if (event.key !== "Tab") return;
+    const items = [...unsavedDialog.querySelectorAll("button:not([disabled])")];
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+  $("#auth-unsaved-discard").addEventListener("click", () => {
+    const action = closeUnsavedDialog();
+    savedAccountSnapshot = null;
+    if (action) leaveAccount(action);
+  });
+  $("#auth-unsaved-save").addEventListener("click", async () => {
+    const action = closeUnsavedDialog();
+    if (await saveAccount()) {
+      if (action) leaveAccount(action);
+    } else if (action?.type === "back") {
+      armHistoryGuard();
+    }
+  });
 }
 
 async function setupCaptcha() {
@@ -383,6 +622,13 @@ function resetCaptcha() {
   if (!captchaSiteKey || !window.turnstile || typeof captchaWidget !== "string" || captchaWidget === "loading") return;
   captchaToken = "";
   window.turnstile.reset(captchaWidget);
+}
+
+async function signOutAndReset() {
+  await signOut();
+  currentUser = null;
+  setMode("entrar", { keepStatus: true });
+  setStatus("Você saiu da sua conta.", "success");
 }
 
 function goNext() {
@@ -474,35 +720,25 @@ function bindEvents() {
   birthDateInput?.addEventListener("change", () => {
     birthDateError.textContent = validateBirthDate(birthDateInput.value);
   });
+  phoneInput?.addEventListener("input", (event) => {
+    maskPhoneInput(event);
+    if (phoneInput.getAttribute("aria-invalid") === "true") setPhoneError(validatePhone(phoneInput.value));
+  });
+  phoneInput?.addEventListener("blur", () => {
+    setPhoneError(validatePhone(phoneInput.value));
+  });
+  accountConsentInput?.addEventListener("change", () => {
+    if (lgpdStatus.dataset.tone === "error") setLgpdStatus("");
+  });
   profileForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (busy) return;
-    const birthError = validateBirthDate(birthDateInput.value);
-    birthDateError.textContent = birthError;
-    if (birthError) {
-      birthDateInput.focus();
-      return;
-    }
-    if (!accountConsentInput.checked && !hasCurrentConsent(currentProfile)) {
-      lgpdStatus.textContent = "Marque a autorização LGPD para salvar o perfil.";
-      accountConsentInput.focus();
-      return;
-    }
-    busy = true;
-    try {
-      currentProfile = await updateMyProfile({
-        birthDate: birthDateInput.value,
-        grantConsent: accountConsentInput.checked,
-      });
-      renderAvatar(currentProfile);
-      renderLgpd(currentProfile);
-      setStatus("Perfil atualizado.", "success");
-    } catch (error) {
-      setStatus(authErrorMessage(error), "error");
-    } finally {
-      busy = false;
-    }
+    if (!(await saveAccount())) return;
+    leaveAccount({
+      type: "replace",
+      href: accountReturnUrl({ next: params.get("next"), referrer: document.referrer, current: location.href }),
+    });
   });
+  bindUnsavedGuard();
   avatarInput?.addEventListener("change", async () => {
     const file = avatarInput.files?.[0];
     avatarInput.value = "";
@@ -623,11 +859,9 @@ function bindEvents() {
     });
   });
 
-  $("#auth-signout").addEventListener("click", async () => {
-    await signOut();
-    currentUser = null;
-    setMode("entrar", { keepStatus: true });
-    setStatus("Você saiu da sua conta.", "success");
+  $("#auth-signout").addEventListener("click", () => {
+    if (hasUnsavedChanges()) openUnsavedDialog({ type: "signout" });
+    else void signOutAndReset();
   });
 
   const deleteButton = $("#auth-delete");

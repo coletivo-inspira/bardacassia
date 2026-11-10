@@ -95,13 +95,14 @@ Aplicar **sempre** com o workflow (session pooler IPv4 no Actions). A ordem no d
 | Migração | Objetos principais | RPCs / APIs públicas |
 | --- | --- | --- |
 | `001_song_popularity.sql` | `catalog_codes`, `song_interactions`, `private.write_limits` | `record_song_open`, `set_song_favorite`, `get_popular_songs`; `sync_catalog_codes` (**service_role**) |
-| `002_auth_profiles.sql` | `profiles`, `private.profile_secrets`, trigger de perfil | `set_my_phone`, `get_my_phone` (SQL pronto; **sem UI** ainda) |
+| `002_auth_profiles.sql` | `profiles`, `private.profile_secrets`, trigger de perfil | `set_my_phone`, `get_my_phone` (telefone de Minha conta, E.164) |
 | `003_favorites_sync.sql` | — | `sync_my_favorites` |
 | `004_song_requests.sql` | `staff`, `bar_settings`, `song_requests` | `create_song_request` (depois redefinida), `get_my_requests`, `get_public_queue`, `staff_*` básicos |
 | `005_staff_qr_requests.sql` | papel em `staff`, campos QR em pedidos | `staff_add_request`, `staff_list_played`, `staff_whoami`, `get_ticket_status` |
 | `006_owner_metrics.sql` | — | `owner_metrics` |
 | `007_request_presence.sql` | código da noite em `bar_settings` | `create_song_request` (4 args), `staff_get_night_code`, `staff_set_night_code` |
 | `008_profile_extras.sql` | colunas LGPD/avatar em `profiles`, bucket `avatars` | PostgREST em `profiles` + Storage policies |
+| `009_profile_phone_key.sql` | chave Vault `profile_encryption_key` (só se faltar) | grants de `set_my_phone` / `get_my_phone` |
 
 Quase todas as tabelas usam **RLS com revoke** para `anon`/`authenticated` e acesso via funções `security definer`. Exceções conscientes: `profiles` (select/update próprio) e Storage `avatars` (pasta = `auth.uid()`).
 
@@ -155,10 +156,10 @@ Se `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` ou `SUPABASE_PROJECT_REF` fal
 
 1. Secrets/variáveis do Actions preenchidos (tabela acima). Se o pooler auto falhar, adicione `SUPABASE_DB_URL` (Session, porta 5432).
 2. Painel Auth: Anonymous Sign-Ins, e-mail com confirmação, **Site URL** = `…/login.html` (não `localhost:3000`), Redirect URLs do domínio + Pages + `localhost:5173`, templates de e-mail a partir de `supabase/email-templates/`.
-3. **Actions → Deploy Supabase** verde (migrações `001`–`008` + functions).
-4. SQL Editor (uma vez): chave Vault `profile_encryption_key` (ver Integrações).
+3. **Actions → Deploy Supabase** verde (migrações `001`–`009` + functions; a `009` cria a chave Vault `profile_encryption_key` se faltar).
+4. Confirmar no SQL Editor que a chave existe: `select name from vault.secrets where name = 'profile_encryption_key';`
 5. **Deploy Vite site to Pages** (ou push em `main`) para embutir `VITE_*` e rodar `sync-catalog`.
-6. Smoke: login → Minha conta (foto) → favoritar em dois aparelhos → ranking → QR no `garcom.html`.
+6. Smoke: login → Minha conta (foto, aniversário, telefone) → favoritar em dois aparelhos → ranking → QR no `garcom.html`.
 7. Inserir linhas em `public.staff` (e `role = 'dono'` quando couber).
 
 ## Relação com os outros docs

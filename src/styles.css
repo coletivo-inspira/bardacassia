@@ -3865,7 +3865,7 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   text-transform: uppercase;
   letter-spacing: .06em;
 }
-.auth-account-actions { display: grid; gap: .65rem; justify-items: center; }
+.auth-account-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
 .auth-profile-hero {
   justify-items: center;
   text-align: center;
@@ -3948,17 +3948,24 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   margin-top: .15rem;
 }
 .auth-lgpd {
+  display: grid;
+  gap: .4rem;
   margin: 0;
-  padding: .9rem 1rem;
+  padding: .8rem 1rem;
   border: 1px solid var(--line);
   border-radius: 12px;
+  font-size: .85rem;
+  line-height: 1.45;
   text-align: left;
 }
-.auth-lgpd legend {
-  padding: 0 .35rem;
-  font-weight: 700;
-  font-size: .9rem;
-}
+.auth-lgpd .auth-consent { margin-top: 0; }
+.auth-lgpd .auth-hint { margin: 0; }
+.auth-lgpd .auth-hint:empty { display: none; }
+.auth-lgpd .auth-hint[data-tone="error"] { color: var(--coral); }
+.auth-lgpd summary { color: var(--auth-link); font-size: .8rem; cursor: pointer; }
+.auth-lgpd details p { margin: .4rem 0 0; color: var(--muted); font-size: .78rem; }
+.auth-profile-form .auth-field .auth-hint { margin: .4rem 0 0; }
+.auth-profile-form .auth-field .auth-error:empty { min-height: 0; padding: 0; }
 .auth-consent {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -3969,73 +3976,22 @@ dialog.discover-screen::backdrop { background: var(--bg); }
 }
 .auth-legal .auth-consent { margin-top: .8rem; }
 .auth-consent .auth-checkbox-box { margin-top: .15rem; }
-.auth-account-shortcuts {
-  display: grid;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  overflow: hidden;
-}
-.auth-account-nav-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: .75rem;
-  width: 100%;
-  min-height: 48px;
-  margin: 0;
-  padding: .7rem 1rem;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  font-weight: 600;
-  text-align: left;
-  text-decoration: none;
-  box-sizing: border-box;
-  cursor: pointer;
-}
-.auth-account-nav-row:last-child { border-bottom: 0; }
-.auth-account-nav-row:hover,
-.auth-account-nav-row:focus-visible {
-  background: color-mix(in srgb, var(--amber) 12%, transparent);
-}
-.auth-account-nav-chevron {
-  color: var(--muted);
-  font-size: 1.25rem;
-  line-height: 1;
-}
-.auth-account-theme-copy {
-  display: inline-flex;
-  align-items: center;
-  gap: .55rem;
-  min-width: 0;
-}
-.auth-theme-toggle.auth-account-nav-row {
-  width: 100%;
-}
-.auth-theme-toggle .theme-toggle-label,
-.auth-account-nav-row .theme-toggle-label {
-  display: inline;
-}
-.auth-theme-toggle svg {
-  width: 1.1rem;
-  height: 1.1rem;
-  flex: 0 0 auto;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
 .auth-account-session {
-  padding-top: .15rem;
+  padding-top: 1.1rem;
   border-top: 1px solid var(--line);
 }
-.auth-account-session .auth-link {
-  margin: .15rem 0 .1rem;
+.auth-account-session .auth-danger {
+  justify-self: center;
+  width: auto;
+  min-height: 36px;
+  padding: 0 .5rem;
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: .15em;
 }
+.auth-account-session .auth-danger:hover,
+.auth-account-session .auth-danger:focus-visible { color: var(--coral); }
 .auth-secondary, .auth-danger { width: 100%; min-height: 44px; border-radius: 6px; font: inherit; font-weight: 600; cursor: pointer; }
 .auth-secondary {
   display: inline-flex;
@@ -4050,6 +4006,65 @@ dialog.discover-screen::backdrop { background: var(--bg); }
 :root[data-theme="light"] .auth-secondary { border-color: rgba(32, 35, 31, .22); }
 .auth-danger { border: 0; background: transparent; color: var(--coral); font-size: .85rem; }
 .auth-danger:hover { text-decoration: underline; }
+.auth-account-save {
+  justify-self: center;
+  width: min(100%, 320px);
+  margin-top: 0;
+}
+.auth-card[data-mode="conta"] .auth-card-footer { display: none; }
+.auth-confirm {
+  width: min(360px, calc(100% - 2rem));
+  max-width: none;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--text);
+}
+.auth-confirm::backdrop {
+  background: rgba(8, 8, 8, .6);
+  backdrop-filter: blur(4px);
+}
+.auth-confirm-panel {
+  position: relative;
+  display: grid;
+  gap: .6rem;
+  padding: 1.5rem 1.25rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg-soft);
+  box-shadow: 0 22px 48px rgba(0, 0, 0, .45);
+  text-align: center;
+}
+:root[data-theme="light"] .auth-confirm-panel { background: var(--paper); box-shadow: 0 18px 40px rgba(32, 35, 31, .18); }
+.auth-confirm-title { margin: 0; padding: 0 1.75rem; font: 700 1.2rem/1.2 var(--font-display); }
+.auth-confirm-text { margin: 0 0 .4rem; color: var(--muted); font-size: .9rem; line-height: 1.4; }
+.auth-confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
+.auth-confirm-actions .auth-submit { margin: 0; }
+.auth-confirm-close {
+  position: absolute;
+  top: .5rem;
+  right: .5rem;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.auth-confirm-close:hover, .auth-confirm-close:focus-visible { color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
+.auth-confirm-close svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+@media (max-width: 719px) {
+  .auth-confirm { width: 100%; border-radius: 20px 20px 0 0; }
+  .auth-confirm-panel {
+    border-width: 1px 0 0;
+    border-radius: 20px 20px 0 0;
+    padding-bottom: max(1.25rem, calc(1rem + env(safe-area-inset-bottom)));
+  }
+}
 .auth-card-footer { padding: 1.15rem 1.9rem 1.4rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .88rem; text-align: center; }
 .auth-card-footer p { margin: 0; }
 .auth-footer-link { color: var(--auth-primary); font-weight: 700; text-decoration: none; }
