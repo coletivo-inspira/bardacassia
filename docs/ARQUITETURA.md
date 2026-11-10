@@ -39,7 +39,8 @@ Sem as variáveis `VITE_SUPABASE_*`, o site continua útil: busca, descoberta, f
 
 | Página | Entrada | Função |
 | --- | --- | --- |
-| `index.html` | `src/main.js` | Busca, descoberta, favoritas (`#favoritas`), ranking, QR/pedido |
+| `index.html` | `src/main.js` | Busca (com o filtro “Somente favoritas”), descoberta, ranking, QR/pedido |
+| `favoritos.html` | `src/favorites-page.js` | Meus favoritos: abas, mover entre abas, código ao DJ (`index.html#favoritas` redireciona para cá) |
 | `login.html` | `src/login.js` | Entrar, cadastrar, link, redefinir, Minha conta (perfil/LGPD) |
 | `garcom.html` | `src/garcom.js` | Fila, pagamento, rodada, código da noite, Resultados (dono) |
 | `cartaz.html` | `src/cartaz.js` | QR do catálogo para impressão (A5/A4 + origem) |
@@ -53,7 +54,8 @@ Módulos centrais em `src/`:
 - `integrations/popularity.js` — `record_song_open`, `set_song_favorite`, `get_popular_songs`
 - `integrations/favorites-sync.js` — `sync_my_favorites` (lista plana de códigos)
 - `integrations/requests.js` — RPCs de pedidos, staff e dono
-- `lib/favorites.js` — abas locais (`Rascunho` + nomeadas); **só os códigos** sobem para a conta
+- `lib/favorites.js` — abas locais (`Rascunho` + nomeadas) e leitura/gravação em `bdc-favorites-v2`; **só os códigos** sobem para a conta
+- `lib/song-row.js` — linha de música do catálogo (capa, código, favoritar, trecho, Spotify) e “Mover para…”, usada por `main.js` e `favorites-page.js`
 - `qr-request.js` / `song-requests.js` — modos `qr` e `remoto`
 
 ## Fluxos principais

@@ -125,3 +125,28 @@ export function clearTab(state, tabId) {
 export function setActiveTab(state, tabId) {
   return state.tabs.some((tab) => tab.id === tabId) ? { ...state, active: tabId } : state;
 }
+
+export const FAVORITES_KEY = "bdc-favorites-v2";
+export const LEGACY_FAVORITES_KEY = "bdc-favorites-v1";
+
+/** Reads the saved tabs, migrating the v1 array of codes on first load. */
+export function loadFavoritesState(storage = globalThis.localStorage) {
+  try {
+    const saved = JSON.parse(storage.getItem(FAVORITES_KEY) || "null");
+    if (saved) return sanitizeFavoritesState(saved);
+    const legacy = JSON.parse(storage.getItem(LEGACY_FAVORITES_KEY) || "[]");
+    return sanitizeFavoritesState(Array.isArray(legacy) ? legacy : []);
+  } catch {
+    return emptyFavoritesState();
+  }
+}
+
+/** @returns {boolean} false when the browser refuses to store (private mode, quota). */
+export function saveFavoritesState(state, storage = globalThis.localStorage) {
+  try {
+    storage.setItem(FAVORITES_KEY, JSON.stringify(state));
+    return true;
+  } catch {
+    return false;
+  }
+}

@@ -9,12 +9,16 @@ import {
   createTab,
   deleteTab,
   emptyFavoritesState,
+  FAVORITES_KEY,
+  LEGACY_FAVORITES_KEY,
+  loadFavoritesState,
   MAX_SYNCED_FAVORITES,
   mergeFavoriteCodes,
   moveSong,
   removeSong,
   renameTab,
   sanitizeFavoritesState,
+  saveFavoritesState,
   tabOf,
 } from "../src/lib/favorites.js";
 
@@ -94,4 +98,32 @@ test("upload list is unique and capped", () => {
   assert.deepEqual(codesToUpload(["1", "1", "2", ""]), ["1", "2"]);
   const many = Array.from({ length: MAX_SYNCED_FAVORITES + 50 }, (_, i) => String(i));
   assert.equal(codesToUpload(many).length, MAX_SYNCED_FAVORITES);
+});
+
+function memoryStorage(entries = {}) {
+  const data = new Map(Object.entries(entries));
+  return {
+    data,
+    getItem: (key) => data.get(key) ?? null,
+    setItem: (key, value) => data.set(key, String(value)),
+  };
+}
+
+test("catálogo e favoritos.html leem e gravam as mesmas abas", () => {
+  const storage = memoryStorage();
+  const state = createTab(addToTab(emptyFavoritesState(), "101"), "Sexta", "aba-sexta");
+  assert.equal(saveFavoritesState(state, storage), true);
+  assert.deepEqual(loadFavoritesState(storage), sanitizeFavoritesState(JSON.parse(storage.data.get(FAVORITES_KEY))));
+  assert.equal(loadFavoritesState(storage).tabs[1].name, "Sexta");
+});
+
+test("sem v2 salvo, migra a lista v1", () => {
+  const storage = memoryStorage({ [LEGACY_FAVORITES_KEY]: JSON.stringify(["7", "8"]) });
+  assert.deepEqual(loadFavoritesState(storage).tabs[0].codes, ["7", "8"]);
+});
+
+test("armazenamento bloqueado não quebra as favoritas", () => {
+  const blocked = { getItem() { throw new Error("blocked"); }, setItem() { throw new Error("blocked"); } };
+  assert.deepEqual(loadFavoritesState(blocked), emptyFavoritesState());
+  assert.equal(saveFavoritesState(emptyFavoritesState(), blocked), false);
 });

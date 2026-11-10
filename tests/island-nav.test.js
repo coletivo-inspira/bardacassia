@@ -6,6 +6,7 @@ const ISLAND_PAGES = {
   "index.html": { inicio: "#inicio", buscar: "#buscar" },
   "evento.html": { inicio: "index.html#inicio", buscar: "index.html#buscar" },
   "o-bar.html": { inicio: "index.html#inicio", buscar: "index.html#buscar" },
+  "favoritos.html": { inicio: "index.html#inicio", buscar: "index.html#buscar" },
 };
 
 function islandOf(page) {
@@ -22,7 +23,9 @@ for (const [page, hrefs] of Object.entries(ISLAND_PAGES)) {
     assert.match(island, new RegExp(`href="${hrefs.inicio}" data-mobile-tab="inicio" aria-label="Início"`));
     assert.match(island, new RegExp(`href="${hrefs.buscar}" data-mobile-tab="buscar" aria-label="Buscar"`));
     assert.match(island, /href="o-bar\.html" data-mobile-tab="o-bar" aria-label="O bar"/);
-    assert.match(island, /class="mobile-tab island-account-link" href="login\.html" aria-label="Entrar na sua conta"/);
+    // Signed out, Conta opens a small menu (Entrar + Modo noturno) instead of linking straight to login.
+    assert.match(island, /<button class="mobile-tab island-account-trigger" type="button" aria-haspopup="menu" aria-expanded="false"/);
+    assert.doesNotMatch(island, /island-account-link/);
     assert.match(island, /class="glass-island-capsule" aria-hidden="true"/);
   });
 
@@ -42,3 +45,8 @@ for (const page of ["login.html", "garcom.html", "cartaz.html", "public/404.html
     assert.doesNotMatch(html, /glass-island/);
   });
 }
+
+test("favoritos.html marks Conta in the island without claiming a text tab", () => {
+  const site = readFileSync(new URL("../src/site.js", import.meta.url), "utf8");
+  assert.match(site, /const ISLAND_PAGE_TABS = \{[^}]*favoritos: "conta"[^}]*\}/);
+});

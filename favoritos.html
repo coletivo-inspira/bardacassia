@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#141414" />
+    <script>
+      (() => {
+        try {
+          const saved = localStorage.getItem("bdc-theme-v1");
+          const theme = saved === "light" || saved === "dark"
+            ? saved
+            : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          document.documentElement.dataset.theme = theme;
+          document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#141414" : "#f7f3e9";
+        } catch {
+          document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+      })();
+    </script>
+    <meta name="robots" content="noindex" />
+    <meta name="description" content="Suas músicas favoritas do karaokê do Bar da Cácia, organizadas em abas, com o código pronto para mostrar ao DJ." />
+    <title>Meus favoritos — Bar da Cácia</title>
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Outfit:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="favorites-page">
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Bar da Cácia — início">
+        <img src="%BASE_URL%logo_bar_da_cacia.svg" alt="" width="48" height="48" />
+        <span class="brand-text">BAR DA <strong>CÁCIA</strong></span>
+      </a>
+      <nav class="desktop-nav" aria-label="Navegação principal">
+        <a class="nav-home" href="index.html">Início</a>
+        <a href="evento.html" data-expires="2026-11-01">Evento</a>
+        <a href="o-bar.html">O bar</a>
+        <a href="index.html#buscar">Buscar</a>
+      </nav>
+      <div class="header-actions">
+        <a class="header-instagram theme-toggle" href="https://www.instagram.com/bardacaciaoficial/" target="_blank" rel="noopener noreferrer" aria-label="Visitar o Instagram oficial do Bar da Cácia">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle class="instagram-dot" cx="17.6" cy="6.5" r=".8"/></svg>
+          <span>Instagram</span>
+        </a>
+        <div id="header-account" class="header-account-slot"></div>
+      </div>
+    </header>
+
+    <main id="conteudo">
+      <section class="search-portal favorites-portal" aria-labelledby="favoritos-title">
+        <div class="search-portal-inner">
+          <header class="favoritas-intro">
+            <p class="eyebrow">Sua lista</p>
+            <h1 id="favoritos-title">Meus favoritos</h1>
+            <p>Organize as músicas que você quer cantar e mostre o código ao DJ.</p>
+          </header>
+
+          <section id="favorite-tabs" class="favorite-tabs" aria-label="Abas das favoritas">
+            <div id="favorite-tab-list" class="favorite-tab-list" role="tablist" aria-label="Suas abas"></div>
+            <div class="favorite-tab-actions">
+              <button id="new-favorite-tab" class="text-button" type="button">+ Nova aba</button>
+              <button id="rename-favorite-tab" class="text-button" type="button">Renomear aba</button>
+              <button id="clear-favorite-tab" class="text-button" type="button">Limpar aba</button>
+              <button id="delete-favorite-tab" class="text-button" type="button">Apagar aba</button>
+            </div>
+          </section>
+
+          <div class="results-toolbar">
+            <div class="results-toolbar-main">
+              <p id="results-count" class="results-count" aria-live="polite">Carregando suas favoritas…</p>
+            </div>
+            <div class="results-view-toggle" role="group" aria-label="Visualização das músicas">
+              <button type="button" id="view-list" class="view-toggle-btn view-toggle-btn--icon" aria-pressed="false" title="Lista" aria-label="Lista">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>
+              </button>
+              <button type="button" id="view-grid" class="view-toggle-btn view-toggle-btn--icon" aria-pressed="false" title="Quadrados" aria-label="Quadrados">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div id="songs-list" class="songs-list" role="list"></div>
+          <div id="favorites-empty" class="empty-state favorites-empty" hidden>
+            <p id="favorites-empty-text">Você ainda não favoritou nenhuma música.</p>
+            <a id="favorites-empty-link" class="button button-light" href="index.html#buscar">Explorar o catálogo</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-main">
+        <a class="footer-brand" href="index.html">BAR DA CÁCIA</a>
+        <p>Boa música, gente querida e histórias pra contar.</p>
+        <p class="footer-place"><span class="footer-address">Rua Rio de Janeiro, 1411 — Centro, BH</span> · Aberto das 18h às 3h30</p>
+        <p class="footer-copy">
+          © <span data-current-year>2026</span>
+          <a href="https://inspira.dev.br/" target="_blank" rel="noopener noreferrer">Coletivo Inspira</a>.
+          Todos os direitos reservados.
+        </p>
+      </div>
+    </footer>
+
+    <nav class="mobile-tabbar glass-island" aria-label="Navegação móvel">
+      <span class="glass-island-capsule" aria-hidden="true"></span>
+      <a class="mobile-tab" href="index.html#inicio" data-mobile-tab="inicio" aria-label="Início">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3.5 10.5 12 3.8l8.5 6.7v9.2a.8.8 0 0 1-.8.8H15v-6H9v6H4.3a.8.8 0 0 1-.8-.8z" /></svg>
+      </a>
+      <a class="mobile-tab" href="index.html#buscar" data-mobile-tab="buscar" aria-label="Buscar">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 5 5" /></svg>
+      </a>
+      <a class="mobile-tab" href="o-bar.html" data-mobile-tab="o-bar" aria-label="O bar">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4.5 4.5h15L12 12.8z" /><path d="M12 12.8v6.7M8 19.5h8M15.5 8.6l2.3-4.1" /></svg>
+      </a>
+      <div class="mobile-tab-account" data-mobile-tab="conta" data-island-account>
+        <button class="mobile-tab island-account-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Entrar ou trocar o tema">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.2c1.3-3.6 4.2-5.4 7.5-5.4s6.2 1.8 7.5 5.4"/></svg>
+        </button>
+      </div>
+    </nav>
+
+    <dialog id="dj-dialog" aria-labelledby="dialog-song">
+      <form method="dialog" class="dialog-card">
+        <button class="dialog-close" value="cancel" aria-label="Fechar janela">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
+        <div id="dialog-cover" class="dialog-cover" aria-hidden="true"></div>
+        <p id="dialog-song" class="dialog-song"></p>
+        <div class="dialog-listen">
+          <button id="dialog-preview" class="action-btn preview-btn" type="button" data-idle-label="Ouvir trecho" hidden>Ouvir trecho</button>
+          <a id="dialog-spotify" class="action-link" href="#" target="_blank" rel="noopener noreferrer">Ouvir no Spotify</a>
+        </div>
+        <span class="code-label">CÓDIGO DA MÚSICA</span>
+        <output id="dialog-code" class="song-code"></output>
+        <button id="copy-song-code" class="button button-light copy-code" type="button">Copiar código</button>
+        <p id="copy-code-status" class="copy-code-status" role="status" aria-live="polite"></p>
+        <button class="button button-light dialog-done" value="close">Pronto</button>
+      </form>
+    </dialog>
+
+    <audio id="preview-audio" preload="none"></audio>
+    <script type="module" src="/src/favorites-page.js"></script>
+    <script
+      src="https://brandbook.inspira.dev.br/assets/js/inspira-orb.js"
+      data-href="https://inspira.dev.br/"
+      defer
+    ></script>
+  </body>
+</html>

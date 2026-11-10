@@ -1814,18 +1814,6 @@ dialog::backdrop {
   transition: background 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
-#buscar.is-favorites-screen .spotify-search-chrome,
-#buscar.is-favorites-screen .discovery-tools,
-#buscar.is-favorites-screen .night-list-access,
-#buscar.is-favorites-screen .round-banner,
-#buscar.is-favorites-screen #spotify-status,
-#buscar.is-favorites-screen .search-help,
-#buscar.is-favorites-screen #browse-view,
-#buscar.is-favorites-screen #related-artists,
-#buscar.is-favorites-screen #popular-view {
-  display: none !important;
-}
-
 .favoritas-intro {
   margin: 0 0 1rem;
   padding: 0.2rem 0 0.4rem;
@@ -1835,9 +1823,27 @@ dialog::backdrop {
   margin: 0 0 0.35rem;
 }
 
-.favoritas-intro h2 {
+.favoritas-intro h1 {
   margin: 0 0 0.4rem;
-  font: 800 clamp(1.45rem, 4vw, 1.9rem) / 1.15 var(--font-display);
+  font: 800 clamp(1.7rem, 5vw, 2.4rem) / 1.1 var(--font-display);
+}
+
+.favorites-empty {
+  display: grid;
+  justify-items: center;
+  gap: 0.9rem;
+}
+
+.favorites-empty[hidden] {
+  display: none;
+}
+
+.favorites-empty p {
+  margin: 0;
+}
+
+.favorites-empty .button[hidden] {
+  display: none;
 }
 
 .favoritas-intro p {
@@ -3249,9 +3255,15 @@ body {
 }
 
 /* Descobrir minha música: floating entry point + full-screen flow. */
+/* Amber-tinted Liquid Glass. Both themes use the bright bar amber with dark ink:
+   at 74% over any backdrop the label stays above 5:1, which the light theme's
+   darker --amber with white text would not. */
 .discover-fab {
+  --fab-amber: #dec949;
+  --fab-drop: rgba(0, 0, 0, .34);
   position: fixed;
   z-index: 90;
+  isolation: isolate;
   right: max(1.25rem, env(safe-area-inset-right));
   bottom: max(1.25rem, env(safe-area-inset-bottom));
   display: inline-flex;
@@ -3261,17 +3273,50 @@ body {
   padding: .8rem 1.25rem .8rem 1rem;
   border: 0;
   border-radius: 999px;
-  background: var(--amber);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .24), rgba(255, 255, 255, 0) 58%),
+    color-mix(in srgb, var(--fab-amber) 74%, transparent);
   color: var(--ink);
   font: 800 1rem var(--font-body);
-  box-shadow: 0 10px 28px rgba(0,0,0,.4), 0 0 0 4px rgba(222,201,73,.18);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(16px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    inset 0 0 0 1px color-mix(in srgb, var(--fab-amber) 45%, var(--glass-rim)),
+    0 10px 28px var(--fab-drop),
+    0 0 0 4px rgba(222, 201, 73, .16);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
-.discover-fab:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(0,0,0,.45), 0 0 0 6px rgba(222,201,73,.22); }
+.discover-fab::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(120% 80% at 50% 0%, rgba(255, 255, 255, .6), rgba(255, 255, 255, 0) 62%);
+  opacity: .55;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+.discover-fab:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    inset 0 0 0 1px color-mix(in srgb, var(--fab-amber) 45%, var(--glass-rim)),
+    0 14px 32px var(--fab-drop),
+    0 0 0 6px rgba(222, 201, 73, .22);
+}
+.discover-fab:hover::before { opacity: .8; }
+.discover-fab:active { transform: scale(.97); }
+.discover-fab:active::before { opacity: 1; }
 .discover-fab:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
 .discover-fab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .discover-fab[hidden], .discover-open .discover-fab { display: none; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .discover-fab { background: var(--fab-amber); }
+}
 
 dialog.discover-screen {
   width: 100%;
@@ -3538,7 +3583,7 @@ dialog.discover-screen::backdrop { background: var(--bg); }
 .favorite-tab-actions .text-button:disabled { opacity: .45; cursor: not-allowed; }
 .move-favorite select { width: 100%; min-height: 38px; max-width: 180px; padding: .35rem .65rem; border: 1px solid var(--line); border-radius: 999px; background: var(--bg-soft); color: var(--text); font: inherit; font-size: .85rem; cursor: pointer; }
 
-:root[data-theme="light"] .discover-fab { box-shadow: 0 10px 24px rgba(32,35,31,.25), 0 0 0 4px rgba(118,89,0,.15); color: #fffdf8; }
+:root[data-theme="light"] .discover-fab { --fab-drop: rgba(32, 35, 31, .2); }
 :root[data-theme="light"] .artist-tile[aria-pressed="true"] { background: rgba(118,89,0,.1); }
 :root[data-theme="light"] .artist-picker-tools input { border-color: rgba(32,35,31,.2); }
 
@@ -3638,6 +3683,7 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   flex: 0 0 auto;
   background: color-mix(in srgb, var(--amber) 22%, var(--bg-soft));
 }
+.header-account-slot { display: contents; }
 .header-account-menu { position: relative; }
 .header-account-menu [role="menu"] {
   position: absolute;
@@ -3683,6 +3729,7 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   stroke-linejoin: round;
 }
 .header-account-menu [data-action="theme"] .theme-toggle-label { display: inline; }
+.header-account-menu .account-menu-login { font-weight: 700; }
 .header-account-email { padding: .35rem .75rem .5rem; color: var(--muted); font-size: .78rem; overflow-wrap: anywhere; border-bottom: 1px solid var(--line); margin-bottom: .25rem; }
 
 .auth-page { --auth-primary: var(--amber); --auth-on-primary: var(--ink); --auth-link: #7fb8ff; }
@@ -4213,14 +4260,11 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   --island-h: 64px;
 }
 
-.theme-toggle.is-in-account-menu { display: none; }
-
 @media (max-width: 1023px) {
   body:has(> .glass-island) { padding-bottom: calc(var(--island-gap) + var(--island-h) + 16px + env(safe-area-inset-bottom)); }
   body:has(> .glass-island) .site-header .desktop-nav,
   body:has(> .glass-island) .site-header .header-account,
   body:has(> .glass-island) .site-header .header-account-menu { display: none; }
-  body:has(> .glass-island) .theme-toggle.is-in-account-menu { display: inline-flex; }
 
   /* Match sits above the island on the right and the orb level with it on the left. */
   body:has(> .glass-island) .discover-fab { bottom: calc(var(--island-gap) + var(--island-h) + 12px + env(safe-area-inset-bottom)); }
@@ -4300,8 +4344,8 @@ dialog.discover-screen::backdrop { background: var(--bg); }
     transition: transform 140ms ease, width 220ms ease, height 220ms ease;
   }
   .glass-island .mobile-tab:active svg { transform: scale(.88); }
-  .glass-island .mobile-tab.is-active { color: var(--text); }
-  .glass-island .mobile-tab.is-active svg { stroke-width: 2.3; }
+  .glass-island :is(.mobile-tab.is-active, .mobile-tab-account.is-active .mobile-tab) { color: var(--text); }
+  .glass-island :is(.mobile-tab.is-active, .mobile-tab-account.is-active .mobile-tab) svg { stroke-width: 2.3; }
   .glass-island .mobile-tab[data-mobile-tab="inicio"].is-active svg { fill: currentColor; }
   .glass-island .mobile-tab:focus-visible { outline: 2px solid var(--amber); outline-offset: -3px; }
 
@@ -4372,7 +4416,7 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .85), inset 0 0 0 1px rgba(32, 35, 31, .06), 0 4px 12px rgba(32, 35, 31, .08);
 }
 :root[data-theme="light"] .glass-island .mobile-tab { color: #4d5450; }
-:root[data-theme="light"] .glass-island .mobile-tab.is-active { color: var(--text); }
+:root[data-theme="light"] .glass-island :is(.mobile-tab.is-active, .mobile-tab-account.is-active .mobile-tab) { color: var(--text); }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .mobile-tabbar.glass-island { background: rgba(24, 24, 26, .96); }
