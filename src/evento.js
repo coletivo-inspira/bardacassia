@@ -1,4 +1,4 @@
-import { hideExpiredEventNav, initializeAccountMenu, initializeTheme, isBeforeExpiry, setFooterYear } from "./site.js";
+import { hideExpiredEventNav, initializeAccountMenu, initializeIsland, initializeTheme, isBeforeExpiry, setFooterYear } from "./site.js";
 import { initAnalytics } from "./integrations/analytics.js";
 
 const EVENT_EXPIRES = "2026-11-01";
@@ -10,5 +10,6 @@ if (!isBeforeExpiry(EVENT_EXPIRES)) {
   initAnalytics();
   hideExpiredEventNav();
   setFooterYear();
+  initializeIsland();
   void initializeAccountMenu();
 }
