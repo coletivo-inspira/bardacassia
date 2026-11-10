@@ -15,7 +15,7 @@ import {
   signUp,
   updatePassword,
 } from "./integrations/auth.js";
-import { getMyProfile, hasCurrentConsent, updateMyProfile, uploadMyAvatar } from "./integrations/profile.js";
+import { getMyPhone, getMyProfile, hasCurrentConsent, setMyPhone, updateMyProfile, uploadMyAvatar } from "./integrations/profile.js";
 import { getPersistSession } from "./integrations/supabase.js";
 import {
   authErrorMessage,
@@ -31,10 +31,13 @@ import {
   clampAvatarViewport,
   compressAvatarFile,
   cropRectFromViewport,
-  DATA_CONSENT_VERSION,
+  formatPhoneMask,
   minCoverScale,
+  phoneDigits,
   profileInitials,
+  toE164Phone,
   validateBirthDate,
+  validatePhone,
 } from "./lib/profile.js";
 
 initializeTheme();
@@ -68,6 +71,8 @@ const consentError = $("#auth-consent-error");
 const accountConsentInput = $("#auth-account-consent");
 const birthDateInput = $("#auth-birth-date");
 const birthDateError = $("#auth-birth-date-error");
+const phoneInput = $("#auth-phone");
+const phoneError = $("#auth-phone-error");
 const profileForm = $("#auth-profile-form");
 const avatarImage = $("#auth-account-avatar");
 const avatarInitials = $("#auth-account-initials");
@@ -80,7 +85,6 @@ const avatarCropZoom = $("#auth-avatar-crop-zoom");
 const avatarCropCancel = $("#auth-avatar-crop-cancel");
 const avatarCropConfirm = $("#auth-avatar-crop-confirm");
 const lgpdStatus = $("#auth-lgpd-status");
-const headerThemeToggle = $("#theme-toggle");
 
 const avatarCropState = {
   file: null,
@@ -108,6 +112,7 @@ const urlError = params.get("error_description") || new URLSearchParams(location
 let mode = "entrar";
 let currentUser = null;
 let currentProfile = null;
+let currentPhone = "";
 let busy = false;
 let captchaToken = "";
 let captchaWidget = null;
@@ -196,7 +201,6 @@ function setMode(next, { keepStatus = false } = {}) {
   });
   $("#auth-social").hidden = !authProviders.length || !["entrar", "cadastrar"].includes(mode);
   $("#auth-captcha").hidden = !(captchaSiteKey && CAPTCHA_MODES.has(mode));
-  if (headerThemeToggle) headerThemeToggle.hidden = mode === "conta";
   if (mode === "conta") void renderAccount();
   initializeTheme();
 
@@ -325,36 +329,79 @@ function currentAvatarCropRect() {
   });
 }
 
+function setLgpdStatus(message, tone = "info") {
+  lgpdStatus.textContent = message;
+  lgpdStatus.dataset.tone = tone;
+}
+
 function renderLgpd(profile) {
   if (hasCurrentConsent(profile)) {
     const when = profile.data_consent_at ? new Date(profile.data_consent_at) : null;
-    const stamp = when && !Number.isNaN(when.getTime())
-      ? when.toLocaleDateString("pt-BR")
-      : "agora";
-    lgpdStatus.textContent = `Consentimento LGPD ativo (versão ${DATA_CONSENT_VERSION}) desde ${stamp}.`;
+    setLgpdStatus(when && !Number.isNaN(when.getTime()) ? `Autorizado em ${when.toLocaleDateString("pt-BR")}.` : "");
     accountConsentInput.checked = true;
   } else {
-    lgpdStatus.textContent = "Ainda falta sua autorização atualizada para uso dos dados (LGPD).";
+    setLgpdStatus("");
     accountConsentInput.checked = false;
   }
+}
+
+function setPhoneError(message) {
+  phoneError.textContent = message;
+  phoneInput.setAttribute("aria-invalid", String(Boolean(message)));
+}
+
+function phoneErrorMessage(error) {
+  const text = `${error?.code || ""} ${error?.message || ""}`;
+  if (/22023|invalid phone/i.test(text)) return "Telefone inválido. Confira o DDD e o número.";
+  if (/failed to fetch|network|load failed/i.test(text)) return authErrorMessage(error);
+  return "Não foi possível salvar o telefone agora. Tente novamente.";
+}
+
+/** Re-mask while keeping the caret after the same number of digits. */
+function maskPhoneInput(event) {
+  const raw = phoneInput.value;
+  const caret = phoneInput.selectionStart ?? raw.length;
+  let digits = phoneDigits(raw);
+  let digitsBeforeCaret = phoneDigits(raw.slice(0, caret)).length;
+  const previousDigits = phoneDigits(phoneInput.dataset.previous || "");
+  if (event?.inputType === "deleteContentBackward" && digits === previousDigits && digitsBeforeCaret > 0) {
+    digits = digits.slice(0, digitsBeforeCaret - 1) + digits.slice(digitsBeforeCaret);
+    digitsBeforeCaret -= 1;
+  }
+  const masked = formatPhoneMask(digits);
+  phoneInput.value = masked;
+  phoneInput.dataset.previous = masked;
+  if (document.activeElement !== phoneInput) return;
+  let position = 0;
+  for (let seen = 0; position < masked.length && seen < digitsBeforeCaret; position += 1) {
+    if (/\d/.test(masked[position])) seen += 1;
+  }
+  phoneInput.setSelectionRange(position, position);
+}
+
+function setPhoneValue(e164) {
+  phoneInput.value = formatPhoneMask(e164 || "");
+  phoneInput.dataset.previous = phoneInput.value;
 }
 
 async function renderAccount() {
   $("#auth-account-name").textContent = displayName(currentUser);
   $("#auth-account-email").textContent = currentUser?.email || "—";
-  $("#auth-continue").href = nextPath;
-  $("#auth-favorites").href = new URL("index.html#favoritas", location.href).href;
   birthDateError.textContent = "";
+  setPhoneError("");
   avatarStatus.textContent = "";
-  try {
-    currentProfile = await getMyProfile();
-  } catch {
-    currentProfile = null;
-    lgpdStatus.textContent = "Não foi possível carregar o perfil agora. Você ainda pode usar o catálogo.";
-  }
+  const [profileResult, phoneResult] = await Promise.allSettled([getMyProfile(), getMyPhone()]);
+  currentProfile = profileResult.status === "fulfilled" ? profileResult.value : null;
+  currentPhone = phoneResult.status === "fulfilled" ? phoneResult.value || "" : "";
   birthDateInput.value = currentProfile?.birth_date || "";
+  setPhoneValue(currentPhone);
   renderAvatar(currentProfile);
   renderLgpd(currentProfile);
+  if (profileResult.status === "rejected") {
+    setLgpdStatus("Não foi possível carregar o perfil agora. Você ainda pode usar o catálogo.", "error");
+  } else if (phoneResult.status === "rejected") {
+    setPhoneError("Não foi possível carregar o telefone salvo agora.");
+  }
 }
 
 async function setupCaptcha() {
@@ -474,33 +521,63 @@ function bindEvents() {
   birthDateInput?.addEventListener("change", () => {
     birthDateError.textContent = validateBirthDate(birthDateInput.value);
   });
+  phoneInput?.addEventListener("input", (event) => {
+    maskPhoneInput(event);
+    if (phoneInput.getAttribute("aria-invalid") === "true") setPhoneError(validatePhone(phoneInput.value));
+  });
+  phoneInput?.addEventListener("blur", () => {
+    setPhoneError(validatePhone(phoneInput.value));
+  });
+  accountConsentInput?.addEventListener("change", () => {
+    if (lgpdStatus.dataset.tone === "error") setLgpdStatus("");
+  });
   profileForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (busy) return;
     const birthError = validateBirthDate(birthDateInput.value);
     birthDateError.textContent = birthError;
-    if (birthError) {
-      birthDateInput.focus();
+    const phoneMessage = validatePhone(phoneInput.value);
+    setPhoneError(phoneMessage);
+    if (birthError || phoneMessage) {
+      (birthError ? birthDateInput : phoneInput).focus();
       return;
     }
     if (!accountConsentInput.checked && !hasCurrentConsent(currentProfile)) {
-      lgpdStatus.textContent = "Marque a autorização LGPD para salvar o perfil.";
+      setLgpdStatus("Marque a autorização para salvar seus dados.", "error");
       accountConsentInput.focus();
       return;
     }
+    const phone = toE164Phone(phoneInput.value);
+    const saveButton = $("#auth-profile-save");
+    let profileSaved = false;
     busy = true;
+    saveButton.setAttribute("aria-busy", "true");
+    setStatus("");
     try {
       currentProfile = await updateMyProfile({
         birthDate: birthDateInput.value,
         grantConsent: accountConsentInput.checked,
       });
+      profileSaved = true;
       renderAvatar(currentProfile);
       renderLgpd(currentProfile);
-      setStatus("Perfil atualizado.", "success");
+      if (phone !== currentPhone) {
+        await setMyPhone(phone);
+        currentPhone = phone;
+        setPhoneValue(currentPhone);
+      }
+      setStatus("Dados salvos.", "success");
     } catch (error) {
-      setStatus(authErrorMessage(error), "error");
+      if (!profileSaved) {
+        setStatus(authErrorMessage(error), "error");
+      } else {
+        const message = phoneErrorMessage(error);
+        setPhoneError(message);
+        setStatus(`Aniversário salvo, mas o telefone não. ${message}`, "error");
+      }
     } finally {
       busy = false;
+      saveButton.removeAttribute("aria-busy");
     }
   });
   avatarInput?.addEventListener("change", async () => {

@@ -198,51 +198,40 @@
                   <div class="auth-input-wrap">
                     <input id="auth-birth-date" class="auth-input" name="birthDate" type="date" maxlength="10" aria-describedby="auth-birth-date-hint auth-birth-date-error" />
                   </div>
-                  <p id="auth-birth-date-hint" class="auth-hint">Opcional — ajuda o bar a lembrar da promoção de aniversariante.</p>
+                  <p id="auth-birth-date-hint" class="auth-hint">Opcional. Usamos só pra te lembrar da promoção de aniversariante do bar.</p>
                   <div id="auth-birth-date-error" class="auth-error" aria-live="polite"></div>
                 </div>
-                <fieldset class="auth-lgpd">
-                  <legend>Privacidade e LGPD</legend>
-                  <p id="auth-lgpd-status" class="auth-hint">Carregando suas preferências…</p>
+                <div class="auth-field">
+                  <label class="auth-label" for="auth-phone">Telefone (WhatsApp)</label>
+                  <div class="auth-input-wrap">
+                    <input id="auth-phone" class="auth-input" name="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="(00) 00000-0000" maxlength="15" aria-invalid="false" aria-describedby="auth-phone-hint auth-phone-error" />
+                  </div>
+                  <p id="auth-phone-hint" class="auth-hint">Opcional. Usado só pra contato do bar sobre seus pedidos e promoções.</p>
+                  <div id="auth-phone-error" class="auth-error" aria-live="polite"></div>
+                </div>
+                <div class="auth-lgpd">
                   <label class="auth-checkbox auth-consent">
-                    <input id="auth-account-consent" type="checkbox" />
+                    <input id="auth-account-consent" type="checkbox" aria-describedby="auth-lgpd-status" />
                     <span class="auth-checkbox-box" aria-hidden="true"></span>
-                    <span>Autorizo o Bar da Cácia a usar nome, e-mail, foto e aniversário só para minha conta, favoritas e comunicação sobre o bar.</span>
+                    <span>Autorizo o Bar da Cácia a usar esses dados só para minha conta e o contato do bar (LGPD).</span>
                   </label>
+                  <p id="auth-lgpd-status" class="auth-hint" aria-live="polite"></p>
                   <details>
-                    <summary>Como usamos e protegemos seus dados</summary>
-                    <p>Guardamos o mínimo necessário. Senha só em hash no serviço de autenticação. Perfil e favoritas ficam no seu usuário, com acesso restrito. Você pode alterar a foto, a data de aniversário, retirar o consentimento ao excluir a conta, ou pedir exclusão a qualquer momento.</p>
+                    <summary>Como usamos seus dados</summary>
+                    <p>Guardamos o mínimo: nome, e-mail, foto, aniversário e telefone, só no seu usuário e com acesso restrito. O telefone fica criptografado e a senha só existe em hash no serviço de autenticação. Você pode apagar qualquer campo ou excluir a conta quando quiser.</p>
                   </details>
-                </fieldset>
-                <button id="auth-profile-save" class="auth-submit" type="submit">Salvar perfil</button>
+                </div>
+                <button id="auth-profile-save" class="auth-submit" type="submit">Salvar</button>
               </form>
             </section>
 
-            <section class="auth-account-section" aria-labelledby="auth-account-shortcuts-title">
-              <h3 id="auth-account-shortcuts-title" class="auth-account-section-title">Atalhos</h3>
-              <div class="auth-account-shortcuts">
-                <a id="auth-favorites" class="auth-account-nav-row" href="index.html#favoritas">
-                  <span>Meus favoritos</span>
-                  <span class="auth-account-nav-chevron" aria-hidden="true">›</span>
-                </a>
-                <button id="auth-theme-toggle" class="auth-account-nav-row auth-theme-toggle" type="button" data-theme-toggle aria-label="Ativar tema claro">
-                  <span class="auth-account-theme-copy">
-                    <svg class="theme-icon-sun" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-                    <svg class="theme-icon-moon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.2 15.1A8.4 8.4 0 0 1 8.9 3.8 8.5 8.5 0 1 0 20.2 15.1Z"/></svg>
-                    <span class="theme-toggle-label">Modo claro</span>
-                  </span>
-                  <span class="auth-account-nav-chevron" aria-hidden="true">›</span>
-                </button>
-              </div>
-            </section>
-
-            <section class="auth-account-section auth-account-session" aria-label="Sessão">
+            <section class="auth-account-section auth-account-session" aria-labelledby="auth-account-session-title">
+              <h3 id="auth-account-session-title" class="auth-account-section-title">Conta</h3>
               <div class="auth-account-actions">
-                <a id="auth-continue" class="auth-secondary" href="index.html">Continuar para o site</a>
-                <a class="auth-link" href="#nova-senha">Alterar senha</a>
+                <a class="auth-secondary" href="#nova-senha">Alterar senha</a>
                 <button id="auth-signout" class="auth-secondary" type="button">Sair</button>
-                <button id="auth-delete" class="auth-danger" type="button">Excluir minha conta</button>
               </div>
+              <button id="auth-delete" class="auth-danger" type="button">Excluir minha conta</button>
             </section>
           </div>
         </div>

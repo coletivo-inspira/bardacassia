@@ -86,6 +86,24 @@ export async function uploadMyAvatar(file, { compressed = false, maxSize, qualit
   return updateMyProfile({ avatarUrl: url });
 }
 
+/** Phone stored encrypted in `private.profile_secrets` via the `get_my_phone` RPC; E.164 or null. */
+export async function getMyPhone() {
+  if (!authConfigured) return null;
+  const supabase = await client();
+  const { data, error } = await supabase.rpc("get_my_phone");
+  if (error) throw error;
+  return typeof data === "string" && data ? data : null;
+}
+
+/** Save an E.164 phone (`+55…`) through `set_my_phone`; an empty value deletes it. */
+export async function setMyPhone(e164) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Entre na sua conta para salvar o telefone.");
+  const supabase = await client();
+  const { error } = await supabase.rpc("set_my_phone", { p_phone: e164 || "" });
+  if (error) throw error;
+}
+
 export function hasCurrentConsent(profile) {
   return Boolean(profile?.data_consent_at) && profile?.data_consent_version === DATA_CONSENT_VERSION;
 }
