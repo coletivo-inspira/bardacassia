@@ -14,6 +14,7 @@ export default defineConfig({
         garcom: resolve(__dirname, "garcom.html"),
         cartaz: resolve(__dirname, "cartaz.html"),
         login: resolve(__dirname, "login.html"),
+        favoritos: resolve(__dirname, "favoritos.html"),
       },
     },
   },

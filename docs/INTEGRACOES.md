@@ -317,11 +317,11 @@ Nenhuma variável nova é obrigatória: `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANO
 
 Nos pedidos de música, o site coleta só nome e telefone, para o bar identificar quem pediu. Eles ficam no aparelho do cliente e no Supabase, e apenas garçons cadastrados os veem. Não pedimos CPF.
 
-As favoritas são códigos de música salvos **neste navegador**, organizados em abas locais (`src/lib/favorites.js`). Sem conta, limpar os dados do navegador remove essa lista. A tela dedicada é `#favoritas` (entrada pelo menu da conta, Minha conta e descoberta).
+As favoritas são códigos de música salvos **neste navegador**, organizados em abas locais (`src/lib/favorites.js`). Sem conta, limpar os dados do navegador remove essa lista. A página dedicada é `favoritos.html` (entrada pelo menu da conta, pelo botão Favoritas do catálogo e pela descoberta); links antigos `index.html#favoritas` redirecionam para ela.
 
 **Com conta, só a lista plana de códigos sincroniza entre aparelhos** (`003_favorites_sync.sql`, `src/integrations/favorites-sync.js`):
 
-- Ao abrir o catálogo logado — e de novo em `SIGNED_IN` / `USER_UPDATED` — o navegador envia as favoritas locais e recebe a lista da conta (`sync_my_favorites`, até 1.000 códigos). Chamadas concorrentes no boot são coalescidas (mutex) e o primeiro `SIGNED_IN` de recuperação é ignorado se o `init` já disparou o sync. O resultado é a união das duas, sem códigos que saíram do catálogo.
+- Ao abrir o catálogo ou `favoritos.html` logado — e de novo em `SIGNED_IN` / `USER_UPDATED` — o navegador envia as favoritas locais e recebe a lista da conta (`sync_my_favorites`, até 1.000 códigos). Chamadas concorrentes no boot são coalescidas (mutex) e o primeiro `SIGNED_IN` de recuperação é ignorado se o `init` já disparou o sync. O resultado é a união das duas, sem códigos que saíram do catálogo.
 - As **abas** (nomes e agrupamentos) permanecem só neste aparelho; o Postgres guarda `favorited` em `song_interactions`, não a estrutura de abas.
 - Marcar ou desmarcar uma favorita logado envia a mudança pela mesma fila do ranking (`set_song_favorite`), inclusive com `VITE_ENABLE_POPULARITY=false`. Assim, uma remoção feita em um aparelho não "volta" no outro.
 - Sem conta, ao salvar a primeira favorita o catálogo sugere entrar (`login.html`) para guardar a lista entre aparelhos.

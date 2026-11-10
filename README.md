@@ -20,7 +20,7 @@
 
 - **Pesquisa local:** música, artista, código ou começo da letra, sem diferenciar acentos; correspondências mais relevantes aparecem primeiro.
 - **Descoberta:** clique no nome do artista para filtrar suas músicas e explorar artistas relacionados disponíveis no próprio catálogo.
-- **Favoritas:** tela `#favoritas` e abas locais no navegador, sem criar conta. Com login, a **lista de códigos** sincroniza entre aparelhos (as abas continuam só neste aparelho).
+- **Favoritas:** página `favoritos.html` com abas locais no navegador, sem criar conta; no catálogo, o filtro “Somente favoritas”. Com login, a **lista de códigos** sincroniza entre aparelhos (as abas continuam só neste aparelho).
 - **Spotify opcional:** com autorização do usuário, usa suas **50 mais ouvidas** como sugestões e só as adiciona à lista da noite quando a pessoa escolhe “Quero cantar”.
 - **Descoberta por cartões:** escolha artistas, passe ou selecione músicas e mantenha uma lista da noite salva neste navegador.
 - **Mais populares:** ranking agregado, quando o Supabase está configurado e as migrações estão aplicadas.
@@ -109,6 +109,8 @@ src/
   lib/metrics.js           # formatação da aba Resultados
   integrations/analytics.js # GA4 ou Cloudflare Web Analytics
   login.js                 # página de login/cadastro/conta
+  favorites-page.js        # favoritos.html: abas e lista das favoritas
+  lib/song-row.js          # linha de música compartilhada (catálogo e favoritos)
   styles.css               # layout e identidade visual
   lib/catalog.js           # ranking, normalização e conciliação
   lib/requests.js          # validação e textos de pedidos, fila e rodada

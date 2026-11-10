@@ -104,3 +104,34 @@ test("account menu leaves theme toggling to initializeTheme", () => {
   assert.doesNotMatch(site, /toggleTheme\(/, "a second click handler on [data-theme-toggle] cancels the first");
   assert.match(site, /data-action="theme" data-theme-toggle/);
 });
+
+for (const page of ["index.html", "evento.html", "o-bar.html", "favoritos.html"]) {
+  test(`${page} header has no theme toggle; the account menus carry it`, () => {
+    const html = readFileSync(new URL(`../${page}`, import.meta.url), "utf8");
+    const header = html.match(/<header class="site-header">([\s\S]*?)<\/header>/)?.[1];
+    assert.ok(header, "site header not found");
+    assert.doesNotMatch(header, /id="theme-toggle"/);
+    assert.match(header, /class="header-instagram theme-toggle"/);
+    assert.match(header, /<div id="header-account" class="header-account-slot"><\/div>/);
+  });
+}
+
+test("login.html keeps its own header theme toggle (it has no account menu)", () => {
+  const html = readFileSync(new URL("../login.html", import.meta.url), "utf8");
+  assert.match(html, /id="theme-toggle"/);
+});
+
+test("signed-out menu offers Entrar and the theme; signed-in adds favoritos and conta", () => {
+  const site = readFileSync(new URL("../src/site.js", import.meta.url), "utf8");
+  const signedOut = site.match(/const SIGNED_OUT_ITEMS = `([\s\S]*?)`;/)?.[1];
+  const signedIn = site.match(/const SIGNED_IN_ITEMS = `([\s\S]*?)`;/)?.[1];
+  assert.ok(signedOut && signedIn, "menu item templates not found");
+  assert.match(signedOut, /role="menuitem"[^>]*href="login\.html"[^>]*>Entrar</);
+  assert.match(signedOut, /\$\{THEME_MENU_ITEM\}/);
+  assert.doesNotMatch(signedOut, /signout/);
+  assert.match(signedIn, /href="favoritos\.html">Meus favoritos</);
+  assert.match(signedIn, /href="login\.html#conta">Minha conta</);
+  assert.match(signedIn, /\$\{THEME_MENU_ITEM\}/);
+  assert.match(signedIn, /data-action="signout"/);
+  assert.doesNotMatch(site, /is-in-account-menu|setHeaderThemeVisible/);
+});

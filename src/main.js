@@ -1,5 +1,5 @@
 import { displayTitle, filterCatalog, filtersForArtistSelection, countActiveFilterChips, filtersToggleLabel, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
-import { fetchDeezerMeta, fetchRelatedArtists, fetchArtistPicture, cancelPendingDeezerMeta, metaFromCatalog, resolvePreview } from "./integrations/deezer.js";
+import { fetchDeezerMeta, fetchRelatedArtists, fetchArtistPicture, metaFromCatalog, resolvePreview } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
 import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState, emptyDiscoveryState } from "./lib/discovery.js";
 import { relatedCodesFor } from "./lib/connections.js";
@@ -8,17 +8,24 @@ import {
   DRAFT_TAB_ID,
   addToTab,
   allCodes,
-  clearTab,
-  createTab,
-  deleteTab,
-  emptyFavoritesState,
-  moveSong,
+  loadFavoritesState,
+  mergeFavoriteCodes,
   removeSong,
-  renameTab,
   sanitizeFavoritesState,
+  saveFavoritesState,
   setActiveTab,
-  tabOf,
 } from "./lib/favorites.js";
+import {
+  LANG_LABELS,
+  colorFromCode,
+  createCoverFallback,
+  createRowMetaLoader,
+  createSongRow,
+  paintFavoriteButton,
+  paintPreviewButton,
+  setIconAction,
+  spotifySearchUrl,
+} from "./lib/song-row.js";
 import {
   resolveSwipeAxis,
   shouldCommitSwipe,
@@ -32,7 +39,6 @@ import { authConfigured, getCurrentUser, onAuthChange } from "./integrations/aut
 import { hideExpiredEventNav, initializeAccountMenu, initializeIsland, initializeTheme, setFooterYear, setIslandTab } from "./site.js";
 import { syncAccountFavorites } from "./integrations/favorites-sync.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
-import { mergeFavoriteCodes } from "./lib/favorites.js";
 import { clearSongRequest, initSongRequests, prepareSongRequest } from "./song-requests.js";
 import { initAnalytics, trackEvent } from "./integrations/analytics.js";
 
@@ -45,25 +51,22 @@ import { initAnalytics, trackEvent } from "./integrations/analytics.js";
   location.replace(login.href);
 })();
 
+const FAVORITES_PAGE = "favoritos.html";
+
+/** Old "#favoritas" links (account menu, Minha conta, bookmarks) now open favoritos.html. */
+function redirectLegacyFavoritesHash() {
+  if (!location.hash.toLowerCase().startsWith("#favoritas")) return false;
+  location.replace(new URL(FAVORITES_PAGE, location.href).href);
+  return true;
+}
+
 const BASE = import.meta.env.BASE_URL || "/";
 const PAGE_SIZE = 40;
 const DISCOVERY_ENABLED = String(import.meta.env.VITE_ENABLE_DISCOVERY || "true") !== "false";
 const POPULARITY_ENABLED = String(import.meta.env.VITE_ENABLE_POPULARITY || "true") !== "false";
-const LEGACY_FAVORITES_KEY = "bdc-favorites-v1";
-const FAVORITES_KEY = "bdc-favorites-v2";
 const DISCOVERY_KEY = "bdc-discovery-v1";
 const RESULTS_VIEW_KEY = "bdc-results-view-v1";
 const ARTIST_VIEW_KEY = "bdc-artist-view-v1";
-const META_ROOT_MARGIN = "200px 0px";
-
-const LANG_LABELS = {
-  BRA: "Brasileiras",
-  EUA: "Internacionais",
-  JAP: "Japonês",
-  ITA: "Italiano",
-  ESP: "Español",
-  FRA: "Francês",
-};
 
 const LANG_COLORS = {
   BRA: "#e91429",
@@ -121,12 +124,9 @@ const els = {
   activeFilter: document.querySelector("#active-filter"),
   dialog: document.querySelector("#dj-dialog"),
   previewAudio: document.querySelector("#preview-audio"),
-  favoritesButton: document.querySelector("#show-favorites"),
   favoritesCount: document.querySelector("#favorites-count"),
-  favoritasIntro: document.querySelector("#favoritas-intro"),
   searchSection: document.querySelector("#buscar"),
   spotifyButton: document.querySelector("#spotify-connect"),
-  themeToggle: document.querySelector("#theme-toggle"),
   spotifyStatus: document.querySelector("#spotify-status"),
   relatedSection: document.querySelector("#related-artists"),
   relatedTitle: document.querySelector("#related-title"),
@@ -162,12 +162,6 @@ const els = {
   changeArtists: document.querySelector("#change-artists"),
   restartPassed: document.querySelector("#restart-passed"),
   goToFavorites: document.querySelector("#go-to-favorites"),
-  favoriteTabs: document.querySelector("#favorite-tabs"),
-  favoriteTabList: document.querySelector("#favorite-tab-list"),
-  newFavoriteTab: document.querySelector("#new-favorite-tab"),
-  renameFavoriteTab: document.querySelector("#rename-favorite-tab"),
-  clearFavoriteTab: document.querySelector("#clear-favorite-tab"),
-  deleteFavoriteTab: document.querySelector("#delete-favorite-tab"),
   popularView: document.querySelector("#popular-view"),
   popularList: document.querySelector("#popular-list"),
   artistSongsDialog: document.querySelector("#artist-songs-dialog"),
@@ -192,15 +186,13 @@ let visibleCount = PAGE_SIZE;
 let activeCategory = null;
 let previewCode = null;
 let dialogMetaGen = 0;
-let favoritesState = loadFavorites();
+let favoritesState = loadFavoritesState();
 let favoriteCodes = allCodes(favoritesState);
-/** Favorites view shows one tab at a time; the "Somente favoritas" filter spans all tabs. */
-let favoritesTabView = false;
+/** "Somente favoritas" spans every tab; the tabs themselves live on favoritos.html. */
 let favoritesOnly = false;
 let accountFavoritesPromptShown = false;
 let relatedRequest = 0;
 let songByCode = new Map();
-let observer = null;
 let discovery = loadDiscovery();
 let allCatalogArtists = [];
 let artistOptions = [];
@@ -266,89 +258,6 @@ function setResultsView(view) {
 
 function normalize(value) {
   return normalizeText(value);
-}
-
-function spotifySearchUrl(artist, title) {
-  return `https://open.spotify.com/search/${encodeURIComponent(`${artist} ${title}`)}`;
-}
-
-const ACTION_ICONS = {
-  // Ticket with code lines — clearer than a bare hash at small sizes.
-  code: {
-    paths: [
-      '<rect x="4.5" y="5" width="15" height="14" rx="2.5"/>',
-      '<path d="M8 9.5h8M8 12.5h8M8 15.5h5"/>',
-    ],
-  },
-  heart: {
-    paths: ['<path d="M12 20S5 14.8 5 9.2A3.9 3.9 0 0 1 12 6.4 3.9 3.9 0 0 1 19 9.2C19 14.8 12 20 12 20z"/>'],
-  },
-  heartFilled: {
-    fill: true,
-    paths: ['<path d="M12 20S5 14.8 5 9.2A3.9 3.9 0 0 1 12 6.4 3.9 3.9 0 0 1 19 9.2C19 14.8 12 20 12 20z"/>'],
-  },
-  play: {
-    fill: true,
-    paths: ['<path d="M8.2 5.4v13.2L19.2 12 8.2 5.4z"/>'],
-  },
-  pause: {
-    fill: true,
-    paths: ['<path d="M7.5 5h3.2v14H7.5zm5.8 0H16.5v14h-3.2z"/>'],
-  },
-  spotify: {
-    fill: true,
-    paths: [
-      '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.56 14.45a.72.72 0 0 1-.98.25c-2.68-1.64-6.06-2-10.04-1.1a.72.72 0 1 1-.32-1.4c4.35-.99 8.06-.57 11.09 1.28a.72.72 0 0 1 .25.97zm1.27-2.82a.9.9 0 0 1-1.23.3c-3.07-1.89-7.75-2.43-11.38-1.33a.9.9 0 1 1-.52-1.72c4.14-1.25 9.3-.64 12.84 1.53a.9.9 0 0 1 .29 1.22zm.11-2.95C14.67 8.95 8.64 8.77 5.55 9.7a1.07 1.07 0 1 1-.62-2.05c3.55-1.08 10.24-.87 14.26 1.53a1.07 1.07 0 0 1-1.12 1.83z"/>',
-    ],
-  },
-  pass: { paths: ['<path d="M7 7l10 10M17 7 7 17"/>'] },
-  bookmark: { paths: ['<path d="M7 4h10a1 1 0 0 1 1 1v16l-6-3.5L6 21V5a1 1 0 0 1 1-1z"/>'] },
-  bookmarkFilled: {
-    fill: true,
-    paths: ['<path d="M7 4h10a1 1 0 0 1 1 1v16l-6-3.5L6 21V5a1 1 0 0 1 1-1z"/>'],
-  },
-};
-
-function createIcon(name) {
-  const spec = ACTION_ICONS[name];
-  if (!spec) return document.createTextNode("");
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("aria-hidden", "true");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  if (spec.fill) svg.classList.add("icon-fill");
-  svg.innerHTML = spec.paths.join("");
-  return svg;
-}
-
-function setIconAction(el, iconName) {
-  el.classList.add("icon-action");
-  el.classList.remove("labeled-action");
-  el.replaceChildren(createIcon(iconName));
-}
-
-function setLabeledIconAction(el, iconName, label) {
-  el.classList.remove("icon-action");
-  el.classList.add("labeled-action");
-  const text = document.createElement("span");
-  text.textContent = label;
-  el.replaceChildren(createIcon(iconName), text);
-}
-
-function paintFavoriteButton(button, saved, title) {
-  button.classList.toggle("is-favorite", saved);
-  button.setAttribute("aria-pressed", String(saved));
-  button.setAttribute("aria-label", `${saved ? "Remover das favoritas" : "Adicionar às favoritas"}: ${title}`);
-  if (button.classList.contains("icon-action")) setIconAction(button, saved ? "heartFilled" : "heart");
-  else button.textContent = saved ? "Salva" : "Favoritar";
-}
-
-function paintPreviewButton(button, playing) {
-  button.classList.toggle("is-playing", playing);
-  if (button.classList.contains("icon-action")) {
-    setIconAction(button, playing ? "pause" : "play");
-    return;
-  }
-  button.textContent = playing ? "Pausar" : (button.dataset.idleLabel || "Preview");
 }
 
 function updateMobileTabs() {
@@ -817,7 +726,7 @@ function renderDiscoveryCard() {
     els.discoveryCard.replaceChildren();
     renderDiscoveryPeeks();
     els.cardPosition.textContent = "Sugestões concluídas";
-    const saved = draftTab().codes.length;
+    const saved = favoritesState.tabs.find((tab) => tab.id === DRAFT_TAB_ID)?.codes.length || 0;
     els.discoveryDescription.textContent = saved
       ? `Você tem ${saved} música${saved === 1 ? "" : "s"} na aba Rascunho das Favoritas.`
       : "Não encontramos mais músicas para estes estilos e artistas no catálogo.";
@@ -1102,45 +1011,16 @@ function showPopular() {
   });
 }
 
-function loadFavorites() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(FAVORITES_KEY) || "null");
-    if (saved) return sanitizeFavoritesState(saved);
-    const legacy = JSON.parse(localStorage.getItem(LEGACY_FAVORITES_KEY) || "[]");
-    return sanitizeFavoritesState(Array.isArray(legacy) ? legacy : []);
-  } catch {
-    return emptyFavoritesState();
-  }
-}
-
 function persistFavorites() {
   favoriteCodes = allCodes(favoritesState);
-  try {
-    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favoritesState));
-  } catch {
+  if (!saveFavoritesState(favoritesState)) {
     els.spotifyStatus.hidden = false;
     els.spotifyStatus.textContent = "Não foi possível salvar suas favoritas neste navegador.";
   }
 }
 
-function draftTab() {
-  return favoritesState.tabs.find((tab) => tab.id === DRAFT_TAB_ID);
-}
-
-function activeTab() {
-  return favoritesState.tabs.find((tab) => tab.id === favoritesState.active) || draftTab();
-}
-
 function updateFavoriteControls() {
-  const count = favoriteCodes.size.toLocaleString("pt-BR");
-  els.favoritesCount.textContent = count;
-  const onFavoritesScreen = favoritesOnly && favoritesTabView;
-  els.favoritesButton.setAttribute("aria-pressed", String(onFavoritesScreen));
-  els.favoritesButton.classList.toggle("is-active", onFavoritesScreen);
-  setFavoritesScreen(onFavoritesScreen);
-  if (!onFavoritesScreen && location.hash === "#favoritas") {
-    history.replaceState(null, "", `${location.pathname}${location.search}#buscar`);
-  }
+  els.favoritesCount.textContent = favoriteCodes.size.toLocaleString("pt-BR");
   updateMobileTabs();
 }
 
@@ -1242,113 +1122,6 @@ function addFavorites(newSongs) {
 function toggleFavorite(song) {
   if (favoriteCodes.has(song.code)) unsaveFavorite(song.code);
   else saveFavorite(song);
-}
-
-function moveFavorite(code, tabId) {
-  favoritesState = moveSong(favoritesState, code, tabId);
-  persistFavorites();
-  onFavoritesChanged(code);
-}
-
-function renderFavoriteTabs() {
-  els.favoriteTabs.hidden = !favoritesTabView;
-  if (!favoritesTabView) return;
-  const current = activeTab();
-  els.favoriteTabList.replaceChildren(...favoritesState.tabs.map((tab) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "favorite-tab";
-    button.setAttribute("role", "tab");
-    button.setAttribute("aria-selected", String(tab.id === current.id));
-    button.classList.toggle("is-active", tab.id === current.id);
-    const name = document.createElement("span");
-    name.textContent = tab.name;
-    const count = document.createElement("span");
-    count.className = "favorite-count";
-    count.textContent = String(tab.codes.length);
-    button.append(name, count);
-    button.addEventListener("click", () => {
-      favoritesState = setActiveTab(favoritesState, tab.id);
-      persistFavorites();
-      showFavoritesTab();
-    });
-    return button;
-  }));
-  const isDraft = current.id === DRAFT_TAB_ID;
-  els.renameFavoriteTab.hidden = isDraft;
-  els.deleteFavoriteTab.hidden = isDraft;
-  els.clearFavoriteTab.disabled = current.codes.length === 0;
-}
-
-function showFavoritesTab() {
-  els.activeFilter.textContent = `Suas favoritas · ${activeTab().name}`;
-  applyFilters();
-}
-
-function promptNewFavoriteTab() {
-  const name = window.prompt("Nome da nova aba (ex.: Noite de sexta):");
-  if (!name?.trim()) return;
-  favoritesState = createTab(favoritesState, name);
-  persistFavorites();
-  showFavoritesTab();
-}
-
-function promptRenameFavoriteTab() {
-  const tab = activeTab();
-  const name = window.prompt("Novo nome da aba:", tab.name);
-  if (!name?.trim()) return;
-  favoritesState = renameTab(favoritesState, tab.id, name);
-  persistFavorites();
-  showFavoritesTab();
-}
-
-function confirmDeleteFavoriteTab() {
-  const tab = activeTab();
-  if (!window.confirm(`Apagar a aba “${tab.name}”? As músicas dela voltam para o Rascunho.`)) return;
-  favoritesState = deleteTab(favoritesState, tab.id);
-  persistFavorites();
-  showFavoritesTab();
-}
-
-function confirmClearFavoriteTab() {
-  const tab = activeTab();
-  if (!tab.codes.length || !window.confirm(`Tirar todas as músicas da aba “${tab.name}”?`)) return;
-  for (const code of tab.codes) setSongFavorite(code, false);
-  favoritesState = clearTab(favoritesState, tab.id);
-  persistFavorites();
-  showFavoritesTab();
-}
-
-function createMoveSelect(song) {
-  const label = document.createElement("label");
-  label.className = "move-favorite";
-  const text = document.createElement("span");
-  text.className = "visually-hidden";
-  text.textContent = `Mover ${displayTitle(song.title)} para outra aba`;
-  const select = document.createElement("select");
-  const current = tabOf(favoritesState, song.code);
-  select.append(new Option("Mover para…", ""));
-  for (const tab of favoritesState.tabs) {
-    if (tab.id === current?.id) continue;
-    select.append(new Option(tab.name, tab.id));
-  }
-  select.append(new Option("+ Nova aba…", "__new__"));
-  select.addEventListener("change", () => {
-    const value = select.value;
-    if (value === "__new__") {
-      const name = window.prompt("Nome da nova aba:");
-      if (!name?.trim()) { select.value = ""; return; }
-      const previous = favoritesState.active;
-      favoritesState = createTab(favoritesState, name);
-      const created = favoritesState.active;
-      favoritesState = setActiveTab(favoritesState, previous);
-      moveFavorite(song.code, created);
-    } else if (value) {
-      moveFavorite(song.code, value);
-    }
-  });
-  label.append(text, select);
-  return label;
 }
 
 function hideRelatedArtists() {
@@ -1465,85 +1238,10 @@ function showArtistSongs(artist) {
   els.resultsView.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function setFavoritesScreen(active) {
-  els.searchSection?.classList.toggle("is-favorites-screen", active);
-  if (els.favoritasIntro) els.favoritasIntro.hidden = !active;
-  if (els.backToBrowse) {
-    els.backToBrowse.textContent = active ? "Voltar ao catálogo" : "Voltar ao catálogo";
-  }
-}
-
-function openFavoritesScreen({ updateHash = true } = {}) {
-  favoritesOnly = true;
-  favoritesTabView = true;
-  els.popularView.hidden = true;
-  els.songsList.hidden = false;
-  activeCategory = null;
-  selectedLanguage = "";
-  selectedArtist = "";
-  els.searchInput.value = "";
-  els.clearButton.hidden = true;
-  hideRelatedArtists();
-  setBrowseMode(false);
-  setFavoritesScreen(true);
-  showFavoritesTab();
-  if (updateHash && location.hash !== "#favoritas") {
-    history.replaceState(null, "", `${location.pathname}${location.search}#favoritas`);
-  }
-  updateFavoriteControls();
-  els.resultsView.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-function closeFavoritesScreen({ updateHash = true } = {}) {
-  const wasFavoritesScreen = favoritesOnly && favoritesTabView;
-  favoritesOnly = false;
-  favoritesTabView = false;
-  setFavoritesScreen(false);
-  if (wasFavoritesScreen && updateHash && location.hash === "#favoritas") {
-    history.replaceState(null, "", `${location.pathname}${location.search}#buscar`);
-  }
-  updateFavoriteControls();
-}
-
-function showFavorites() {
-  if (favoritesOnly && favoritesTabView) {
-    closeFavoritesScreen();
-    refreshFilteredSearch();
-    return;
-  }
-  openFavoritesScreen();
-}
-
-function syncFavoritesRoute() {
-  const hash = (location.hash.split("?")[0] || "").toLowerCase();
-  if (hash === "#favoritas") {
-    if (!(favoritesOnly && favoritesTabView)) openFavoritesScreen({ updateHash: false });
-    return;
-  }
-  if (favoritesOnly && favoritesTabView) {
-    closeFavoritesScreen({ updateHash: false });
-    if (hash === "#buscar" || hash === "#inicio" || !hash) refreshFilteredSearch();
-  }
-}
-
-function initials(artist, title) {
-  const a = (artist || "?").trim().charAt(0);
-  const t = (title || "?").trim().charAt(0);
-  return (a + t).toUpperCase();
-}
-
-function colorFromCode(code) {
-  const colors = ["#e91429", "#148a08", "#509bf5", "#ba5d07", "#8d67ab", "#e1118c", "#477d95", "#b49bc8"];
-  let n = 0;
-  for (const ch of String(code)) n = (n * 31 + ch.charCodeAt(0)) >>> 0;
-  return colors[n % colors.length];
-}
-
 let selectedLanguage = "";
 let selectedArtist = "";
 function filteredCatalog(query = "") {
-  const codes = favoritesOnly && favoritesTabView ? new Set(activeTab().codes) : favoriteCodes;
-  return filterCatalog(songs, { query, language: selectedLanguage, artist: selectedArtist, favoritesOnly, favoriteCodes: codes, category: activeCategory });
+  return filterCatalog(songs, { query, language: selectedLanguage, artist: selectedArtist, favoritesOnly, favoriteCodes, category: activeCategory });
 }
 function populateArtistFilter() {
   const select = document.querySelector("#filter-artist");
@@ -1562,10 +1260,7 @@ function syncFilterControls() {
   const entries = [
     selectedLanguage && [LANG_LABELS[selectedLanguage], () => { selectedLanguage = ""; }],
     selectedArtist && !browsingArtist && [selectedArtist, () => { selectedArtist = ""; }],
-    favoritesOnly && ["Favoritas", () => {
-      if (favoritesTabView) closeFavoritesScreen({ updateHash: true });
-      else favoritesOnly = false;
-    }],
+    favoritesOnly && ["Favoritas", () => { favoritesOnly = false; }],
     activeCategory && ["letter", "artists"].includes(activeCategory.type) && [activeCategory.label, () => { activeCategory = null; }],
   ].filter(Boolean);
   for (const [label, remove] of entries) {
@@ -1594,8 +1289,6 @@ function refreshFilteredSearch() {
   applyFilters();
 }
 function applyFilters() {
-  if (!favoritesOnly) favoritesTabView = false;
-  renderFavoriteTabs();
   filtered = filteredCatalog(els.searchInput.value.trim());
   visibleCount = PAGE_SIZE;
   syncFilterControls();
@@ -1633,12 +1326,11 @@ document.querySelector("#filter-artist").addEventListener("change", (event) => {
 });
 document.querySelector("#filter-favorites").addEventListener("change", (event) => {
   favoritesOnly = event.target.checked;
-  favoritesTabView = false;
   refreshFilteredSearch();
   collapseFiltersPanel();
 });
 document.querySelector("#clear-filters").addEventListener("click", () => {
-  selectedLanguage = ""; selectedArtist = ""; favoritesOnly = false; favoritesTabView = false; activeCategory = null;
+  selectedLanguage = ""; selectedArtist = ""; favoritesOnly = false; activeCategory = null;
   document.querySelector("#filter-artist-search").value = "";
   populateArtistFilter();
   updateFavoriteControls();
@@ -1681,12 +1373,7 @@ function showCategory(category) {
 }
 
 function backToBrowse() {
-  if (favoritesOnly && favoritesTabView) closeFavoritesScreen();
-  else {
-    favoritesOnly = false;
-    favoritesTabView = false;
-    setFavoritesScreen(false);
-  }
+  favoritesOnly = false;
   activeCategory = null;
   syncFilterControls();
   hideRelatedArtists();
@@ -1701,241 +1388,24 @@ function backToBrowse() {
   stopPreview();
 }
 
-function createCoverFallback(song) {
-  const el = document.createElement("div");
-  el.className = "cover-fallback";
-  el.style.background = colorFromCode(song.code);
-  el.textContent = initials(song.artist, song.title);
-  return el;
-}
+const rowMeta = createRowMetaLoader({ songFor: (code) => songByCode.get(code), ensureCovers: ensureSongCovers });
 
-function createSongRow(song) {
-  const row = document.createElement("article");
-  row.className = "song-row";
-  row.dataset.code = song.code;
-  row.dataset.metaState = "idle";
-  row.setAttribute("role", "listitem");
-
-  const coverWrap = document.createElement("button");
-  coverWrap.type = "button";
-  coverWrap.className = "song-cover";
-  coverWrap.setAttribute("aria-label", `Ver código: ${displayTitle(song.title)}`);
-  coverWrap.addEventListener("click", () => showSongToDJ(song));
-  const catalogMeta = metaFromCatalog(song);
-  if (catalogMeta.cover) {
-    coverWrap.append(createCoverFallback(song));
-    setCoverImage(coverWrap, song, catalogMeta.cover);
-    row.dataset.metaState = "done";
-  } else {
-    coverWrap.append(createCoverFallback(song));
-  }
-
-  const info = document.createElement("div");
-  info.className = "song-info";
-  const title = document.createElement("h3");
-  title.textContent = displayTitle(song.title);
-  const artist = document.createElement("button");
-  artist.type = "button";
-  artist.className = "artist-link";
-  artist.textContent = cleanArtist(song.artist);
-  artist.title = `Ver músicas de ${cleanArtist(song.artist)} e artistas relacionados`;
-  artist.addEventListener("click", () => showArtistSongs(cleanArtist(song.artist)));
-  const meta = document.createElement("p");
-  meta.className = "song-meta";
-  meta.textContent = `Código ${song.code} · ${LANG_LABELS[song.lang] || song.lang}`;
-  info.append(title, artist, meta);
-
-  const actions = document.createElement("div");
-  actions.className = "song-actions";
-
-  const secondary = document.createElement("div");
-  secondary.className = "song-actions-secondary";
-
-  const spotify = document.createElement("a");
-  spotify.className = "action-link action-secondary icon-action";
-  spotify.href = spotifySearchUrl(song.artist.replace(/\.\.\.$/, ""), displayTitle(song.title));
-  spotify.target = "_blank";
-  spotify.rel = "noopener noreferrer";
-  setIconAction(spotify, "spotify");
-  spotify.title = "Spotify";
-  spotify.setAttribute("aria-label", `Ouvir no Spotify: ${displayTitle(song.title)}`);
-
-  const previewBtn = document.createElement("button");
-  previewBtn.type = "button";
-  previewBtn.className = "action-btn preview-btn action-secondary icon-action";
-  previewBtn.title = "Preview";
-  previewBtn.setAttribute("aria-label", `Ouvir trecho: ${displayTitle(song.title)}`);
-  setIconAction(previewBtn, "play");
-  previewBtn.hidden = true;
-  if (catalogMeta.previewUrl || catalogMeta.deezerId) {
-    previewBtn.hidden = false;
-    if (catalogMeta.previewUrl) previewBtn.dataset.preview = catalogMeta.previewUrl;
-  }
-  previewBtn.addEventListener("click", () => togglePreview(song, previewBtn));
-
-  const djBtn = document.createElement("button");
-  djBtn.type = "button";
-  djBtn.className = "action-btn dj-btn";
-  setLabeledIconAction(djBtn, "code", "Código");
-  djBtn.title = "Código";
-  djBtn.setAttribute("aria-label", `Código ao DJ: ${song.code}`);
-  djBtn.addEventListener("click", () => showSongToDJ(song));
-
-  const favoriteBtn = document.createElement("button");
-  favoriteBtn.type = "button";
-  favoriteBtn.className = "action-btn favorite-btn icon-action";
-  favoriteBtn.dataset.code = song.code;
-  favoriteBtn.title = "Favoritar";
-  paintFavoriteButton(favoriteBtn, favoriteCodes.has(song.code), displayTitle(song.title));
-  favoriteBtn.addEventListener("click", () => toggleFavorite(song));
-
-  // Código leads; Favoritar / Preview / Spotify sit in an equal secondary row.
-  secondary.append(favoriteBtn, previewBtn, spotify);
-  actions.append(djBtn, secondary);
-  if (favoritesOnly && favoritesTabView && favoriteCodes.has(song.code)) {
-    row.append(createMoveSelect(song));
-  }
-  row.append(coverWrap, info, actions);
-  return row;
-}
-
-function setCoverImage(coverWrap, song, coverUrl) {
-  if (!coverWrap || !coverUrl) return;
-  const existing = coverWrap.querySelector("img");
-  if (existing?.dataset?.coverUrl === coverUrl) return;
-  const img = document.createElement("img");
-  img.alt = "";
-  img.decoding = "async";
-  img.referrerPolicy = "no-referrer";
-  img.dataset.coverUrl = coverUrl;
-  img.src = coverUrl;
-  img.addEventListener("error", () => {
-    if (coverWrap.isConnected && song) coverWrap.replaceChildren(createCoverFallback(song));
-  }, { once: true });
-  coverWrap.replaceChildren(img);
-}
-
-function applySongMeta(row, meta) {
-  if (!meta || !row.isConnected) return;
-  const coverWrap = row.querySelector(".song-cover");
-  // Mirror the dialog: put the <img> in the DOM immediately. Waiting for load on an
-  // off-DOM (or lazy) image left the search list stuck on initials while the modal worked.
-  // Replace whenever the URL changes so dialog sync can repair a missing/failed cover.
-  if (meta.cover && coverWrap) {
-    setCoverImage(coverWrap, songByCode.get(row.dataset.code), meta.cover);
-  }
-  const previewBtn = row.querySelector(".preview-btn");
-  if (meta.previewUrl && previewBtn) {
-    previewBtn.hidden = false;
-    previewBtn.dataset.preview = meta.previewUrl;
-  }
-}
-
-/** Applies cached/fetched Deezer meta to every visible search row for this code. */
-function syncSongMetaToList(song, meta) {
-  if (!song?.code || !meta) return;
-  document.querySelectorAll(`.song-row[data-code="${CSS.escape(String(song.code))}"]`).forEach((row) => {
-    if (!row.isConnected) return;
-    if (meta.cover || meta.previewUrl) row.dataset.metaState = "done";
-    applySongMeta(row, meta);
-    if (meta.cover) observer?.unobserve(row);
+function renderSongRow(song) {
+  return createSongRow(song, {
+    favorite: favoriteCodes.has(song.code),
+    onShowCode: showSongToDJ,
+    onShowArtist: showArtistSongs,
+    onToggleFavorite: toggleFavorite,
+    onTogglePreview: togglePreview,
   });
-}
-
-function finishRowMeta(row, meta) {
-  if (!row?.isConnected || !meta) return;
-  applySongMeta(row, meta);
-  if (meta.cover || meta.previewUrl) {
-    row.dataset.metaState = "done";
-    if (meta.cover) observer?.unobserve(row);
-  } else {
-    row.dataset.metaState = "idle";
-  }
-}
-
-async function enrichRow(row) {
-  if (!row?.isConnected) return;
-  if (row.dataset.metaState === "done" || row.dataset.metaState === "loading") return;
-  const code = row.dataset.code;
-  const song = songByCode.get(code);
-  if (!song) return;
-
-  await ensureSongCovers();
-  if (!row.isConnected) return;
-
-  // Catalog already has cover linked to this karaoke code — skip Deezer.
-  const catalogMeta = metaFromCatalog(song);
-  if (catalogMeta.cover) {
-    finishRowMeta(row, catalogMeta);
-    return;
-  }
-
-  const generation = String(Number(row.dataset.metaGen || "0") + 1);
-  row.dataset.metaGen = generation;
-  row.dataset.metaState = "loading";
-
-  try {
-    const meta = await fetchDeezerMeta(song);
-    if (!row.isConnected) return;
-    // After scroll-away cancel, still paint useful meta onto the mounted row.
-    if (row.dataset.metaGen !== generation) {
-      if (meta && (meta.cover || meta.previewUrl)) finishRowMeta(row, meta);
-      else if (row.dataset.metaState === "cancelled") row.dataset.metaState = "idle";
-      return;
-    }
-    if (row.dataset.metaState === "cancelled") {
-      if (meta && (meta.cover || meta.previewUrl)) finishRowMeta(row, meta);
-      else row.dataset.metaState = "idle";
-      return;
-    }
-    if (!meta) {
-      row.dataset.metaState = "idle";
-      return;
-    }
-    finishRowMeta(row, meta);
-  } catch {
-    if (row.isConnected && row.dataset.metaGen === generation) {
-      row.dataset.metaState = "idle";
-    }
-  }
-}
-
-function abandonRowMeta(row) {
-  if (!row || row.dataset.metaState !== "loading") return;
-  row.dataset.metaState = "cancelled";
-  row.dataset.metaGen = String(Number(row.dataset.metaGen || "0") + 1);
-  cancelPendingDeezerMeta(row.dataset.code);
-}
-
-function setupObserver() {
-  if (observer) observer.disconnect();
-  if (typeof IntersectionObserver !== "function") {
-    observer = null;
-    return;
-  }
-  observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        const row = entry.target;
-        if (entry.isIntersecting) {
-          enrichRow(row);
-        } else {
-          abandonRowMeta(row);
-        }
-      }
-    },
-    { rootMargin: META_ROOT_MARGIN, threshold: 0 }
-  );
 }
 
 function renderResults() {
   const slice = filtered.slice(0, visibleCount);
-  const rows = slice.map(createSongRow);
+  const rows = slice.map(renderSongRow);
   els.songsList.replaceChildren(...rows);
   applyResultsView();
-  setupObserver();
-  if (observer) rows.forEach((row) => observer.observe(row));
-  else rows.forEach((row) => enrichRow(row));
+  rowMeta.observe(rows);
 
   const total = filtered.length;
   const q = els.searchInput.value.trim();
@@ -1948,9 +1418,7 @@ function renderResults() {
 
   els.emptyState.hidden = total !== 0;
   els.emptyState.textContent = favoritesOnly && !q
-    ? (favoritesTabView && activeTab().id !== DRAFT_TAB_ID
-      ? "Esta aba ainda está vazia. Use “Mover para…” nas músicas do Rascunho."
-      : "Você ainda não salvou músicas. Use “Descobrir minha música” ou Favoritar nas que quiser cantar.")
+    ? "Você ainda não salvou músicas. Use “Descobrir minha música” ou Favoritar nas que quiser cantar."
     : "Nenhuma música encontrada com esta busca e os filtros ativos. Tente menos palavras ou use Limpar filtros.";
   els.loadMore.hidden = visibleCount >= total;
   els.clearButton.hidden = q.length === 0;
@@ -2015,7 +1483,7 @@ function applyDialogMeta(song, meta) {
     }
   }
   // Keep search results in sync when the dialog is the first place the cover arrives.
-  syncSongMetaToList(song, meta);
+  rowMeta.syncSongMeta(song, meta);
   if (meta.cover && currentDiscoverySong()?.code === song.code) {
     const fallback = els.discoveryCard?.querySelector(".cover-fallback, .discovery-cover");
     if (fallback && !els.discoveryCard.querySelector("img")) {
@@ -2374,12 +1842,8 @@ els.goToFavorites.addEventListener("click", () => {
   closeDiscover();
   favoritesState = setActiveTab(favoritesState, DRAFT_TAB_ID);
   persistFavorites();
-  openFavoritesScreen();
+  location.assign(new URL(FAVORITES_PAGE, location.href).href);
 });
-els.newFavoriteTab.addEventListener("click", promptNewFavoriteTab);
-els.renameFavoriteTab.addEventListener("click", promptRenameFavoriteTab);
-els.deleteFavoriteTab.addEventListener("click", confirmDeleteFavoriteTab);
-els.clearFavoriteTab.addEventListener("click", confirmClearFavoriteTab);
 let cardPointerStart = null;
 let cardAnimating = false;
 let cardSuppressClick = false;
@@ -2601,18 +2065,9 @@ els.closeArtistSongs?.addEventListener("click", closeArtistSongsDialog);
 els.artistSongsDialog?.addEventListener("click", (event) => {
   if (event.target === els.artistSongsDialog) closeArtistSongsDialog();
 });
-els.favoritesButton.addEventListener("click", (event) => {
-  // Keep hash navigation for deep links; prevent double-toggle with showFavorites.
-  if (favoritesOnly && favoritesTabView) {
-    event.preventDefault();
-    closeFavoritesScreen();
-    refreshFilteredSearch();
-  }
-});
 document.querySelectorAll('.mobile-tabbar a[data-mobile-tab][href^="#"]').forEach((link) => {
   link.addEventListener("click", () => {
-    if (favoritesOnly && favoritesTabView) closeFavoritesScreen({ updateHash: false });
-    else if (favoritesOnly) {
+    if (favoritesOnly) {
       favoritesOnly = false;
       refreshFilteredSearch();
     }
@@ -2621,10 +2076,9 @@ document.querySelectorAll('.mobile-tabbar a[data-mobile-tab][href^="#"]').forEac
   });
 });
 window.addEventListener("hashchange", () => {
-  syncFavoritesRoute();
+  if (redirectLegacyFavoritesHash()) return;
   updateMobileTabs();
 });
-syncFavoritesRoute();
 updateMobileTabs();
 initializeIsland();
 initializeTheme();
@@ -2669,7 +2123,7 @@ async function init() {
     return;
   }
 
-  // Covers sidecar: start immediately; enrichRow awaits before painting / Deezer.
+  // Covers sidecar: start immediately; the row loader awaits it before painting / Deezer.
   void ensureSongCovers();
 
   buildCategories();
@@ -2704,11 +2158,9 @@ async function init() {
     els.spotifyStatus.textContent = error.message;
   }
 
-  // Deep-link: #buscar?q=… or #favoritas
+  // Deep-link: #buscar?q=…
   const hash = location.hash;
-  if (hash.toLowerCase().startsWith("#favoritas")) {
-    openFavoritesScreen({ updateHash: false });
-  } else if (hash.startsWith("#buscar")) {
+  if (hash.startsWith("#buscar")) {
     const params = new URLSearchParams(hash.split("?")[1] || "");
     const q = params.get("q");
     if (q) {

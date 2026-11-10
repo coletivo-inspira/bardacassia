@@ -10,7 +10,7 @@ Encontrar uma música **que realmente está no karaokê**, identificar seu códi
 
 **Artistas:** o nome do artista em cada resultado é um botão. Ao tocar, o usuário vê somente as músicas daquele artista. A área de relacionados tenta o Deezer e restringe os nomes aos artistas existentes no catálogo. Se não houver dados externos, pode mostrar sugestões de grupos editoriais. Não rotular fallback editorial como recomendação algorítmica.
 
-**Favoritas:** o botão `Favoritar` salva um código neste navegador (com abas locais). A tela dedicada `#favoritas` concentra a lista; dá para entrar pelo menu da conta, por Minha conta ou pela descoberta. Sem conta, limpar os dados do navegador apaga a lista. Com login, a **união dos códigos** sobe para a conta (`sync_my_favorites`); a organização em abas permanece só neste aparelho.
+**Favoritas:** o botão `Favoritar` salva um código neste navegador (com abas locais). A página `favoritos.html` concentra a lista e as abas; dá para entrar pelo menu da conta, pelo botão Favoritas do catálogo ou pela descoberta. No catálogo fica só o filtro “Somente favoritas”. Sem conta, limpar os dados do navegador apaga a lista. Com login, a **união dos códigos** sobe para a conta (`sync_my_favorites`); a organização em abas permanece só neste aparelho.
 
 **Spotify (quando configurado):** o usuário autoriza suas mais ouvidas; a aplicação cruza os dados com o catálogo e adiciona apenas músicas disponíveis à lista local. A interface informa quantas foram conciliadas.
 

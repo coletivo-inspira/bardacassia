@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const FOOTER_PAGES = ["index.html", "evento.html", "o-bar.html"];
+const FOOTER_PAGES = ["index.html", "evento.html", "o-bar.html", "favoritos.html"];
 
 for (const page of FOOTER_PAGES) {
   test(`${page} footer carries the Coletivo Inspira copyright`, () => {
