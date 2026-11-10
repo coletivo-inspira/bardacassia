@@ -29,7 +29,7 @@ import {
 } from "./lib/discovery-swipe.js";
 import { fetchPopularSongs, popularityNeedsUpdate, recordSongOpen, setFavoriteSyncActive, setSongFavorite } from "./integrations/popularity.js";
 import { authConfigured, getCurrentUser, onAuthChange } from "./integrations/auth.js";
-import { hideExpiredEventNav, initializeAccountMenu, initializeTheme, setFooterYear } from "./site.js";
+import { hideExpiredEventNav, initializeAccountMenu, initializeIsland, initializeTheme, setFooterYear, setIslandTab } from "./site.js";
 import { syncAccountFavorites } from "./integrations/favorites-sync.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
 import { mergeFavoriteCodes } from "./lib/favorites.js";
@@ -352,16 +352,8 @@ function paintPreviewButton(button, playing) {
 }
 
 function updateMobileTabs() {
-  const tabs = document.querySelectorAll(".mobile-tabbar [data-mobile-tab]");
-  if (!tabs.length) return;
   const hash = (location.hash.split("?")[0] || "#inicio").toLowerCase();
-  const active = hash === "#inicio" ? "inicio" : "buscar";
-  tabs.forEach((tab) => {
-    const on = tab.dataset.mobileTab === active;
-    tab.classList.toggle("is-active", on);
-    if (on) tab.setAttribute("aria-current", "page");
-    else tab.removeAttribute("aria-current");
-  });
+  setIslandTab(hash === "#inicio" ? "inicio" : "buscar");
 }
 
 function loadDiscovery() {
@@ -2617,7 +2609,7 @@ els.favoritesButton.addEventListener("click", (event) => {
     refreshFilteredSearch();
   }
 });
-document.querySelectorAll('.mobile-tabbar a[data-mobile-tab]').forEach((link) => {
+document.querySelectorAll('.mobile-tabbar a[data-mobile-tab][href^="#"]').forEach((link) => {
   link.addEventListener("click", () => {
     if (favoritesOnly && favoritesTabView) closeFavoritesScreen({ updateHash: false });
     else if (favoritesOnly) {
@@ -2634,6 +2626,7 @@ window.addEventListener("hashchange", () => {
 });
 syncFavoritesRoute();
 updateMobileTabs();
+initializeIsland();
 initializeTheme();
 initAnalytics();
 initSongRequests();
