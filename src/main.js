@@ -123,6 +123,7 @@ const els = {
   clearButton: document.querySelector("#clear-search"),
   resultsCount: document.querySelector("#results-count"),
   browseView: document.querySelector("#browse-view"),
+  catalogTitle: document.querySelector("#catalog-title"),
   resultsView: document.querySelector("#results-view"),
   categoryGrid: document.querySelector("#category-grid"),
   songsList: document.querySelector("#songs-list"),
@@ -269,9 +270,9 @@ function normalize(value) {
   return normalizeText(value);
 }
 
+/** Search lives in the top bar, so the island has no Buscar tab: the whole catalog page is Início. */
 function updateMobileTabs() {
-  const hash = (location.hash.split("?")[0] || "#inicio").toLowerCase();
-  setIslandTab(hash === "#inicio" ? "inicio" : "buscar");
+  setIslandTab("inicio");
 }
 
 function loadDiscovery() {
@@ -1381,6 +1382,7 @@ document.querySelector("#clear-filters").addEventListener("click", () => {
 
 function setBrowseMode(browse) {
   els.browseView.hidden = !browse;
+  els.catalogTitle.hidden = !browse;
   els.resultsView.hidden = browse;
 }
 
@@ -1691,19 +1693,17 @@ function renderSearchSuggestions() {
   const container = document.querySelector("#search-suggestions");
   const q = els.searchInput.value.trim();
   container.replaceChildren();
-  if (!songs.length) return;
+  if (!songs.length || !q) return;
   const matches = filteredCatalog(q);
   const options = [];
-  if (q) {
-    for (const song of matches) {
-      const artist = cleanArtist(song.artist);
-      if (normalize(artist).includes(normalize(q)) && !options.some((item) => item.artist === artist)) options.push({ artist });
-      if (options.length === 2) break;
-    }
+  for (const song of matches) {
+    const artist = cleanArtist(song.artist);
+    if (normalize(artist).includes(normalize(q)) && !options.some((item) => item.artist === artist)) options.push({ artist });
+    if (options.length === 2) break;
   }
-  for (const song of matches.slice(0, q ? 3 : 4)) options.push({ song });
+  for (const song of matches.slice(0, 3)) options.push({ song });
   const label = document.createElement("p");
-  label.textContent = q ? (matches.length ? "Você está procurando…" : "Tente menos palavras, confira o nome ou remova um filtro.") : "Experimente buscar:";
+  label.textContent = matches.length ? "Você está procurando…" : "Tente menos palavras, confira o nome ou remova um filtro.";
   container.append(label);
   const examples = options;
   for (const item of examples) {
@@ -2232,6 +2232,8 @@ async function init() {
       els.searchInput.value = q;
       onSearchInput();
     }
+    // The browser jumps before the catalog and notice render (and never for #buscar?q=), so land again once they have.
+    requestAnimationFrame(() => els.searchSection?.scrollIntoView({ block: "start" }));
   }
 }
 
