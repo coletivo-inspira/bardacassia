@@ -1557,26 +1557,6 @@ dialog::backdrop {
   margin: 0.85rem 0 0.15rem;
 }
 
-/* Paper dialog: beat mobile .action-btn --bg-soft (#202020) so dark text stays readable. */
-#dj-dialog .dialog-card .dialog-listen .action-link,
-#dj-dialog .dialog-card .dialog-listen .action-btn {
-  color: var(--ink);
-  border-color: rgba(20, 20, 20, 0.22);
-  background: #fff;
-}
-
-#dj-dialog .dialog-card .dialog-listen .action-link:hover,
-#dj-dialog .dialog-card .dialog-listen .action-btn:hover {
-  background: rgba(20, 20, 20, 0.06);
-  border-color: rgba(20, 20, 20, 0.4);
-}
-
-#dj-dialog .dialog-card .dialog-listen .preview-btn.is-playing {
-  border-color: #a84235;
-  background: #fff;
-  color: #a84235;
-}
-
 .dialog-related {
   margin: 0.85rem 0 0.25rem;
   text-align: left;
@@ -4446,12 +4426,7 @@ dialog.discover-screen::backdrop { background: var(--bg); }
 .recommendation-text strong, .recommendation-text > span { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
 .recommendation-text strong { font-size: .9rem; line-height: 1.3; }
 .recommendation-text > span { color: var(--muted); font-size: .8rem; line-height: 1.3; }
-.recommendation-controls { display: flex; justify-content: flex-end; gap: .35rem; margin-top: .2rem; }
-.recommendation-controls[hidden] { display: none; }
-#dj-dialog .recommendation-controls button { min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-soft); color: var(--text); font: inherit; font-size: .8rem; cursor: pointer; }
-.recommendation-controls svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 #dj-dialog .song-recommendation:hover { border-color: var(--amber); }
-.song-recommendations:focus-visible, .song-recommendation:focus-visible, .recommendation-controls button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .header-account-menu [role="menuitem"] { gap: .55rem; }
 .header-account-menu [role="menuitem"] svg { flex-shrink: 0; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
@@ -4507,4 +4482,61 @@ dialog.discover-screen::backdrop { background: var(--bg); }
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
+}
+
+/* Song detail: scrolling content above a persistent, compact glass action dock. */
+#dj-dialog:modal { width: min(460px, calc(100% - 2rem)); height: min(860px, 92dvh); max-height: 92dvh; overflow: hidden; color: var(--text); background: var(--bg); }
+#dj-dialog .dialog-card { height: 100%; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; padding: 0; background: var(--bg); color: var(--text); overflow: hidden; }
+#dj-dialog .dialog-close { z-index: 4; display: grid; place-items: center; width: 44px; height: 44px; top: .35rem; right: .35rem; color: var(--text); border-radius: 50%; background: var(--chrome-tint); backdrop-filter: blur(12px); }
+.song-dialog-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 3rem 1rem 1rem; }
+#dj-dialog .dialog-cover { width: min(148px, 35vw); }
+#dj-dialog .dialog-song { font-size: 1rem; }
+#dj-dialog .dialog-listen { display: flex; justify-content: center; align-items: stretch; gap: .5rem; margin: 1rem 0; }
+#dj-dialog .dialog-card .dialog-listen > :is(button, a),
+#dj-dialog .song-dialog-footer button {
+  display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
+  min-height: 44px; margin: 0; padding: .6rem .8rem; border: 0; border-radius: 12px;
+  background: linear-gradient(180deg, var(--glass-base), transparent 70%), var(--chrome-tint);
+  color: var(--text); font: 600 .85rem var(--font-body); text-decoration: none;
+  -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 45%, transparent), inset 0 0 0 1px var(--glass-rim), 0 4px 12px var(--glass-drop);
+}
+#dj-dialog :is(button, a) > svg { flex: 0 0 18px; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#dj-dialog button[hidden], #dj-dialog .song-dialog-footer [hidden] { display: none; }
+#dj-dialog .dialog-card .dialog-listen .is-playing { color: var(--coral); }
+#dj-dialog .dialog-related { margin: .7rem 0 0; }
+#dj-dialog .dialog-related h3 { color: var(--muted); font-size: .7rem; }
+.song-recommendations { padding: .2rem 0 .4rem; display: block; overflow-x: auto; scrollbar-width: none; scroll-snap-type: none; }
+.song-recommendations::-webkit-scrollbar { display: none; }
+.recommendation-marquee-track { display: flex; width: max-content; }
+.recommendation-marquee-group { display: flex; gap: .5rem; padding-right: .5rem; flex-shrink: 0; }
+#dj-dialog .song-recommendation { flex: 0 0 184px; width: 184px; gap: .5rem; padding: .4rem .55rem; min-height: 48px; border: 0; border-radius: 10px; background: linear-gradient(180deg, var(--glass-base), transparent), var(--chrome-tint); color: var(--text); box-shadow: inset 0 1px 0 var(--glass-highlight), inset 0 0 0 1px var(--glass-rim); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.recommendation-cover { flex-basis: 32px; width: 32px; height: 32px; border-radius: 6px; }
+.recommendation-text { gap: .1rem; }
+.recommendation-text strong { font-size: .78rem; -webkit-line-clamp: 1; }
+.recommendation-text > span { font-size: .7rem; -webkit-line-clamp: 1; }
+.song-dialog-footer { flex: 0 0 auto; display: flex; flex-direction: column; gap: .6rem; max-height: 62%; min-height: 0; padding: .7rem 1rem max(.7rem, env(safe-area-inset-bottom)); background: linear-gradient(180deg, var(--glass-base), transparent), var(--chrome-tint); -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%); box-shadow: inset 0 1px 0 var(--glass-rim), 0 -8px 28px var(--glass-drop); }
+.song-dialog-code { flex-shrink: 0; display: flex; justify-content: center; align-items: center; gap: .8rem; }
+#dj-dialog .code-label { margin: 0; color: var(--muted); font-size: .6rem; }
+#dj-dialog .song-code { display: block; margin: .1rem 0 0; font-size: 2.3rem; line-height: 1; color: var(--text); }
+#dj-dialog .copy-code { position: static; flex: 0 0 44px; width: 44px; height: 44px; padding: .5rem; }
+#dj-dialog .copy-code > span { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+#dj-dialog .copy-code-status { min-height: 0; margin: 0; color: var(--muted); font-size: .75rem; }
+#dj-dialog .copy-code-status:empty { display: none; }
+.song-dialog-request { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+#dj-dialog .request-panel { margin: 0; padding: 0; border: 0; color: var(--text); }
+#dj-dialog .request-form { margin: 0; gap: .4rem; }
+#dj-dialog .request-form label { color: var(--text); font-size: .75rem; }
+#dj-dialog .request-form input { min-height: 44px; padding: .5rem .65rem; background: var(--bg-soft); color: var(--text); border-color: var(--glass-rim); }
+#dj-dialog .request-privacy, #dj-dialog .qr-hint, #dj-dialog .request-status { color: var(--muted); font-size: .72rem; margin: .3rem 0; }
+#dj-dialog .dialog-done { flex-shrink: 0; width: 100%; }
+#dj-dialog .qr-image { max-width: min(200px, 100%); height: auto; }
+#dj-dialog .song-dialog-footer button:focus-visible, #dj-dialog .dialog-listen > :focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+@media (max-width: 640px) {
+  #dj-dialog:modal { width: 100%; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
+  #dj-dialog .dialog-card { border-radius: 0; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  #dj-dialog .song-dialog-footer, #dj-dialog .song-recommendation,
+  #dj-dialog .song-dialog-footer button, #dj-dialog .dialog-card .dialog-listen > :is(button, a) { background: var(--bg-soft); backdrop-filter: none; -webkit-backdrop-filter: none; }
 }

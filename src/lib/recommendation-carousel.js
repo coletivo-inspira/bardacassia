@@ -1,48 +1,61 @@
-/** One disposable carousel per modal song; never duplicates focusable cards. */
+/** Continuous, compact recommendation ribbon; manual scrolling pauses motion. */
 export function initializeRecommendationCarousel(section) {
-  const track = section.querySelector('.song-recommendations');
-  const controls = section.querySelector('.recommendation-controls');
-  const cards = [...track.children];
-  const pause = controls.querySelector('[data-recommendation="pause"]');
-  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  const viewport = section.querySelector('.song-recommendations');
+  const cards = [...viewport.children];
   const abort = new AbortController();
   const options = { signal: abort.signal };
-  let paused = motion.matches;
-  let interacting = false;
-  let hovered = false;
-  let timer;
-  const update = () => {
-    clearInterval(timer);
-    pause.textContent = paused ? 'Retomar' : 'Pausar';
-    pause.setAttribute('aria-pressed', String(paused));
-    if (cards.length < 2 || paused || interacting || hovered || document.hidden || motion.matches || section.contains(document.activeElement)) return;
-    timer = setInterval(() => advance(1), 5000);
+  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  const track = document.createElement('div');
+  track.className = 'recommendation-marquee-track';
+  const group = document.createElement('div');
+  group.className = 'recommendation-marquee-group';
+  group.append(...cards);
+  track.append(group);
+  viewport.replaceChildren(track);
+  let frame = 0, previous = 0, offset = 0, hovered = false, manual = false;
+  let copy;
+  const resize = new ResizeObserver(() => {
+    copy?.remove();
+    copy = null;
+    if (cards.length > 1 && !motion.matches && !manual) {
+      copy = group.cloneNode(true);
+      copy.setAttribute('aria-hidden', 'true');
+      [...copy.children].forEach((card, index) => {
+        card.tabIndex = -1;
+        card.addEventListener('click', () => cards[index].click(), options);
+      });
+      track.append(copy);
+    }
+    offset = 0;
+    track.style.transform = '';
+  });
+  resize.observe(group);
+  const animate = (now) => {
+    const elapsed = previous ? Math.min(now - previous, 50) : 0;
+    previous = now;
+    const paused = motion.matches || manual || hovered || document.hidden || section.contains(document.activeElement);
+    if (!paused && copy) {
+      offset = (offset + elapsed * .022) % group.getBoundingClientRect().width;
+      track.style.transform = `translateX(${-offset}px)`;
+    }
+    frame = requestAnimationFrame(animate);
   };
-  const advance = (direction) => {
-    const nearest = cards.reduce((best, card, index) => Math.abs(card.offsetLeft - track.offsetLeft - track.scrollLeft) < Math.abs(cards[best].offsetLeft - track.offsetLeft - track.scrollLeft) ? index : best, 0);
-    const next = cards[(nearest + direction + cards.length) % cards.length];
-    track.scrollTo({ left: next.offsetLeft - track.offsetLeft, behavior: motion.matches ? 'instant' : 'smooth' });
+  const useManual = () => {
+    manual = true;
+    track.style.transform = '';
+    viewport.scrollLeft = offset;
   };
-  controls.hidden = cards.length < 2;
-  controls.addEventListener('click', (event) => {
-    const action = event.target.closest('[data-recommendation]')?.dataset.recommendation;
-    if (action === 'pause') paused = !paused;
-    else if (action) { paused = true; advance(action === 'next' ? 1 : -1); }
-    update();
-  }, options);
-  section.addEventListener('pointerenter', (event) => { if (event.pointerType === 'mouse') { hovered = true; update(); } }, options);
-  section.addEventListener('pointerleave', () => { hovered = false; update(); }, options);
-  track.addEventListener('pointerdown', () => { interacting = true; paused = true; update(); }, options);
-  document.addEventListener('pointerup', () => { interacting = false; update(); }, options);
-  track.addEventListener('wheel', () => { paused = true; update(); }, { ...options, passive: true });
-  track.addEventListener('keydown', (event) => {
+  viewport.addEventListener('pointerdown', useManual, options);
+  viewport.addEventListener('wheel', useManual, { ...options, passive: true });
+  viewport.addEventListener('focusin', useManual, options);
+  viewport.addEventListener('pointerenter', (event) => { if (event.pointerType === 'mouse') hovered = true; }, options);
+  viewport.addEventListener('pointerleave', () => { hovered = false; }, options);
+  viewport.addEventListener('keydown', (event) => {
     if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
-    event.preventDefault(); paused = true; advance(event.key === 'ArrowRight' ? 1 : -1); update();
+    event.preventDefault(); useManual();
+    viewport.scrollBy({ left: event.key === 'ArrowRight' ? 180 : -180, behavior: motion.matches ? 'instant' : 'smooth' });
   }, options);
-  section.addEventListener('focusin', update, options);
-  section.addEventListener('focusout', () => queueMicrotask(() => { if (!abort.signal.aborted) update(); }), options);
-  document.addEventListener('visibilitychange', update, options);
-  motion.addEventListener('change', () => { if (motion.matches) paused = true; update(); }, options);
-  update();
-  return () => { clearInterval(timer); abort.abort(); controls.hidden = true; };
+  motion.addEventListener('change', useManual, options);
+  frame = requestAnimationFrame(animate);
+  return () => { cancelAnimationFrame(frame); resize.disconnect(); abort.abort(); };
 }
