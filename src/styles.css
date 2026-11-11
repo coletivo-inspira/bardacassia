@@ -4754,9 +4754,7 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 1rem;
-  align-items: center;
+  gap: 0;
   padding: 1.15rem 1.2rem;
   border-radius: 24px;
   background:
@@ -4779,6 +4777,88 @@ dialog.discover-screen::backdrop { background: var(--bg); }
     radial-gradient(100% 80% at 0% 0%, rgba(255, 255, 255, 0.28), transparent 50%),
     linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.16) 52%, transparent 68%);
   pointer-events: none;
+}
+.account-hero-main {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  min-width: 0;
+}
+.account-hero-toggle {
+  display: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+.account-hero.is-expandable .account-hero-toggle {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: auto;
+  height: auto;
+  border-radius: 12px;
+}
+.account-hero.is-expandable .account-avatar-wrap,
+.account-hero.is-expandable .account-hero-copy {
+  position: relative;
+  z-index: 0;
+  pointer-events: none;
+}
+.account-hero-toggle:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.account-hero-toggle:disabled {
+  display: none;
+  cursor: default;
+}
+.account-hero-toggle .account-hero-chevron {
+  margin-right: 0.15rem;
+}
+.account-hero-chevron {
+  transition: transform 160ms ease;
+}
+.account-hero.is-expanded .account-hero-chevron {
+  transform: rotate(45deg);
+}
+.account-hero-details {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--glass-rim) 80%, transparent);
+}
+.account-hero-details[hidden] { display: none; }
+.account-hero-dl {
+  margin: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+.account-hero-field {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.account-hero-field dt {
+  margin: 0;
+  color: color-mix(in srgb, var(--coral) 65%, var(--muted));
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.account-hero-field dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 .account-avatar-wrap {
   width: 64px;
