@@ -2,7 +2,6 @@ import "./admin.css";
 import {
   authBackendReady,
   buildAuthProviders,
-  displayName,
   getCurrentUser,
   signIn,
   signOut,
@@ -14,6 +13,7 @@ import {
   saveSitePalette,
 } from "./integrations/features.js";
 import { getMyRole } from "./integrations/profile.js";
+import { initPanelHeader } from "./panel-header.js";
 import {
   ownerMetrics,
   staffCancel,
@@ -107,11 +107,9 @@ const AUDIT_PAGE_SIZE = 40;
 const $ = (selector) => document.querySelector(selector);
 
 const els = {
-  actorSubtitle: $("#admin-actor-subtitle"),
   surfaceToggle: $("#admin-surface-toggle"),
   surfaceLabel: $("#admin-surface-label"),
   refreshBtn: $("#admin-refresh"),
-  logoutBtn: $("#admin-logout"),
   unconfigured: $("#admin-unconfigured"),
   loginView: $("#login-view"),
   loginButton: $("#admin-login"),
@@ -262,6 +260,7 @@ const state = {
 };
 
 let draftFeatures = null;
+let panelHeader = { setIdentity() {}, clearIdentity() {} };
 
 function el(tag, className = "", text) {
   const node = document.createElement(tag);
@@ -367,7 +366,7 @@ function showView(view) {
   els.loginView.hidden = view !== "login";
   els.deniedView.hidden = view !== "denied";
   els.panelView.hidden = view !== "panel";
-  els.logoutBtn.hidden = view === "unconfigured" || view === "login";
+  if (view === "unconfigured" || view === "login") panelHeader.clearIdentity();
   els.refreshBtn.hidden = view !== "panel";
   if (view === "panel") {
     requestAnimationFrame(syncTabPill);
@@ -1319,10 +1318,9 @@ function bindEvents() {
     await signOut();
     state.panelReady = false;
     state.loadedTabs.clear();
-    els.actorSubtitle.textContent = "Bar da Cácia · Gestão em tempo real";
     showView("login");
   };
-  els.logoutBtn.addEventListener("click", handleLogout);
+  panelHeader = initPanelHeader({ panel: "admin", onSignOut: handleLogout });
   els.deniedLogout.addEventListener("click", handleLogout);
 
   // Aba 1: Períodos
@@ -1600,7 +1598,7 @@ async function openConsole(user) {
   draftFeatures = { ...getFeatures() };
   state.panelReady = true;
   state.loadedTabs.clear();
-  els.actorSubtitle.textContent = `Conectado como ${displayName(user)} (${user.email || "admin"})`;
+  panelHeader.setIdentity({ user, role: "admin" });
 
   renderFeatureSwitches();
   populateRuntimeParamsForm(draftFeatures);
@@ -1620,6 +1618,7 @@ async function enterConsole() {
   }
   const role = await getMyRole();
   if (role !== "admin") {
+    panelHeader.setIdentity({ user, role });
     showView("denied");
     return;
   }

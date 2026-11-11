@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#1a2218" />
+    <meta name="theme-color" content="#eef7f6" />
     <script>
       (() => {
         const hex = /^#[0-9a-fA-F]{6}$/;
         const ids = ["bg", "bg-elev", "bg-soft", "text", "muted", "amber", "sky", "coral", "swipe-like"];
         const root = document.documentElement;
-        const fallback = { dark: "#1a2218", light: "#f7f1e1" };
+        const fallback = { dark: "#09191f", light: "#eef7f6" };
         try {
           const raw = JSON.parse(localStorage.getItem("bdc-palette-v1") || "null");
           const decl = (theme) => {
@@ -25,16 +25,13 @@
             style.textContent = (dark ? ":root{" + dark + "}" : "") + (light ? ':root[data-theme="light"]{' + light + "}" : "");
             document.head.appendChild(style);
           }
-          const saved = localStorage.getItem("bdc-theme-v1");
-          const theme = saved === "light" || saved === "dark"
-            ? saved
-            : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          const surface = localStorage.getItem("bdc-admin-surface-v1");
+          const theme = surface === "dark" ? "dark" : "light";
           root.dataset.theme = theme;
-          const bg = getComputedStyle(root).getPropertyValue("--bg").trim();
           const meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.content = hex.test(bg) ? bg : fallback[theme];
+          if (meta) meta.content = fallback[theme];
         } catch {
-          root.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          root.dataset.theme = "light";
         }
       })();
     </script>
@@ -48,139 +45,200 @@
       rel="stylesheet"
     />
   </head>
-  <body class="staff-page">
-    <header class="staff-header">
-      <a class="staff-brand" href="index.html">
-        <img src="%BASE_URL%logo_bar_da_cacia.svg" alt="" width="36" height="36" />
-        <span>Painel do garçom</span>
-      </a>
-      <div class="staff-header-actions">
-        <button id="staff-scan" class="staff-button staff-primary staff-small" type="button" hidden>Ler QR</button>
-        <button id="staff-logout" class="staff-link" type="button" hidden>Sair</button>
-      </div>
-    </header>
+  <body class="staff-page panel-page">
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
 
-    <main class="staff-main">
-      <p id="staff-unconfigured" class="staff-notice" hidden>
-        O Supabase não está configurado neste site. Veja a seção “Pedidos de música” em docs/INTEGRACOES.md.
-        O <a href="gerente.html">painel do gerente</a> abre com um exemplo local.
-      </p>
+    <div class="panel-ambient" aria-hidden="true">
+      <span class="panel-orb panel-orb--aqua"></span>
+      <span class="panel-orb panel-orb--seafoam"></span>
+      <span class="panel-orb panel-orb--breeze"></span>
+    </div>
 
-      <form id="login-view" class="staff-card staff-login" hidden>
-        <h1>Entrar</h1>
-        <label for="staff-email">E-mail</label>
-        <input id="staff-email" type="email" autocomplete="username" required />
-        <label for="staff-password">Senha</label>
-        <input id="staff-password" type="password" autocomplete="current-password" required />
-        <button id="staff-login" class="staff-button staff-primary" type="submit">Entrar</button>
-        <p id="login-status" class="staff-status" role="status" aria-live="polite"></p>
-        <p class="staff-hint">Se o site pedir verificação de segurança, <a href="login.html?next=garcom.html">entre pela página de login</a> e volte para cá.</p>
-      </form>
-
-      <section id="panel-view" hidden>
-        <p id="staff-round" class="staff-round" aria-live="polite"></p>
-        <article id="ticket-card" class="staff-card ticket-card" aria-labelledby="ticket-title" hidden>
-          <p id="ticket-title" class="next-label">Pedido pelo QR · cobre e confirme</p>
-          <p id="ticket-code" class="next-code"></p>
-          <p id="ticket-song" class="next-song"></p>
-          <p id="ticket-customer" class="next-customer"></p>
-          <div class="staff-actions">
-            <button id="ticket-confirm" class="staff-button staff-primary" type="button">Cobrei, pôr na fila ✓</button>
-            <button id="ticket-dismiss" class="staff-button staff-ghost" type="button">Descartar</button>
+    <div class="panel-shell staff-shell">
+      <header class="panel-header glass-card" data-panel-header>
+        <div class="panel-header-main">
+          <a class="panel-brand" href="garcom.html">
+            <img src="%BASE_URL%logo_bar_da_cacia.svg" alt="" width="40" height="40" />
+            <span class="panel-brand-copy">
+              <strong>Painel do garçom</strong>
+              <small>Bar da Cácia · Fila e pagamentos</small>
+            </span>
+          </a>
+          <div class="panel-header-tools panel-header-tools--inline">
+            <button id="staff-scan" class="btn btn-primary btn-sm staff-scan" type="button" hidden>
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M7 12h10"/></svg>
+              Ler QR
+            </button>
           </div>
-        </article>
-        <div class="staff-tabs" role="tablist" aria-label="Seções do painel">
-          <button id="tab-queue" class="staff-tab" type="button" role="tab" aria-selected="true" aria-controls="panel-queue">Fila <span id="queue-count">0</span></button>
-          <button id="tab-pending" class="staff-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-pending">A pagar <span id="pending-count">0</span></button>
-          <button id="tab-results" class="staff-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-results" hidden>Resultados</button>
-          <button id="tab-round" class="staff-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-round">Rodada</button>
+          <div class="panel-account" data-panel-account hidden></div>
         </div>
-        <p id="staff-status" class="staff-status" role="status" aria-live="polite"></p>
+        <div class="panel-header-trail">
+          <nav class="panel-crumbs" aria-label="Você está em">
+            <ol>
+              <li><a href="index.html">Site</a></li>
+              <li><a href="conta.html">Conta</a></li>
+              <li><a href="conta.html#gestao">Gestão</a></li>
+              <li><span aria-current="page">Painel do garçom</span></li>
+            </ol>
+          </nav>
+          <a class="panel-back" href="index.html" data-panel-back>
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+            <span class="panel-back-full">Voltar ao site</span><span class="panel-back-short">Voltar</span>
+          </a>
+        </div>
+      </header>
 
-        <section id="panel-queue" class="staff-panel" role="tabpanel" aria-labelledby="tab-queue">
-          <article id="next-card" class="staff-card next-card" hidden>
-            <p class="next-label">Próxima música · digite no controle</p>
-            <p id="next-code" class="next-code"></p>
-            <p id="next-song" class="next-song"></p>
-            <p id="next-customer" class="next-customer"></p>
+      <main id="conteudo" class="staff-main">
+        <section id="staff-unconfigured" class="glass-card panel-auth-card" hidden>
+          <h1>Painel indisponível</h1>
+          <p class="panel-lead">
+            O Supabase não está configurado neste site. Veja a seção “Pedidos de música” em docs/INTEGRACOES.md.
+            O <a href="gerente.html">painel do gerente</a> abre com um exemplo local.
+          </p>
+        </section>
+
+        <form id="login-view" class="glass-card panel-auth-card" hidden>
+          <h1>Entrar no painel</h1>
+          <p class="panel-lead">Use a conta de garçom cadastrada pelo bar.</p>
+          <div class="field">
+            <label for="staff-email">E-mail</label>
+            <input id="staff-email" type="email" autocomplete="username" required />
+          </div>
+          <div class="field">
+            <label for="staff-password">Senha</label>
+            <input id="staff-password" type="password" autocomplete="current-password" required />
+          </div>
+          <button id="staff-login" class="btn btn-primary" type="submit">Entrar</button>
+          <p id="login-status" class="status-feedback" role="status" aria-live="polite"></p>
+          <p class="panel-lead">Se o site pedir verificação de segurança, <a href="login.html?next=garcom.html">entre pela página de login</a> e volte para cá.</p>
+        </form>
+
+        <section id="panel-view" class="staff-panel-view" hidden>
+          <p id="staff-round" class="glass-card staff-round" aria-live="polite"></p>
+          <article id="ticket-card" class="glass-card staff-card ticket-card" aria-labelledby="ticket-title" hidden>
+            <p id="ticket-title" class="next-label">Pedido pelo QR · cobre e confirme</p>
+            <p id="ticket-code" class="next-code"></p>
+            <p id="ticket-song" class="next-song"></p>
+            <p id="ticket-customer" class="next-customer"></p>
             <div class="staff-actions">
-              <button id="next-played" class="staff-button staff-primary" type="button">Tocou ✓</button>
-              <button id="next-cancel" class="staff-button staff-ghost" type="button">Cancelar</button>
+              <button id="ticket-confirm" class="btn btn-primary" type="button">Cobrei, pôr na fila ✓</button>
+              <button id="ticket-dismiss" class="btn btn-secondary" type="button">Descartar</button>
             </div>
           </article>
-          <p id="queue-empty" class="staff-empty">Nenhuma música paga na fila.</p>
-          <h2 id="queue-rest-title" class="staff-subtitle" hidden>Depois</h2>
-          <ol id="queue-rest" class="staff-list"></ol>
-          <h2 id="played-title" class="staff-subtitle" hidden>Tocadas hoje</h2>
-          <ol id="played-list" class="staff-list staff-played"></ol>
-        </section>
-
-        <section id="panel-pending" class="staff-panel" role="tabpanel" aria-labelledby="tab-pending" hidden>
-          <label class="visually-hidden" for="pending-search">Buscar por nome, telefone ou código</label>
-          <input id="pending-search" class="staff-search" type="search" placeholder="Buscar nome, telefone ou código" autocomplete="off" />
-          <ul id="pending-list" class="staff-list"></ul>
-          <p id="pending-empty" class="staff-empty">Nenhum pedido aguardando pagamento.</p>
-        </section>
-
-        <section id="panel-results" class="staff-panel" role="tabpanel" aria-labelledby="tab-results" hidden>
-          <div class="results-ranges" role="group" aria-label="Período">
-            <button class="staff-button staff-ghost staff-small results-range" type="button" data-range="7d">7 dias</button>
-            <button class="staff-button staff-ghost staff-small results-range" type="button" data-range="30d" aria-pressed="true">30 dias</button>
-            <button class="staff-button staff-ghost staff-small results-range" type="button" data-range="90d">90 dias</button>
+          <div class="panel-tabs staff-tabs" role="tablist" aria-label="Seções do painel">
+            <button id="tab-queue" class="panel-tab staff-tab" type="button" role="tab" aria-selected="true" aria-controls="panel-queue">Fila <span id="queue-count" class="pill-count">0</span></button>
+            <button id="tab-pending" class="panel-tab staff-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-pending">A pagar <span id="pending-count" class="pill-count">0</span></button>
+            <button id="tab-results" class="panel-tab staff-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-results" hidden>Resultados</button>
+            <button id="tab-round" class="panel-tab staff-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-round">Rodada</button>
           </div>
-          <p id="results-status" class="staff-status" role="status" aria-live="polite"></p>
-          <div id="results-cards" class="results-cards"></div>
-          <h2 class="staff-subtitle">Pedidos por noite</h2>
-          <ol id="results-nights" class="results-bars"></ol>
-          <h2 class="staff-subtitle">Por dia da semana</h2>
-          <ol id="results-weekdays" class="results-bars"></ol>
-          <h2 class="staff-subtitle">Mais pedidas</h2>
-          <ol id="results-top" class="results-bars"></ol>
-          <h2 class="staff-subtitle">Pedidos por garçom</h2>
-          <ol id="results-staff" class="results-bars"></ol>
-          <p class="staff-hint">A visão da casa, com a fila de agora e o período lado a lado, está no <a href="gerente.html">painel do gerente</a>.</p>
-          <p class="staff-hint">Acessos ao site (visitas, origem pelo cartaz ou Instagram) ficam no Google Analytics ou Cloudflare, se configurados.</p>
-        </section>
+          <p id="staff-status" class="status-feedback staff-status" role="status" aria-live="polite"></p>
 
-        <section id="panel-round" class="staff-panel" role="tabpanel" aria-labelledby="tab-round" hidden>
-          <form id="round-form" class="staff-card staff-round-form">
-            <label class="staff-check"><input id="round-open" type="checkbox" /> Fila aberta para novos pedidos</label>
-            <label for="round-limit">Músicas por rodada (0 = sem limite)</label>
-            <input id="round-limit" type="number" min="0" max="200" inputmode="numeric" />
-            <label for="round-next">Horário da próxima rodada</label>
-            <input id="round-next" type="time" />
-            <label for="round-message">Aviso para os clientes (opcional)</label>
-            <input id="round-message" type="text" maxlength="200" placeholder="Ex.: fila reabre às 2h em ponto" />
-            <button class="staff-button staff-primary" type="submit">Salvar</button>
-            <button id="round-new" class="staff-button staff-ghost" type="button">Começar nova rodada (zera vagas e abre a fila)</button>
-          </form>
-          <form id="night-form" class="staff-card staff-round-form night-form">
-            <h2 class="staff-subtitle">Código da noite (pedido pelo celular do cliente)</h2>
-            <p class="staff-hint">Só para quando o cliente pede sozinho, sem o QR. Mostre o código no balcão ou na tela do karaokê: quem está em casa não consegue pedir.</p>
-            <label class="staff-check"><input id="night-required" type="checkbox" /> Exigir código da noite</label>
-            <label for="night-code">Código</label>
-            <input id="night-code" type="text" maxlength="12" autocapitalize="characters" autocomplete="off" />
-            <button id="night-generate" class="staff-button staff-ghost" type="button">Gerar código novo</button>
-            <button class="staff-button staff-primary" type="submit">Salvar código</button>
-          </form>
+          <section id="panel-queue" class="staff-panel" role="tabpanel" aria-labelledby="tab-queue">
+            <article id="next-card" class="glass-card staff-card next-card" hidden>
+              <p class="next-label">Próxima música · digite no controle</p>
+              <p id="next-code" class="next-code"></p>
+              <p id="next-song" class="next-song"></p>
+              <p id="next-customer" class="next-customer"></p>
+              <div class="staff-actions">
+                <button id="next-played" class="btn btn-primary" type="button">Tocou ✓</button>
+                <button id="next-cancel" class="btn btn-secondary" type="button">Cancelar</button>
+              </div>
+            </article>
+            <p id="queue-empty" class="glass-card staff-empty">Nenhuma música paga na fila.</p>
+            <h2 id="queue-rest-title" class="staff-subtitle" hidden>Depois</h2>
+            <ol id="queue-rest" class="staff-list"></ol>
+            <h2 id="played-title" class="staff-subtitle" hidden>Tocadas hoje</h2>
+            <ol id="played-list" class="staff-list staff-played"></ol>
+          </section>
+
+          <section id="panel-pending" class="staff-panel" role="tabpanel" aria-labelledby="tab-pending" hidden>
+            <label class="visually-hidden" for="pending-search">Buscar por nome, telefone ou código</label>
+            <input id="pending-search" class="staff-search" type="search" placeholder="Buscar nome, telefone ou código" autocomplete="off" />
+            <ul id="pending-list" class="staff-list"></ul>
+            <p id="pending-empty" class="glass-card staff-empty">Nenhum pedido aguardando pagamento.</p>
+          </section>
+
+          <section id="panel-results" class="staff-panel" role="tabpanel" aria-labelledby="tab-results" hidden>
+            <div class="segmented-pills results-ranges" role="group" aria-label="Período">
+              <button class="pill-btn results-range" type="button" data-range="7d">7 dias</button>
+              <button class="pill-btn results-range" type="button" data-range="30d" aria-pressed="true">30 dias</button>
+              <button class="pill-btn results-range" type="button" data-range="90d">90 dias</button>
+            </div>
+            <p id="results-status" class="status-feedback" role="status" aria-live="polite"></p>
+            <div id="results-cards" class="kpi-grid-admin results-cards"></div>
+            <section class="glass-card card-pad">
+              <h2 class="card-title">Pedidos por noite</h2>
+              <ol id="results-nights" class="glass-bars"></ol>
+            </section>
+            <section class="glass-card card-pad">
+              <h2 class="card-title">Por dia da semana</h2>
+              <ol id="results-weekdays" class="glass-bars"></ol>
+            </section>
+            <section class="glass-card card-pad">
+              <h2 class="card-title">Mais pedidas</h2>
+              <ol id="results-top" class="glass-bars"></ol>
+            </section>
+            <section class="glass-card card-pad">
+              <h2 class="card-title">Pedidos por garçom</h2>
+              <ol id="results-staff" class="glass-bars"></ol>
+            </section>
+            <p class="panel-lead">A visão da casa, com a fila de agora e o período lado a lado, está no <a href="gerente.html">painel do gerente</a>.</p>
+            <p class="panel-lead">Acessos ao site (visitas, origem pelo cartaz ou Instagram) ficam no Google Analytics ou Cloudflare, se configurados.</p>
+          </section>
+
+          <section id="panel-round" class="staff-panel" role="tabpanel" aria-labelledby="tab-round" hidden>
+            <form id="round-form" class="glass-card card-pad staff-round-form">
+              <h2 class="card-title">Rodada</h2>
+              <label class="staff-check"><input id="round-open" type="checkbox" /> Fila aberta para novos pedidos</label>
+              <div class="field">
+                <label for="round-limit">Músicas por rodada (0 = sem limite)</label>
+                <input id="round-limit" type="number" min="0" max="200" inputmode="numeric" />
+              </div>
+              <div class="field">
+                <label for="round-next">Horário da próxima rodada</label>
+                <input id="round-next" type="time" />
+              </div>
+              <div class="field">
+                <label for="round-message">Aviso para os clientes (opcional)</label>
+                <input id="round-message" type="text" maxlength="200" placeholder="Ex.: fila reabre às 2h em ponto" />
+              </div>
+              <button class="btn btn-primary" type="submit">Salvar</button>
+              <button id="round-new" class="btn btn-secondary" type="button">Começar nova rodada (zera vagas e abre a fila)</button>
+            </form>
+            <form id="night-form" class="glass-card card-pad staff-round-form night-form">
+              <h2 class="card-title">Código da noite</h2>
+              <p class="panel-lead">Só para quando o cliente pede sozinho pelo celular, sem o QR. Mostre o código no balcão ou na tela do karaokê: quem está em casa não consegue pedir.</p>
+              <label class="staff-check"><input id="night-required" type="checkbox" /> Exigir código da noite</label>
+              <div class="field">
+                <label for="night-code">Código</label>
+                <input id="night-code" type="text" maxlength="12" autocapitalize="characters" autocomplete="off" />
+              </div>
+              <button id="night-generate" class="btn btn-secondary" type="button">Gerar código novo</button>
+              <button class="btn btn-primary" type="submit">Salvar código</button>
+            </form>
+          </section>
         </section>
-      </section>
-    </main>
+      </main>
+    </div>
 
     <dialog id="scan-dialog" class="scan-dialog" aria-labelledby="scan-title">
-      <div class="staff-card scan-card">
-        <h2 id="scan-title">Ler QR do cliente</h2>
+      <div class="glass-card card-pad scan-card">
+        <h2 id="scan-title" class="card-title">Ler QR do cliente</h2>
         <video id="scan-video" class="scan-video" playsinline muted></video>
         <canvas id="scan-canvas" hidden></canvas>
-        <p id="scan-status" class="staff-status" role="status" aria-live="polite"></p>
+        <p id="scan-status" class="status-feedback" role="status" aria-live="polite"></p>
         <form id="manual-form" class="manual-form">
-          <label for="manual-code">Sem câmera? Digite o código da música</label>
-          <input id="manual-code" type="text" inputmode="numeric" pattern="[0-9]{1,6}" maxlength="6" autocomplete="off" />
-          <label for="manual-name">Nome do cliente (opcional)</label>
-          <input id="manual-name" type="text" maxlength="30" autocomplete="off" />
-          <button class="staff-button staff-primary" type="submit">Continuar</button>
+          <div class="field">
+            <label for="manual-code">Sem câmera? Digite o código da música</label>
+            <input id="manual-code" type="text" inputmode="numeric" pattern="[0-9]{1,6}" maxlength="6" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="manual-name">Nome do cliente (opcional)</label>
+            <input id="manual-name" type="text" maxlength="30" autocomplete="off" />
+          </div>
+          <button class="btn btn-primary" type="submit">Continuar</button>
         </form>
-        <button id="scan-close" class="staff-button staff-ghost" type="button">Fechar</button>
+        <button id="scan-close" class="btn btn-secondary" type="button">Fechar</button>
       </div>
     </dialog>
 

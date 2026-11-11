@@ -45,41 +45,55 @@
       rel="stylesheet"
     />
   </head>
-  <body class="admin-page">
+  <body class="admin-page panel-page">
     <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
 
-    <div class="admin-ambient" aria-hidden="true">
-      <span class="admin-orb admin-orb--aqua"></span>
-      <span class="admin-orb admin-orb--seafoam"></span>
-      <span class="admin-orb admin-orb--breeze"></span>
+    <div class="panel-ambient" aria-hidden="true">
+      <span class="panel-orb panel-orb--aqua"></span>
+      <span class="panel-orb panel-orb--seafoam"></span>
+      <span class="panel-orb panel-orb--breeze"></span>
     </div>
 
-    <div class="admin-shell">
-      <header class="admin-header glass-card">
-        <a class="admin-brand" href="index.html">
-          <img src="%BASE_URL%logo_bar_da_cacia.svg" alt="" width="40" height="40" />
-          <span class="admin-brand-copy">
-            <strong>Console do Administrador</strong>
-            <small id="admin-actor-subtitle">Bar da Cácia · Gestão em tempo real</small>
-          </span>
-        </a>
-        <div class="admin-header-tools">
-          <a class="admin-chip-link" href="garcom.html">Fila</a>
-          <a class="admin-chip-link" href="gerente.html">Gerente</a>
-          <button id="admin-surface-toggle" class="admin-icon-pill" type="button" aria-pressed="false" title="Alternar modo claro ou noturno neste console">
-            <span id="admin-surface-label">Pré-ver noturno</span>
-          </button>
-          <button id="admin-refresh" class="admin-icon-pill" type="button" hidden title="Atualizar dados da aba">
-            Atualizar
-          </button>
-          <button id="admin-logout" class="admin-icon-pill" type="button" hidden>Sair</button>
+    <div class="panel-shell">
+      <header class="panel-header glass-card" data-panel-header>
+        <div class="panel-header-main">
+          <a class="panel-brand" href="admin.html">
+            <img src="%BASE_URL%logo_bar_da_cacia.svg" alt="" width="40" height="40" />
+            <span class="panel-brand-copy">
+              <strong>Console do Administrador</strong>
+              <small>Bar da Cácia · Gestão em tempo real</small>
+            </span>
+          </a>
+          <div class="panel-header-tools">
+            <button id="admin-surface-toggle" class="panel-chip" type="button" aria-pressed="false" title="Alternar modo claro ou noturno neste console">
+              <span id="admin-surface-label">Pré-ver noturno</span>
+            </button>
+            <button id="admin-refresh" class="panel-chip" type="button" hidden title="Atualizar dados da aba">
+              Atualizar
+            </button>
+          </div>
+          <div class="panel-account" data-panel-account hidden></div>
+        </div>
+        <div class="panel-header-trail">
+          <nav class="panel-crumbs" aria-label="Você está em">
+            <ol>
+              <li><a href="index.html">Site</a></li>
+              <li><a href="conta.html">Conta</a></li>
+              <li><a href="conta.html#gestao">Gestão</a></li>
+              <li><span aria-current="page">Console do administrador</span></li>
+            </ol>
+          </nav>
+          <a class="panel-back" href="index.html" data-panel-back>
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+            <span class="panel-back-full">Voltar ao site</span><span class="panel-back-short">Voltar</span>
+          </a>
         </div>
       </header>
 
       <main id="conteudo">
-        <section id="admin-unconfigured" class="glass-card admin-auth-card" hidden>
+        <section id="admin-unconfigured" class="glass-card panel-auth-card" hidden>
           <h1>Supabase não configurado</h1>
-          <p class="admin-lead">
+          <p class="panel-lead">
             Este ambiente está sem <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_ANON_KEY</code>. Sem o banco, os interruptores e limites seguem os padrões do build.
           </p>
           <div class="actions-row">
@@ -87,9 +101,9 @@
           </div>
         </section>
 
-        <form id="login-view" class="glass-card admin-auth-card" hidden>
+        <form id="login-view" class="glass-card panel-auth-card" hidden>
           <h1>Entrar no Console</h1>
-          <p class="admin-lead">Acesso exclusivo para contas com papel de administrador no perfil.</p>
+          <p class="panel-lead">Acesso exclusivo para contas com papel de administrador no perfil.</p>
           <div class="field">
             <label for="admin-email">E-mail</label>
             <input id="admin-email" type="email" autocomplete="username" required />
@@ -100,14 +114,14 @@
           </div>
           <button id="admin-login" class="btn btn-primary" type="submit">Entrar</button>
           <p id="login-status" class="status-feedback" role="status" aria-live="polite"></p>
-          <p class="admin-lead">
+          <p class="panel-lead">
             Se o site pedir verificação de segurança, <a href="login.html?next=admin.html">entre pela página de login</a> e volte para cá.
           </p>
         </form>
 
-        <section id="denied-view" class="glass-card admin-auth-card" hidden>
+        <section id="denied-view" class="glass-card panel-auth-card" hidden>
           <h1>Acesso restrito</h1>
-          <p class="admin-lead">Esta área exige o papel <strong>admin</strong> em <code>profiles.role</code>.</p>
+          <p class="panel-lead">Esta área exige o papel <strong>admin</strong> em <code>profiles.role</code>.</p>
           <div class="actions-row">
             <a class="btn btn-secondary" href="conta.html">Minha conta</a>
             <button id="denied-logout" class="btn btn-primary" type="button">Sair desta conta</button>
