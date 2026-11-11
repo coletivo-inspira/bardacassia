@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#141414" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Painel do administrador — Bar da Cácia</title>
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Outfit:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="staff-page">
+    <header class="staff-header">
+      <a class="staff-brand" href="index.html">
+        <img src="%BASE_URL%logo_bar_da_cacia.svg" alt="" width="36" height="36" />
+        <span>Painel do administrador</span>
+      </a>
+      <div class="staff-header-actions">
+        <a class="staff-link" href="garcom.html">Fila e resultados</a>
+        <button id="admin-logout" class="staff-link" type="button" hidden>Sair</button>
+      </div>
+    </header>
+
+    <main class="staff-main">
+      <p id="admin-unconfigured" class="staff-notice" hidden>
+        O Supabase não está configurado neste site. Sem ele, os interruptores ficam no padrão do build.
+      </p>
+
+      <form id="login-view" class="staff-card staff-login" hidden>
+        <h1>Entrar</h1>
+        <label for="admin-email">E-mail</label>
+        <input id="admin-email" type="email" autocomplete="username" required />
+        <label for="admin-password">Senha</label>
+        <input id="admin-password" type="password" autocomplete="current-password" required />
+        <button id="admin-login" class="staff-button staff-primary" type="submit">Entrar</button>
+        <p id="login-status" class="staff-status" role="status" aria-live="polite"></p>
+        <p class="staff-hint">Se o site pedir verificação de segurança, <a href="login.html?next=admin.html">entre pela página de login</a> e volte para cá. Este acesso continua disponível mesmo com o login público desligado.</p>
+      </form>
+
+      <section id="denied-view" class="staff-card" hidden>
+        <h1>Acesso restrito</h1>
+        <p>Esta área é só para quem tem o papel de administrador no perfil.</p>
+        <button id="denied-logout" class="staff-button staff-primary" type="button">Sair</button>
+      </section>
+
+      <section id="panel-view" hidden>
+        <p class="staff-hint">Busca do catálogo e o código ao DJ ficam sempre ligados. Fila, rodada, código da noite e resultados continuam no painel do garçom.</p>
+        <p id="admin-status" class="staff-status" role="status" aria-live="polite"></p>
+
+        <form id="features-form">
+          <div id="feature-groups"></div>
+
+          <h2 class="staff-subtitle">Modo do pedido</h2>
+          <div class="staff-card">
+            <label class="staff-check"><input type="radio" name="request-mode" value="qr" /> QR — o garçom cobra e põe na fila</label>
+            <label class="staff-check"><input type="radio" name="request-mode" value="remoto" /> Remoto — o cliente pede com o código da noite</label>
+          </div>
+
+          <div id="providers-section" hidden>
+            <h2 class="staff-subtitle">Login social</h2>
+            <div id="provider-switches" class="staff-card"></div>
+            <p class="staff-hint">Só dá para marcar provedores já permitidos neste build. Se todos ficarem marcados, o site segue o build.</p>
+          </div>
+
+          <button class="staff-button staff-primary" type="submit">Salvar funcionalidades</button>
+        </form>
+
+        <h2 class="staff-subtitle">Papéis das contas</h2>
+        <p class="staff-hint">Aparecem o nome e o papel. O telefone não entra nesta lista.</p>
+        <ul id="role-list" class="staff-list"></ul>
+        <p id="role-empty" class="staff-empty" hidden>Nenhuma conta encontrada.</p>
+        <p id="role-status" class="staff-status" role="status" aria-live="polite"></p>
+      </section>
+    </main>
+
+    <script type="module" src="/src/admin.js"></script>
+  </body>
+</html>

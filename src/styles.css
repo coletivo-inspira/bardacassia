@@ -4261,7 +4261,7 @@ dialog.discover-screen::backdrop { background: var(--bg); }
     height: var(--island-h);
     margin-inline: auto;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--island-cols, 4), minmax(0, 1fr));
     padding: var(--island-pad);
     border-radius: 999px;
     background: linear-gradient(180deg, var(--glass-base), transparent 70%), var(--island-tint);
@@ -4290,7 +4290,7 @@ dialog.discover-screen::backdrop { background: var(--bg); }
     top: var(--island-pad);
     bottom: var(--island-pad);
     left: var(--island-pad);
-    width: calc((100% - 2 * var(--island-pad)) / 4);
+    width: calc((100% - 2 * var(--island-pad)) / var(--island-cols, 4));
     border-radius: 999px;
     background: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, .08));
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), inset 0 0 0 1px rgba(255, 255, 255, .08), 0 4px 12px rgba(0, 0, 0, .18);

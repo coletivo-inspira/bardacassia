@@ -1,8 +1,11 @@
 import "./styles.css";
-import { authConfigured, displayName, getCurrentUser, onAuthChange, signOut } from "./integrations/auth.js";
-import { getMyProfile } from "./integrations/profile.js";
+import { authBackendReady, displayName, getCurrentUser, onAuthChange, publicAuthEnabled, signOut } from "./integrations/auth.js";
+import { loadSiteFeatures } from "./integrations/features.js";
+import { getMyProfile, getMyRole } from "./integrations/profile.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
 import { providerAvatarUrl } from "./lib/profile.js";
+import { getFeatures } from "./lib/feature-state.js";
+import { showFavorites, showNavHref, showPageFile, showThemeToggle } from "./lib/features.js";
 import { initializeTheme } from "./lib/theme.js";
 
 export { applyTheme, initializeTheme, toggleTheme } from "./lib/theme.js";
@@ -13,6 +16,7 @@ const USER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" c
 const HEART_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 20S4 15 4 9a4 4 0 0 1 8-2 4 4 0 0 1 8 2c0 6-8 11-8 11Z"/></svg>`;
 const EXIT_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 4H4v16h5m5-12 4 4-4 4M8 12h10"/></svg>`;
 const ENTER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15 4h5v16h-5M9 8l4 4-4 4M4 12h9"/></svg>`;
+const ADMIN_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>`;
 const THEME_MENU_ITEM = `
       <button role="menuitem" type="button" data-action="theme" data-theme-toggle>
         ${THEME_ICON_SUN}${THEME_ICON_MOON}
@@ -111,13 +115,54 @@ const SIGNED_IN_ITEMS = `
       <a role="menuitem" href="login.html#conta">${USER_ICON}<span>Minha conta</span></a>${THEME_MENU_ITEM}
       <button role="menuitem" type="button" data-action="signout">${EXIT_ICON}<span>Sair</span></button>`;
 
-function renderAccountMenus(user) {
+function accountMenuItems(user, { admin = false } = {}) {
+  const features = getFeatures();
+  const theme = showThemeToggle(features) ? THEME_MENU_ITEM : "";
+  const adminLink = admin
+    ? `\n      <a role="menuitem" href="admin.html">${ADMIN_ICON}<span>Painel admin</span></a>`
+    : "";
+  if (!user) {
+    if (publicAuthEnabled() && showThemeToggle(features)) {
+      return { items: SIGNED_OUT_ITEMS, label: "Entrar ou trocar o tema" };
+    }
+    const login = publicAuthEnabled()
+      ? `\n      <a role="menuitem" class="account-menu-login" href="login.html" data-action="login">${ENTER_ICON}<span>Entrar</span></a>`
+      : "";
+    return { items: `${login}${theme}`, label: publicAuthEnabled() ? "Entrar ou trocar o tema" : "Trocar o tema" };
+  }
+  if (showFavorites(features) && publicAuthEnabled() && showThemeToggle(features)) {
+    const signout = `\n      <button role="menuitem" type="button" data-action="signout">`;
+    return {
+      items: SIGNED_IN_ITEMS.replace(signout, `${adminLink}${signout}`),
+      label: `Conta de ${displayName(user)}`,
+    };
+  }
+  const favorites = showFavorites(features)
+    ? `\n      <a role="menuitem" href="favoritos.html">${HEART_ICON}<span>Meus favoritos</span></a>`
+    : "";
+  const account = publicAuthEnabled()
+    ? `\n      <a role="menuitem" href="login.html#conta">${USER_ICON}<span>Minha conta</span></a>`
+    : "";
+  return {
+    items: `
+      <div class="header-account-email"></div>${favorites}${account}${adminLink}${theme}
+      <button role="menuitem" type="button" data-action="signout">${EXIT_ICON}<span>Sair</span></button>`,
+    label: `Conta de ${displayName(user)}`,
+  };
+}
+
+function renderAccountMenus(user, { admin = false } = {}) {
   menusAbort?.abort();
   menusAbort = new AbortController();
   const { signal } = menusAbort;
   const name = user ? displayName(user) : "";
-  const items = user ? SIGNED_IN_ITEMS : SIGNED_OUT_ITEMS;
-  const label = user ? `Conta de ${name}` : "Entrar ou trocar o tema";
+  const built = accountMenuItems(user, { admin });
+  if (!user && !built.items.trim()) {
+    document.querySelector("#header-account")?.replaceChildren();
+    islandAccountSlot()?.replaceChildren();
+    return;
+  }
+  const { items, label } = built;
   const menus = [];
 
   const headerSlot = document.querySelector("#header-account");
@@ -131,7 +176,9 @@ function renderAccountMenus(user) {
       items,
       signal,
     });
-    header.button.querySelector(".theme-toggle-label").textContent = user ? name.split(/\s+/)[0] : "Entrar";
+    header.button.querySelector(".theme-toggle-label").textContent = user
+      ? name.split(/\s+/)[0]
+      : (publicAuthEnabled() ? "Entrar" : "Tema");
     headerSlot.replaceChildren(header.wrapper);
     menus.push(header);
   }
@@ -166,7 +213,7 @@ function renderAccountMenus(user) {
     }
     wrapper.querySelector("[data-action=signout]")?.addEventListener("click", async () => {
       await signOut();
-      renderAccountMenus(null);
+      renderAccountMenus(null, { admin: false });
     });
   }
 
@@ -175,19 +222,75 @@ function renderAccountMenus(user) {
   initializeTheme();
 }
 
+const BLOCKED_PAGES = {
+  "evento.html": "page_evento",
+  "o-bar.html": "page_o_bar",
+  "cartaz.html": "page_cartaz",
+  "favoritos.html": "favorites",
+};
+
+function currentPageFile() {
+  return (location.pathname.split("/").pop() || "index.html") || "index.html";
+}
+
+/** Esconde links, o tema e a página atual quando o interruptor correspondente está desligado. */
+export function applyFeatureChrome() {
+  const features = getFeatures();
+  document.querySelectorAll("a[href]").forEach((link) => {
+    const href = link.getAttribute("href") || "";
+    if (!showNavHref(features, href)) link.hidden = true;
+  });
+  if (!showThemeToggle(features)) {
+    document.querySelectorAll("[data-theme-toggle], #theme-toggle").forEach((el) => { el.hidden = true; });
+  }
+  const island = document.querySelector(".glass-island");
+  if (island) {
+    const visible = [...island.querySelectorAll(":scope > [data-mobile-tab]")].filter((slot) => !slot.hidden);
+    island.style.setProperty("--island-cols", String(Math.max(visible.length, 1)));
+  }
+  const page = currentPageFile();
+  const blocked = BLOCKED_PAGES[page] && !showPageFile(features, page);
+  if (!blocked) return true;
+  document.querySelector("#poster-controls")?.setAttribute("hidden", "");
+  const main = document.querySelector("main");
+  if (main && !main.dataset.featureBlocked) {
+    main.dataset.featureBlocked = "1";
+    main.replaceChildren();
+    const note = document.createElement("p");
+    note.textContent = "Esta página está desligada no momento.";
+    const back = document.createElement("p");
+    const link = document.createElement("a");
+    link.href = "index.html";
+    link.textContent = "Voltar ao catálogo";
+    back.append(link);
+    main.append(note, back);
+  }
+  return false;
+}
+
 export async function initializeAccountMenu() {
-  if (!document.querySelector("#header-account")) return;
-  // Signed-out menu first; login.html explains when Auth is off.
-  renderAccountMenus(null);
-  if (!authConfigured) return;
-  if (!hasStoredAuthSession()) return;
+  if (!document.querySelector("#header-account") && !islandAccountSlot()) return;
+  await loadSiteFeatures();
+  applyFeatureChrome();
+  let user = null;
+  let admin = false;
+  if (authBackendReady && hasStoredAuthSession()) {
+    try {
+      user = await getCurrentUser();
+      if (user) admin = (await getMyRole()) === "admin";
+    } catch {
+      user = null;
+    }
+  }
+  renderAccountMenus(user, { admin });
+  if (!authBackendReady || !user) return;
   try {
-    const user = await getCurrentUser();
-    if (user) renderAccountMenus(user);
     await onAuthChange(async (event) => {
-      if (event === "SIGNED_OUT") renderAccountMenus(null);
+      if (event === "SIGNED_OUT") renderAccountMenus(null, { admin: false });
       else if (event === "SIGNED_IN" || event === "USER_UPDATED") {
-        renderAccountMenus(await getCurrentUser());
+        const next = await getCurrentUser();
+        const role = next ? await getMyRole() : null;
+        renderAccountMenus(next, { admin: role === "admin" });
       }
     });
   } catch {
@@ -211,7 +314,7 @@ function pageSlug() {
 export function setIslandTab(name, { current = true } = {}) {
   const island = document.querySelector(".glass-island");
   if (!island) return;
-  const slots = [...island.querySelectorAll(":scope > [data-mobile-tab]")];
+  const slots = [...island.querySelectorAll(":scope > [data-mobile-tab]")].filter((slot) => !slot.hidden);
   const index = slots.findIndex((slot) => slot.dataset.mobileTab === name);
   slots.forEach((slot, i) => {
     const on = i === index;

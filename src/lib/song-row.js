@@ -1,6 +1,8 @@
 import { cleanArtist, displayTitle } from "./catalog.js";
 import { cancelPendingDeezerMeta, fetchDeezerMeta, metaFromCatalog } from "../integrations/deezer.js";
 import { createTab, moveSong, setActiveTab, tabOf } from "./favorites.js";
+import { getFeatures } from "./feature-state.js";
+import { showDeezer, showFavorites } from "./features.js";
 
 const META_ROOT_MARGIN = "200px 0px";
 
@@ -143,7 +145,7 @@ export function applySongMeta(row, meta, song) {
     setCoverImage(coverWrap, song, meta.cover);
   }
   const previewBtn = row.querySelector(".preview-btn");
-  if (meta.previewUrl && previewBtn) {
+  if (meta.previewUrl && previewBtn && showDeezer(getFeatures())) {
     previewBtn.hidden = false;
     previewBtn.dataset.preview = meta.previewUrl;
   }
@@ -209,7 +211,7 @@ export function createSongRow(song, { favorite, onShowCode, onShowArtist, onTogg
   previewBtn.setAttribute("aria-label", `Ouvir trecho: ${displayTitle(song.title)}`);
   setIconAction(previewBtn, "play");
   previewBtn.hidden = true;
-  if (catalogMeta.previewUrl || catalogMeta.deezerId) {
+  if (showDeezer(getFeatures()) && (catalogMeta.previewUrl || catalogMeta.deezerId)) {
     previewBtn.hidden = false;
     if (catalogMeta.previewUrl) previewBtn.dataset.preview = catalogMeta.previewUrl;
   }
@@ -228,6 +230,7 @@ export function createSongRow(song, { favorite, onShowCode, onShowArtist, onTogg
   favoriteBtn.className = "action-btn favorite-btn icon-action";
   favoriteBtn.dataset.code = song.code;
   favoriteBtn.title = "Favoritar";
+  favoriteBtn.hidden = !showFavorites(getFeatures());
   paintFavoriteButton(favoriteBtn, favorite, displayTitle(song.title));
   favoriteBtn.addEventListener("click", () => onToggleFavorite(song));
 

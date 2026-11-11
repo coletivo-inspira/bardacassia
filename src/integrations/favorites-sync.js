@@ -2,6 +2,8 @@ import { getCurrentUser } from "./auth.js";
 import { setFavoriteSyncActive } from "./popularity.js";
 import { getSupabase, hasStoredAuthSession } from "./supabase.js";
 import { codesToUpload } from "../lib/favorites.js";
+import { getFeatures } from "../lib/feature-state.js";
+import { showFavoritesSync } from "../lib/features.js";
 
 /** Coalesce concurrent sync_my_favorites calls (init + auth recovery). */
 let inflight = null;
@@ -11,6 +13,7 @@ let inflight = null;
  * the visitor is not signed in or the server is unreachable.
  */
 export async function syncAccountFavorites(localCodes) {
+  if (!showFavoritesSync(getFeatures())) return null;
   if (!hasStoredAuthSession()) return null;
   if (inflight) return inflight;
 

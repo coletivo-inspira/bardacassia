@@ -1,8 +1,10 @@
 import "./garcom.css";
+import { loadSiteFeatures } from "./integrations/features.js";
 import {
-  getStaffSession, ownerMetrics, requestsConfigured, staffAddRequest, staffCancel, staffGetSettings, staffListPlayed,
-  staffGetNightCode, staffListRequests, staffMarkPaid, staffSetNightCode, staffMarkPlayed, staffSignIn, staffSignOut, staffUpdateSettings, staffWhoami,
+  getStaffSession, ownerMetrics, staffAddRequest, staffCancel, staffGetSettings, staffListPlayed,
+  staffGetNightCode, staffListRequests, staffMarkPaid, staffSetNightCode, staffMarkPlayed, staffPanelEnabled, staffSignIn, staffSignOut, staffUpdateSettings, staffWhoami,
 } from "./integrations/requests.js";
+import { supabaseConfigured } from "./integrations/supabase.js";
 import { displayTitle } from "./lib/catalog.js";
 import {
   filterStaffRequests, normalizeNightCode, randomNightCode, formatClock, formatPhone, nextOccurrence, requestErrorMessage, roundSummary, songLabel,
@@ -501,7 +503,7 @@ async function loadNightCode() {
 
 async function applyRole() {
   const me = await staffWhoami().catch(() => null);
-  els.tabResults.hidden = me?.role !== "dono";
+  els.tabResults.hidden = me?.role !== "dono" && me?.role !== "admin";
 }
 
 async function startPanel() {
@@ -517,8 +519,14 @@ async function startPanel() {
   timer = setInterval(() => { if (!document.hidden && !busy) void refresh(); }, REFRESH_MS);
 }
 
-function init() {
-  if (!requestsConfigured) {
+async function init() {
+  await loadSiteFeatures();
+  if (!supabaseConfigured) {
+    els.unconfigured.hidden = false;
+    return;
+  }
+  if (!staffPanelEnabled()) {
+    els.unconfigured.textContent = "O painel do garçom está desligado.";
     els.unconfigured.hidden = false;
     return;
   }

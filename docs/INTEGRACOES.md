@@ -4,7 +4,7 @@
 
 O site é estático (Vite + GitHub Pages). O **catálogo de karaokê** em `public/data/songs.json` é a única fonte de verdade sobre músicas disponíveis e seus códigos. Serviços externos enriquecem a descoberta, mas **não adicionam faixas ao karaokê**.
 
-A visão de arquitetura (páginas, migrações `001`–`008`, fluxos e variáveis) está em [Arquitetura](./ARQUITETURA.md).
+A visão de arquitetura (páginas, migrações `001`–`010`, fluxos e variáveis) está em [Arquitetura](./ARQUITETURA.md).
 
 | Fonte | Finalidade | Autenticação | Comportamento se falhar |
 | --- | --- | --- | --- |
@@ -175,7 +175,7 @@ Ordem sugerida para um projeto Supabase novo (ex.: **Cacia**):
 
 ### Publicação automática (`.github/workflows/supabase.yml`)
 
-A cada push na `main` que altere `supabase/**` / o próprio workflow (ou manualmente em *Actions > Deploy Supabase*), o job aplica as migrações `001`–`008` e publica as Edge Functions.
+A cada push na `main` que altere `supabase/**` / o próprio workflow (ou manualmente em *Actions > Deploy Supabase*), o job aplica as migrações `001`–`010` e publica as Edge Functions.
 
 O GitHub Actions **não tem IPv6**. O host direto `db.<ref>.supabase.co` é só AAAA, então o workflow monta a URI do **shared session pooler** (porta `5432`, IPv4) a partir da região do projeto e de `SUPABASE_DB_PASSWORD`, e roda:
 
@@ -269,6 +269,21 @@ update public.staff set role = 'dono'
 where user_id = (select id from auth.users where email = 'dono@exemplo.com');
 ```
 
+### Painel do administrador (`010_site_config.sql`)
+
+`admin.html` liga e desliga, sem novo deploy, descoberta, favoritas, sincronização de favoritas, ranking, Spotify (mais ouvidas), Deezer, login público, pedidos, painel do garçom, as páginas Evento, O bar e Cartaz, o tema e o analytics. Também escolhe o modo do pedido (`qr` ou `remoto`) e quais botões OAuth aparecem, entre os que o build já permite (`VITE_AUTH_PROVIDERS`). Busca e código ao DJ ficam sempre ligados. Chaves, Client ID, Turnstile, proxy e o id de analytics não entram no banco: o interruptor de analytics só usa ou deixa de usar o `VITE_ANALYTICS_ID` que já está no build.
+
+A leitura é `get_site_features` (anônimo e autenticado). Gravar e mudar papéis exige `profiles.role = 'admin'`. O login público pode ser desligado; a tela de `admin.html` continua aceitando e-mail e senha, para o painel não se trancar. Cliente, garçom e dono sem essa promoção não entram.
+
+A migração copia `staff`: `dono` vira `admin` no perfil e `garcom` continua `garcom`, sem rebaixar quem já é admin. A fila segue aceitando a linha antiga em `staff` ou o papel `garcom` / `dono` / `admin`. Resultados aceita `staff.role = 'dono'` ou perfil `dono` / `admin`.
+
+Se ainda não houver dono em `staff`, o primeiro admin continua por SQL no editor, no mesmo estilo do dono:
+
+```sql
+update public.profiles set role = 'admin'
+where id = (select id from auth.users where email = 'admin@exemplo.com');
+```
+
 ### Acessos ao site (analytics)
 
 `VITE_ANALYTICS_ID` (no GitHub Actions, a variável `ANALYTICS_ID`) liga as estatísticas de acesso nas páginas públicas:
@@ -284,7 +299,7 @@ O cartaz aponta para o site com `?origem=mesa` (ou balcão, banheiro, instagram)
 
 ### Configuração
 
-1. Aplique as migrações `001` a `008` pelo workflow `supabase.yml` (session pooler IPv4) ou pelo SQL Editor. Se alguma foi aplicada à mão, use `supabase migration repair` no remoto antes do próximo push.
+1. Aplique as migrações `001` a `010` pelo workflow `supabase.yml` (session pooler IPv4) ou pelo SQL Editor. Se alguma foi aplicada à mão, use `supabase migration repair` no remoto antes do próximo push. A `010` cria o papel no perfil e os interruptores do painel admin.
 2. Mantenha os Anonymous Sign-Ins ativos. Visitantes pedem com a sessão anônima; quem está logado pede com a própria conta.
 3. Crie um usuário para cada garçom em Authentication > Users > Add user, com e-mail e senha e a opção de confirmar automaticamente.
 4. Autorize esse usuário no painel:

@@ -1,4 +1,6 @@
 import { cleanArtist, normalizeText } from "../lib/catalog.js";
+import { getFeatures } from "../lib/feature-state.js";
+import { showDeezer } from "../lib/features.js";
 import {
   metaFromCatalog,
   metaFromDeezerTrack,
@@ -129,6 +131,9 @@ async function request(path, params = {}) {
  */
 export async function fetchDeezerMeta(song) {
   const fromCatalog = metaFromCatalog(song);
+  if (!showDeezer(getFeatures())) {
+    return { cover: fromCatalog.cover || null, previewUrl: null, deezerId: null };
+  }
   if (fromCatalog.cover) return fromCatalog;
 
   const cached = metaCache.get(song.code);
@@ -163,7 +168,7 @@ const previewPending = new Map();
  * Prefers catalog preview, then /track/{deezerId}, then search contingency.
  */
 export async function resolvePreview(song) {
-  if (!song) return null;
+  if (!song || !showDeezer(getFeatures())) return null;
   const fromCatalog = metaFromCatalog(song);
   if (fromCatalog.previewUrl) return fromCatalog.previewUrl;
 
@@ -245,6 +250,7 @@ export function artistSearchName(name) {
 
 /** Artist photo from Deezer; null when not found. Catalog names may be truncated. */
 export async function fetchArtistPicture(artistName) {
+  if (!showDeezer(getFeatures())) return null;
   const query = artistSearchName(artistName);
   const key = normalizeText(query);
   if (!key) return null;
@@ -277,6 +283,7 @@ export async function fetchArtistPicture(artistName) {
 
 /** Resultados externos são sugestões, não músicas disponíveis no karaokê. */
 export async function fetchRelatedArtists(artistName) {
+  if (!showDeezer(getFeatures())) return [];
   const key = normalizeText(artistName);
   const cached = relatedCache.get(key);
   if (cached?.expires > Date.now()) return cached.names;
