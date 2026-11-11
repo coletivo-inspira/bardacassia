@@ -7,6 +7,7 @@ const ISLAND_PAGES = {
   "evento.html": { inicio: "index.html#inicio", buscar: "index.html#buscar" },
   "o-bar.html": { inicio: "index.html#inicio", buscar: "index.html#buscar" },
   "favoritos.html": { inicio: "index.html#inicio", buscar: "index.html#buscar" },
+  "conta.html": { inicio: "index.html#inicio", buscar: "index.html#buscar" },
 };
 
 function islandOf(page) {
@@ -23,10 +24,14 @@ for (const [page, hrefs] of Object.entries(ISLAND_PAGES)) {
     assert.match(island, new RegExp(`href="${hrefs.inicio}" data-mobile-tab="inicio" aria-label="Início"`));
     assert.match(island, new RegExp(`href="${hrefs.buscar}" data-mobile-tab="buscar" aria-label="Buscar"`));
     assert.match(island, /href="o-bar\.html" data-mobile-tab="o-bar" aria-label="O bar"/);
-    // Signed out, Conta opens a small menu (Entrar + Modo noturno) instead of linking straight to login.
-    assert.match(island, /<button class="mobile-tab island-account-trigger" type="button" aria-haspopup="menu" aria-expanded="false"/);
-    assert.doesNotMatch(island, /island-account-link/);
+    // Conta opens the dedicated account page instead of a dropdown menu.
+    assert.match(island, /<a class="mobile-tab island-account-trigger" href="conta\.html" aria-label="Conta"/);
+    assert.doesNotMatch(island, /aria-haspopup="menu"/);
     assert.match(island, /class="glass-island-capsule" aria-hidden="true"/);
+    assert.match(island, /class="mobile-tab-label">Início</);
+    assert.match(island, /class="mobile-tab-label">Buscar</);
+    assert.match(island, /class="mobile-tab-label">O bar</);
+    assert.match(island, /class="mobile-tab-label">Conta</);
   });
 
   // The orb embed script styles a.inspira-orb as a sibling after the island.
@@ -46,7 +51,12 @@ for (const page of ["login.html", "garcom.html", "cartaz.html", "public/404.html
   });
 }
 
-test("favoritos.html marks Conta in the island without claiming a text tab", () => {
+test("favoritos.html and conta.html mark Conta in the island without claiming a text tab", () => {
   const site = readFileSync(new URL("../src/site.js", import.meta.url), "utf8");
-  assert.match(site, /const ISLAND_PAGE_TABS = \{[^}]*favoritos: "conta"[^}]*\}/);
+  assert.match(site, /const ISLAND_PAGE_TABS = \{[^}]*favoritos: "conta"[^}]*conta: "conta"[^}]*\}/);
+});
+
+test("active island tabs reveal their label in CSS", () => {
+  const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.match(css, /\.glass-island :is\(\.mobile-tab\.is-active, \.mobile-tab-account\.is-active \.mobile-tab\) \.mobile-tab-label/);
 });

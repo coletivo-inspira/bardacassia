@@ -105,7 +105,7 @@ test("account menu leaves theme toggling to initializeTheme", () => {
   assert.match(site, /data-action="theme" data-theme-toggle/);
 });
 
-for (const page of ["index.html", "evento.html", "o-bar.html", "favoritos.html"]) {
+for (const page of ["index.html", "evento.html", "o-bar.html", "favoritos.html", "conta.html"]) {
   test(`${page} header has no theme toggle; the account menus carry it`, () => {
     const html = readFileSync(new URL(`../${page}`, import.meta.url), "utf8");
     const header = html.match(/<header class="site-header">([\s\S]*?)<\/header>/)?.[1];
