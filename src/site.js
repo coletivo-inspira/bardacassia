@@ -73,7 +73,7 @@ async function loadAccountAvatars(buttons, user) {
 
 let menusAbort = null;
 
-/** Header and island share one dropdown; signed out it only offers Entrar and the theme. */
+/** Desktop header keeps a compact dropdown; the island Conta tab opens conta.html. */
 function buildMenu({ id, wrapperClass, triggerClass, trigger, label, items, signal }) {
   const wrapper = document.createElement("div");
   wrapper.className = `header-account-menu ${wrapperClass}`.trim();
@@ -89,10 +89,7 @@ function buildMenu({ id, wrapperClass, triggerClass, trigger, label, items, sign
   const setOpen = (open) => {
     menu.hidden = !open;
     button.setAttribute("aria-expanded", String(open));
-    if (open) {
-      wrapper.closest(".glass-island")?.classList.remove("is-compact");
-      menu.querySelector("[role=menuitem]")?.focus();
-    }
+    if (open) menu.querySelector("[role=menuitem]")?.focus();
   };
   button.addEventListener("click", () => setOpen(menu.hidden));
   wrapper.addEventListener("keydown", (event) => {
@@ -103,13 +100,37 @@ function buildMenu({ id, wrapperClass, triggerClass, trigger, label, items, sign
 }
 
 const SIGNED_OUT_ITEMS = `
-      <a role="menuitem" class="account-menu-login" href="login.html" data-action="login">${ENTER_ICON}<span>Entrar</span></a>${THEME_MENU_ITEM}`;
+      <a role="menuitem" class="account-menu-login" href="login.html" data-action="login">${ENTER_ICON}<span>Entrar</span></a>
+      <a role="menuitem" href="conta.html">${USER_ICON}<span>Conta</span></a>${THEME_MENU_ITEM}`;
 
 const SIGNED_IN_ITEMS = `
       <div class="header-account-email"></div>
+      <a role="menuitem" href="conta.html">${USER_ICON}<span>Conta</span></a>
       <a role="menuitem" href="favoritos.html">${HEART_ICON}<span>Meus favoritos</span></a>
       <a role="menuitem" href="login.html#conta">${USER_ICON}<span>Minha conta</span></a>${THEME_MENU_ITEM}
       <button role="menuitem" type="button" data-action="signout">${EXIT_ICON}<span>Sair</span></button>`;
+
+function renderIslandAccountLink(user) {
+  const islandSlot = islandAccountSlot();
+  if (!islandSlot) return null;
+  const name = user ? displayName(user) : "";
+  const label = user ? `Conta de ${name}` : "Conta";
+  const onAccountPage = pageSlug() === "conta";
+  const trigger = user
+    ? `<span class="island-account-initial" data-avatar-fallback aria-hidden="true"></span>`
+    : USER_ICON;
+  islandSlot.innerHTML = `
+    <a class="mobile-tab island-account-trigger" href="conta.html" aria-label="${label}"${onAccountPage ? ' aria-current="page"' : ""}>
+      ${trigger}
+      <span class="mobile-tab-label">Conta</span>
+    </a>`;
+  const link = islandSlot.querySelector(".island-account-trigger");
+  if (user) {
+    link.querySelector(".island-account-initial").textContent = Array.from(name)[0]?.toLocaleUpperCase("pt-BR") || "";
+    link.dataset.avatarClass = "island-account-avatar";
+  }
+  return link;
+}
 
 function renderAccountMenus(user) {
   menusAbort?.abort();
@@ -118,7 +139,7 @@ function renderAccountMenus(user) {
   const name = user ? displayName(user) : "";
   const items = user ? SIGNED_IN_ITEMS : SIGNED_OUT_ITEMS;
   const label = user ? `Conta de ${name}` : "Entrar ou trocar o tema";
-  const menus = [];
+  const avatarButtons = [];
 
   const headerSlot = document.querySelector("#header-account");
   if (headerSlot) {
@@ -133,44 +154,31 @@ function renderAccountMenus(user) {
     });
     header.button.querySelector(".theme-toggle-label").textContent = user ? name.split(/\s+/)[0] : "Entrar";
     headerSlot.replaceChildren(header.wrapper);
-    menus.push(header);
-  }
-
-  const islandSlot = islandAccountSlot();
-  if (islandSlot) {
-    const island = buildMenu({
-      id: "island-account-list",
-      wrapperClass: "island-account-menu",
-      triggerClass: "mobile-tab island-account-trigger",
-      trigger: user ? `<span class="island-account-initial" data-avatar-fallback aria-hidden="true"></span>` : USER_ICON,
-      label,
-      items,
-      signal,
-    });
-    if (user) {
-      island.button.querySelector(".island-account-initial").textContent = Array.from(name)[0]?.toLocaleUpperCase("pt-BR") || "";
-      island.button.dataset.avatarClass = "island-account-avatar";
-    }
-    islandSlot.replaceChildren(island.wrapper);
-    menus.push(island);
-  }
-
-  for (const { wrapper } of menus) {
-    const email = wrapper.querySelector(".header-account-email");
-    if (email) email.textContent = user.email || name;
-    const login = wrapper.querySelector("[data-action=login]");
+    const email = header.wrapper.querySelector(".header-account-email");
+    if (email) email.textContent = user?.email || name;
+    const login = header.wrapper.querySelector("[data-action=login]");
     if (login) {
       login.href = loginHref();
       // Hash routes change after load, so refresh ?next= right before leaving for login.
       login.addEventListener("click", () => { login.href = loginHref(); });
     }
-    wrapper.querySelector("[data-action=signout]")?.addEventListener("click", async () => {
+    header.wrapper.querySelector("[data-action=signout]")?.addEventListener("click", async () => {
       await signOut();
       renderAccountMenus(null);
     });
+    avatarButtons.push(header.button);
   }
 
-  if (user) void loadAccountAvatars(menus.map((menu) => menu.button), user);
+  const islandLink = renderIslandAccountLink(user);
+  if (islandLink) avatarButtons.push(islandLink);
+  // Re-measure the Conta pill after the island trigger is swapped in.
+  const island = document.querySelector(".glass-island");
+  if (island?.classList.contains("has-active")) {
+    const active = island.querySelector(":scope > [data-mobile-tab].is-active");
+    syncIslandCapsule(island, active);
+  }
+
+  if (user) void loadAccountAvatars(avatarButtons, user);
   // Theme items are [data-theme-toggle]; initializeTheme gives each its only click listener.
   initializeTheme();
 }
@@ -195,13 +203,29 @@ export async function initializeAccountMenu() {
   }
 }
 
-const ISLAND_PAGE_TABS = { "o-bar": "o-bar", evento: "inicio", favoritos: "conta" };
+const ISLAND_PAGE_TABS = { "o-bar": "o-bar", evento: "inicio", favoritos: "conta", conta: "conta" };
 const ISLAND_SCROLL_THRESHOLD = 12;
 const ISLAND_IDLE_MS = 650;
 const ISLAND_TAP_HOLD_MS = 1000;
 
 function pageSlug() {
   return (location.pathname.split("/").pop() || "index.html").replace(/\.html$/, "") || "index";
+}
+
+function syncIslandCapsule(island, activeSlot) {
+  if (!island) return;
+  if (!activeSlot) {
+    island.classList.remove("has-active");
+    return;
+  }
+  const pad = Number.parseFloat(getComputedStyle(island).getPropertyValue("--island-pad")) || 6;
+  const islandRect = island.getBoundingClientRect();
+  const slotRect = activeSlot.getBoundingClientRect();
+  const x = Math.max(0, slotRect.left - islandRect.left - pad);
+  const width = Math.max(0, slotRect.width);
+  island.style.setProperty("--island-capsule-x", `${x}px`);
+  island.style.setProperty("--island-capsule-w", `${width}px`);
+  island.classList.add("has-active");
 }
 
 /**
@@ -219,8 +243,9 @@ export function setIslandTab(name, { current = true } = {}) {
     if (on && current) slot.setAttribute("aria-current", "page");
     else slot.removeAttribute("aria-current");
   });
-  island.style.setProperty("--island-active", String(Math.max(index, 0)));
-  island.classList.toggle("has-active", index >= 0);
+  const active = index >= 0 ? slots[index] : null;
+  // Wait a frame so flex-grow / label reveal settle before measuring the pill.
+  requestAnimationFrame(() => syncIslandCapsule(island, active));
 }
 
 function watchIslandCompact(island) {
@@ -228,7 +253,14 @@ function watchIslandCompact(island) {
   let lastY = Math.max(0, window.scrollY);
   let idle = 0;
   let holdUntil = 0;
-  const expand = () => island.classList.remove("is-compact");
+  const remasure = () => {
+    const active = island.querySelector(":scope > [data-mobile-tab].is-active");
+    syncIslandCapsule(island, active);
+  };
+  const expand = () => {
+    island.classList.remove("is-compact");
+    requestAnimationFrame(remasure);
+  };
   // A tab tap smooth-scrolls to its section; that scroll should not shrink the island under the finger.
   island.addEventListener("click", () => {
     holdUntil = performance.now() + ISLAND_TAP_HOLD_MS;
@@ -245,8 +277,10 @@ function watchIslandCompact(island) {
     const delta = y - lastY;
     if (Math.abs(delta) < ISLAND_SCROLL_THRESHOLD) return;
     lastY = y;
-    const menuOpen = Boolean(island.querySelector('[aria-expanded="true"]'));
-    island.classList.toggle("is-compact", delta > 0 && y > 48 && !menuOpen && !reducedMotion.matches);
+    const nextCompact = delta > 0 && y > 48 && !reducedMotion.matches;
+    if (island.classList.contains("is-compact") === nextCompact) return;
+    island.classList.toggle("is-compact", nextCompact);
+    requestAnimationFrame(remasure);
   }, { passive: true });
 }
 
@@ -258,8 +292,16 @@ export function initializeIsland() {
   const tab = ISLAND_PAGE_TABS[slug];
   if (tab) setIslandTab(tab, { current: tab === slug });
   watchIslandCompact(island);
+  window.addEventListener("resize", () => {
+    const active = island.querySelector(":scope > [data-mobile-tab].is-active");
+    syncIslandCapsule(island, active);
+  }, { passive: true });
   // Enable the capsule slide only after the first position is painted.
-  requestAnimationFrame(() => requestAnimationFrame(() => island.classList.add("is-ready")));
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    island.classList.add("is-ready");
+    const active = island.querySelector(":scope > [data-mobile-tab].is-active");
+    syncIslandCapsule(island, active);
+  }));
 }
 
 /** @returns {boolean} true if the page/section is still active */

@@ -15,6 +15,7 @@ export default defineConfig({
         cartaz: resolve(__dirname, "cartaz.html"),
         login: resolve(__dirname, "login.html"),
         favoritos: resolve(__dirname, "favoritos.html"),
+        conta: resolve(__dirname, "conta.html"),
       },
     },
   },
