@@ -1,6 +1,7 @@
 import { getSupabase, supabaseConfigured } from "./supabase.js";
 import { adoptRemoteFeatures, getFeatures } from "../lib/feature-state.js";
 import { FEATURE_IDS, requestModeOf } from "../lib/features.js";
+import { applyPalette, clearPalette } from "../lib/palette.js";
 
 const LOAD_MS = 3000;
 
@@ -29,11 +30,22 @@ export async function fetchSiteFeatures() {
 }
 
 let loading = null;
+let lastPayload = null;
+
+export function peekSitePayload() {
+  return lastPayload;
+}
 
 export function loadSiteFeatures() {
   loading ??= (async () => {
     const remote = await fetchSiteFeatures();
-    if (remote) adoptRemoteFeatures(remote);
+    lastPayload = remote;
+    if (remote) {
+      adoptRemoteFeatures(remote);
+      if (Object.prototype.hasOwnProperty.call(remote, "palette")) applyPalette(remote.palette);
+    } else {
+      clearPalette();
+    }
     return getFeatures();
   })();
   return loading;
@@ -49,6 +61,20 @@ export async function saveSiteFeatures(features) {
   if (error) throw rpcError(error);
   if (data && typeof data === "object" && !Array.isArray(data)) adoptRemoteFeatures(data);
   return getFeatures();
+}
+
+export async function saveSitePalette(palette) {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.rpc("set_site_palette", { p_palette: palette });
+  if (error) throw rpcError(error);
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    adoptRemoteFeatures(data);
+    lastPayload = data;
+    if (Object.prototype.hasOwnProperty.call(data, "palette")) applyPalette(data.palette);
+    return data.palette ?? {};
+  }
+  applyPalette(palette);
+  return palette;
 }
 
 export async function listProfiles() {

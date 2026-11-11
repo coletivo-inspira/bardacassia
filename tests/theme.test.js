@@ -40,6 +40,9 @@ function installFakeDom({ theme = "light", saved = null } = {}) {
     getItem: (key) => storage.get(key) ?? null,
     setItem: (key, value) => storage.set(key, String(value)),
   };
+  globalThis.getComputedStyle = (node) => ({
+    getPropertyValue: (name) => (name === "--bg" ? (node.dataset.theme === "light" ? "#f7f1e1" : "#1a2218") : ""),
+  });
   return {
     storage,
     meta,
@@ -76,7 +79,7 @@ test("account-menu theme item flips the theme once per tap after repeated initia
   assert.equal(menuItem.getAttribute("aria-label"), "Ativar tema claro");
   assert.equal(menuItem.label.textContent, "Modo claro");
   assert.equal(header.label.textContent, "Modo claro");
-  assert.equal(dom.meta.content, "#141414");
+  assert.equal(dom.meta.content, "#1a2218");
 
   menuItem.click();
   assert.equal(dom.theme(), "light");

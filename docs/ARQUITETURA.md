@@ -44,7 +44,7 @@ Sem as variáveis `VITE_SUPABASE_*`, o site continua útil: busca, descoberta, f
 | `conta.html` | `src/conta-page.js` | Menu da conta no mobile (favoritos, perfil, tema, sair); o tab Conta da island abre esta página |
 | `login.html` | `src/login.js` | Entrar, cadastrar, link, redefinir, Minha conta (perfil/LGPD) |
 | `garcom.html` | `src/garcom.js` | Fila, pagamento, rodada, código da noite, Resultados (dono ou admin) |
-| `admin.html` | `src/admin.js` | Interruptores do site, modo do pedido, provedores e papéis (`profiles.role = admin`) |
+| `admin.html` | `src/admin.js` | Interruptores do site, modo do pedido, provedores, cores e papéis (`profiles.role = admin`) |
 | `cartaz.html` | `src/cartaz.js` | QR do catálogo para impressão (A5/A4 + origem) |
 | `evento.html` / `o-bar.html` | JS fino | Conteúdo institucional |
 
@@ -108,6 +108,7 @@ Aplicar **sempre** com o workflow (session pooler IPv4 no Actions). A ordem no d
 | `008_profile_extras.sql` | colunas LGPD/avatar em `profiles`, bucket `avatars` | PostgREST em `profiles` + Storage policies |
 | `009_profile_phone_key.sql` | chave Vault `profile_encryption_key` (só se faltar) | grants de `set_my_phone` / `get_my_phone` |
 | `010_site_config.sql` | `profiles.role`, singleton `site_features` | `get_site_features` (anon + authenticated), `set_site_features`, `admin_list_profiles`, `admin_set_profile_role` (só admin) |
+| `011_site_palette.sql` | coluna `palette` em `site_features` | `get_site_features` também devolve `palette`; `set_site_palette` (só admin) |
 
 Quase todas as tabelas usam **RLS com revoke** para `anon`/`authenticated` e acesso via funções `security definer`. Exceções conscientes: `profiles` (select/update próprio) e Storage `avatars` (pasta = `auth.uid()`).
 
