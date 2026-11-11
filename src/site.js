@@ -10,6 +10,9 @@ export { applyTheme, initializeTheme, toggleTheme } from "./lib/theme.js";
 const THEME_ICON_SUN = `<svg class="theme-icon-sun" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`;
 const THEME_ICON_MOON = `<svg class="theme-icon-moon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.2 15.1A8.4 8.4 0 0 1 8.9 3.8 8.5 8.5 0 1 0 20.2 15.1Z"/></svg>`;
 const USER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.2c1.3-3.6 4.2-5.4 7.5-5.4s6.2 1.8 7.5 5.4"/></svg>`;
+const HEART_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 20S4 15 4 9a4 4 0 0 1 8-2 4 4 0 0 1 8 2c0 6-8 11-8 11Z"/></svg>`;
+const EXIT_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 4H4v16h5m5-12 4 4-4 4M8 12h10"/></svg>`;
+const ENTER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15 4h5v16h-5M9 8l4 4-4 4M4 12h9"/></svg>`;
 const THEME_MENU_ITEM = `
       <button role="menuitem" type="button" data-action="theme" data-theme-toggle>
         ${THEME_ICON_SUN}${THEME_ICON_MOON}
@@ -100,13 +103,13 @@ function buildMenu({ id, wrapperClass, triggerClass, trigger, label, items, sign
 }
 
 const SIGNED_OUT_ITEMS = `
-      <a role="menuitem" class="account-menu-login" href="login.html" data-action="login">Entrar</a>${THEME_MENU_ITEM}`;
+      <a role="menuitem" class="account-menu-login" href="login.html" data-action="login">${ENTER_ICON}<span>Entrar</span></a>${THEME_MENU_ITEM}`;
 
 const SIGNED_IN_ITEMS = `
       <div class="header-account-email"></div>
-      <a role="menuitem" href="favoritos.html">Meus favoritos</a>
-      <a role="menuitem" href="login.html#conta">Minha conta</a>${THEME_MENU_ITEM}
-      <button role="menuitem" type="button" data-action="signout">Sair</button>`;
+      <a role="menuitem" href="favoritos.html">${HEART_ICON}<span>Meus favoritos</span></a>
+      <a role="menuitem" href="login.html#conta">${USER_ICON}<span>Minha conta</span></a>${THEME_MENU_ITEM}
+      <button role="menuitem" type="button" data-action="signout">${EXIT_ICON}<span>Sair</span></button>`;
 
 function renderAccountMenus(user) {
   menusAbort?.abort();

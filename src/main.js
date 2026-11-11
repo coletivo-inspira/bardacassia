@@ -1,3 +1,4 @@
+import { initializeRecommendationCarousel } from "./lib/recommendation-carousel.js";
 import { displayTitle, filterCatalog, filtersForArtistSelection, countActiveFilterChips, filtersToggleLabel, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
 import { fetchDeezerMeta, fetchRelatedArtists, fetchArtistPicture, metaFromCatalog, resolvePreview } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
@@ -24,6 +25,7 @@ import {
   paintFavoriteButton,
   paintPreviewButton,
   setIconAction,
+  setCoverImage,
   spotifySearchUrl,
 } from "./lib/song-row.js";
 import {
@@ -1193,11 +1195,17 @@ async function renderRelatedArtists(artist) {
   }
 }
 
+let relatedRenderGeneration = 0;
+let disposeRecommendations = () => {};
+
 async function renderDialogRelated(song) {
+  const generation = ++relatedRenderGeneration;
+  disposeRecommendations();
   if (!els.dialogRelated || !els.dialogRelatedList) return;
   els.dialogRelatedList.replaceChildren();
-  await ensureSongConnections();
-  if (!els.dialogRelated || !els.dialogRelatedList) return;
+  els.dialogRelated.hidden = true;
+  await Promise.all([ensureSongConnections(), ensureSongCovers()]);
+  if (generation !== relatedRenderGeneration || activeSong?.code !== song.code) return;
   const codes = relatedCodesFor(songConnections, song.code, { limit: 8 });
   const relatedSongs = codes.map((code) => songByCode.get(String(code))).filter(Boolean)
     .filter((item) => String(item.code) !== String(song.code));
@@ -1209,11 +1217,24 @@ async function renderDialogRelated(song) {
   for (const related of relatedSongs) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "artist-chip";
-    button.textContent = `${displayTitle(related.title)} — ${cleanArtist(related.artist)}`;
+    button.className = "song-recommendation";
+    const cover = document.createElement("span");
+    cover.className = "recommendation-cover";
+    cover.setAttribute("aria-hidden", "true");
+    cover.append(createCoverFallback(related));
+    setCoverImage(cover, related, metaFromCatalog(related).cover);
+    const text = document.createElement("span");
+    text.className = "recommendation-text";
+    const title = document.createElement("strong");
+    title.textContent = displayTitle(related.title);
+    const artist = document.createElement("span");
+    artist.textContent = cleanArtist(related.artist);
+    text.append(title, artist);
+    button.append(cover, text);
     button.addEventListener("click", () => showSongToDJ(related));
     els.dialogRelatedList.append(button);
   }
+  disposeRecommendations = initializeRecommendationCarousel(els.dialogRelated);
 }
 
 function showArtistSongs(artist) {
@@ -1612,6 +1633,8 @@ els.dialogPreview?.addEventListener("click", () => {
   if (activeSong) togglePreview(activeSong, els.dialogPreview);
 });
 els.dialog.addEventListener("close", () => {
+  relatedRenderGeneration++;
+  disposeRecommendations();
   dialogMetaGen++;
   stopPreview();
   activeSong = null;

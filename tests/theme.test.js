@@ -126,11 +126,11 @@ test("signed-out menu offers Entrar and the theme; signed-in adds favoritos and 
   const signedOut = site.match(/const SIGNED_OUT_ITEMS = `([\s\S]*?)`;/)?.[1];
   const signedIn = site.match(/const SIGNED_IN_ITEMS = `([\s\S]*?)`;/)?.[1];
   assert.ok(signedOut && signedIn, "menu item templates not found");
-  assert.match(signedOut, /role="menuitem"[^>]*href="login\.html"[^>]*>Entrar</);
+  assert.match(signedOut, /role="menuitem"[^>]*href="login\.html"[^>]*>\$\{ENTER_ICON\}<span>Entrar<\/span></);
   assert.match(signedOut, /\$\{THEME_MENU_ITEM\}/);
   assert.doesNotMatch(signedOut, /signout/);
-  assert.match(signedIn, /href="favoritos\.html">Meus favoritos</);
-  assert.match(signedIn, /href="login\.html#conta">Minha conta</);
+  assert.match(signedIn, /href="favoritos\.html">\$\{HEART_ICON\}<span>Meus favoritos<\/span></);
+  assert.match(signedIn, /href="login\.html#conta">\$\{USER_ICON\}<span>Minha conta<\/span></);
   assert.match(signedIn, /\$\{THEME_MENU_ITEM\}/);
   assert.match(signedIn, /data-action="signout"/);
   assert.doesNotMatch(site, /is-in-account-menu|setHeaderThemeVisible/);
