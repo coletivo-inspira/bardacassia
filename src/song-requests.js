@@ -173,8 +173,8 @@ async function sendRequest() {
 }
 
 export function prepareSongRequest(song) {
-  if (!requestsConfigured) return;
-  if (requestMode === "qr") { prepareQrRequest(song); return; }
+  if (!requestsConfigured()) return;
+  if (requestMode() === "qr") { prepareQrRequest(song); return; }
   currentSong = song;
   els.panel.hidden = false;
   els.start.hidden = false;
@@ -191,9 +191,9 @@ export function clearSongRequest() {
 }
 
 export function initSongRequests() {
-  if (!requestsConfigured) return;
+  if (!requestsConfigured()) return;
   // No modo QR o aparelho do cliente não grava nada: sem sessão anônima, sem pedidos pendentes.
-  if (requestMode === "qr") { initQrRequests(); return; }
+  if (requestMode() === "qr") { initQrRequests(); return; }
   els.open.hidden = false;
   els.start.addEventListener("click", showForm);
   els.send.addEventListener("click", sendRequest);

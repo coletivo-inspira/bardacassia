@@ -1,6 +1,9 @@
-import { authConfigured, displayName, getCurrentUser, onAuthChange, signOut } from "./integrations/auth.js";
+import { authBackendReady, displayName, getCurrentUser, onAuthChange, publicAuthEnabled, signOut } from "./integrations/auth.js";
+import { loadSiteFeatures } from "./integrations/features.js";
 import { getMyProfile } from "./integrations/profile.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
+import { getFeatures } from "./lib/feature-state.js";
+import { showFavorites, showThemeToggle } from "./lib/features.js";
 import { providerAvatarUrl } from "./lib/profile.js";
 import {
   hideExpiredEventNav,
@@ -88,18 +91,23 @@ function renderAccountPage(user) {
   const list = document.querySelector("[data-account-menu]");
   if (!list) return;
 
+  const features = getFeatures();
   if (user) {
     const name = displayName(user);
     if (title) title.textContent = name;
     if (subtitle) subtitle.textContent = user.email || "Conta conectada neste aparelho.";
     const initial = Array.from(name)[0]?.toLocaleUpperCase("pt-BR") || "";
     setHeroAvatar("", initial);
-    list.innerHTML = [
-      menuRow({ href: "favoritos.html", icon: HEART_ICON, title: "Meus favoritos", detail: "Músicas salvas neste aparelho" }),
-      menuRow({ href: "login.html#conta", icon: USER_ICON, title: "Minha conta", detail: "Perfil, dados e privacidade" }),
-      themeRow(),
-      menuRow({ action: "signout", icon: EXIT_ICON, title: "Sair", detail: "Desconectar deste aparelho", danger: true }),
-    ].join("");
+    const rows = [];
+    if (showFavorites(features)) {
+      rows.push(menuRow({ href: "favoritos.html", icon: HEART_ICON, title: "Meus favoritos", detail: "Músicas salvas neste aparelho" }));
+    }
+    if (publicAuthEnabled()) {
+      rows.push(menuRow({ href: "login.html#conta", icon: USER_ICON, title: "Minha conta", detail: "Perfil, dados e privacidade" }));
+    }
+    if (showThemeToggle(features)) rows.push(themeRow());
+    rows.push(menuRow({ action: "signout", icon: EXIT_ICON, title: "Sair", detail: "Desconectar deste aparelho", danger: true }));
+    list.innerHTML = rows.join("");
     list.querySelector('[data-action="signout"]')?.addEventListener("click", async () => {
       await signOut();
       renderAccountPage(null);
@@ -122,10 +130,12 @@ function renderAccountPage(user) {
       fallback.innerHTML = USER_ICON;
       fallback.removeAttribute("hidden");
     }
-    list.innerHTML = [
-      menuRow({ href: loginHref(), icon: ENTER_ICON, title: "Entrar", detail: "Acesse sua conta no bar" }),
-      themeRow(),
-    ].join("");
+    const rows = [];
+    if (publicAuthEnabled()) {
+      rows.push(menuRow({ href: loginHref(), icon: ENTER_ICON, title: "Entrar", detail: "Acesse sua conta no bar" }));
+    }
+    if (showThemeToggle(features)) rows.push(themeRow());
+    list.innerHTML = rows.join("");
     const login = list.querySelector('a[href^="login.html"]');
     login?.addEventListener("click", () => { login.href = loginHref(); });
   }
@@ -134,8 +144,9 @@ function renderAccountPage(user) {
 }
 
 async function bootAccountPage() {
+  await loadSiteFeatures();
   renderAccountPage(null);
-  if (!authConfigured || !hasStoredAuthSession()) return;
+  if (!authBackendReady || !hasStoredAuthSession()) return;
   try {
     const user = await getCurrentUser();
     if (user) renderAccountPage(user);

@@ -1,13 +1,21 @@
 import { ensureSession, isAnonymous } from "./auth.js";
 import { getSupabase, supabaseConfigured } from "./supabase.js";
 import { authErrorMessage } from "../lib/auth-validation.js";
+import { getFeatures } from "../lib/feature-state.js";
+import { requestModeOf, showRequests, showStaffPanel } from "../lib/features.js";
 
-const REQUESTS_ENABLED = String(import.meta.env.VITE_ENABLE_REQUESTS || "true") !== "false";
+export function requestsConfigured() {
+  return supabaseConfigured && showRequests(getFeatures());
+}
 
-export const requestsConfigured = supabaseConfigured && REQUESTS_ENABLED;
+export function staffPanelEnabled() {
+  return supabaseConfigured && showStaffPanel(getFeatures());
+}
 
 /** "qr": o cliente só mostra um QR e o garçom cria o pedido. "remoto": o cliente pede sozinho. */
-export const requestMode = String(import.meta.env.VITE_REQUEST_MODE || "qr") === "remoto" ? "remoto" : "qr";
+export function requestMode() {
+  return requestModeOf(getFeatures());
+}
 
 export class RequestError extends Error {
   constructor(message, { status = 0, code = "", hint = "" } = {}) {

@@ -1,11 +1,25 @@
 import { getSupabase, setPersistSession, supabaseConfigured } from "./supabase.js";
 import { normalizeEmail, KNOWN_AUTH_PROVIDERS, parseAuthProviders } from "../lib/auth-validation.js";
+import { getFeatures } from "../lib/feature-state.js";
+import { effectiveAuthProviders, showPublicAuth } from "../lib/features.js";
 
 export { KNOWN_AUTH_PROVIDERS, parseAuthProviders };
 
-export const authConfigured = supabaseConfigured && String(import.meta.env.VITE_ENABLE_AUTH || "true") !== "false";
-export const authProviders = parseAuthProviders(import.meta.env.VITE_AUTH_PROVIDERS);
+/** Sessão e login existem sempre que o Supabase está no build. O interruptor público só esconde a UI. */
+export const authBackendReady = supabaseConfigured;
 export const captchaSiteKey = String(import.meta.env.VITE_AUTH_CAPTCHA_SITE_KEY || "");
+
+export function buildAuthProviders() {
+  return parseAuthProviders(import.meta.env.VITE_AUTH_PROVIDERS);
+}
+
+export function publicAuthEnabled() {
+  return authBackendReady && showPublicAuth(getFeatures());
+}
+
+export function currentAuthProviders() {
+  return effectiveAuthProviders(getFeatures(), buildAuthProviders());
+}
 
 /** Prefer VITE_SITE_URL (Pages `SITE_URL`) so Auth e-mails never fall back to a stale Site URL like localhost:3000. */
 function authRedirectBase() {
@@ -37,13 +51,13 @@ export function displayName(user) {
 }
 
 async function client() {
-  if (!authConfigured) throw new Error("Login não configurado.");
+  if (!authBackendReady) throw new Error("Login não configurado.");
   return getSupabase();
 }
 
 /** Returns the signed-in (non-anonymous) user, or null. */
 export async function getCurrentUser() {
-  if (!authConfigured) return null;
+  if (!authBackendReady) return null;
   const supabase = await client();
   const { data } = await supabase.auth.getSession();
   const user = data.session?.user || null;
@@ -51,7 +65,7 @@ export async function getCurrentUser() {
 }
 
 export async function onAuthChange(callback) {
-  if (!authConfigured) return () => {};
+  if (!authBackendReady) return () => {};
   const supabase = await client();
   const { data } = supabase.auth.onAuthStateChange((event, session) => {
     // Defer so callbacks may call other supabase methods without deadlocking the auth lock.
@@ -125,7 +139,7 @@ export async function signInWithEmailLink({ email, persist = true, captchaToken,
 
 export async function signInWithProvider(provider, { persist = true, next = "" } = {}) {
   const name = String(provider || "").trim().toLowerCase();
-  if (!authProviders.includes(name)) throw new Error("Provedor indisponível.");
+  if (!currentAuthProviders().includes(name)) throw new Error("Provedor indisponível.");
   const supabase = await client();
   setPersistSession(persist);
   const { error } = await supabase.auth.signInWithOAuth({ provider: name, options: { redirectTo: loginUrl("", next) } });
@@ -148,7 +162,7 @@ export async function updatePassword(password) {
 }
 
 export async function signOut() {
-  if (!authConfigured) return;
+  if (!authBackendReady) return;
   const supabase = await client();
   await supabase.auth.signOut({ scope: "local" });
 }

@@ -38,8 +38,11 @@ import {
   isInteractiveSwipeTarget,
 } from "./lib/discovery-swipe.js";
 import { fetchPopularSongs, popularityNeedsUpdate, recordSongOpen, setFavoriteSyncActive, setSongFavorite } from "./integrations/popularity.js";
-import { authConfigured, getCurrentUser, onAuthChange } from "./integrations/auth.js";
-import { hideExpiredEventNav, initializeAccountMenu, initializeIsland, initializeTheme, setFooterYear, setIslandTab } from "./site.js";
+import { authBackendReady, getCurrentUser, onAuthChange, publicAuthEnabled } from "./integrations/auth.js";
+import { loadSiteFeatures } from "./integrations/features.js";
+import { getFeatures } from "./lib/feature-state.js";
+import { showDeezer, showDiscovery, showFavorites, showFavoritesSync, showPopularity } from "./lib/features.js";
+import { applyFeatureChrome, hideExpiredEventNav, initializeAccountMenu, initializeIsland, initializeTheme, setFooterYear, setIslandTab } from "./site.js";
 import { syncAccountFavorites } from "./integrations/favorites-sync.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
 import { clearSongRequest, initSongRequests, prepareSongRequest } from "./song-requests.js";
@@ -65,8 +68,10 @@ function redirectLegacyFavoritesHash() {
 
 const BASE = import.meta.env.BASE_URL || "/";
 const PAGE_SIZE = 40;
-const DISCOVERY_ENABLED = String(import.meta.env.VITE_ENABLE_DISCOVERY || "true") !== "false";
-const POPULARITY_ENABLED = String(import.meta.env.VITE_ENABLE_POPULARITY || "true") !== "false";
+function discoveryOn() { return showDiscovery(getFeatures()); }
+function popularityOn() { return showPopularity(getFeatures()); }
+function deezerOn() { return showDeezer(getFeatures()); }
+function favoritesOn() { return showFavorites(getFeatures()); }
 const DISCOVERY_KEY = "bdc-discovery-v1";
 const RESULTS_VIEW_KEY = "bdc-results-view-v1";
 const ARTIST_VIEW_KEY = "bdc-artist-view-v1";
@@ -605,6 +610,7 @@ function hasDiscoverySession() {
 }
 
 function openDiscover() {
+  if (!discoveryOn()) return;
   if (!els.discoverDialog.open) {
     if (typeof els.discoverDialog.showModal === "function") els.discoverDialog.showModal();
     else els.discoverDialog.setAttribute("open", "");
@@ -665,7 +671,7 @@ async function startDiscovery(passedArtists = discovery.artists) {
     return;
   }
   discovery.artists = [...passedArtists];
-  if (POPULARITY_ENABLED && !popularSongs.length) popularSongs = (await fetchPopularSongs()).map((entry) => songByCode.get(String(entry.code))).filter(Boolean);
+  if (popularityOn() && !popularSongs.length) popularSongs = (await fetchPopularSongs()).map((entry) => songByCode.get(String(entry.code))).filter(Boolean);
   if (popularityNeedsUpdate()) {
     els.spotifyStatus.hidden = false;
     els.spotifyStatus.textContent = "Ranking exibido com dados salvos; atualização pendente.";
@@ -1004,7 +1010,7 @@ function showPopular() {
   els.popularView.hidden = false;
   els.songsList.hidden = true;
   renderPopularSongs();
-  if (POPULARITY_ENABLED) fetchPopularSongs().then((entries) => {
+  if (popularityOn()) fetchPopularSongs().then((entries) => {
     popularSongs = entries.map((entry) => songByCode.get(String(entry.code))).filter(Boolean);
     renderPopularSongs();
     if (popularityNeedsUpdate()) {
@@ -1043,7 +1049,7 @@ async function applyAccountFavorites() {
 
 /** Soft CTA once per visit when the first favorite is saved without a permanent account. */
 async function maybePromptAccountForFavorites() {
-  if (!authConfigured || accountFavoritesPromptShown) return;
+  if (!publicAuthEnabled() || !showFavoritesSync(getFeatures()) || accountFavoritesPromptShown) return;
   try {
     if (await getCurrentUser()) return;
   } catch {
@@ -1061,7 +1067,7 @@ async function maybePromptAccountForFavorites() {
 }
 
 async function watchAccountFavorites() {
-  if (!authConfigured) return;
+  if (!authBackendReady) return;
   let skipRecoverySignedIn = true;
   await onAuthChange(async (event) => {
     if (event === "SIGNED_OUT") {
@@ -1155,6 +1161,7 @@ function relatedArtistsFromConnections(artist) {
 }
 
 async function renderRelatedArtists(artist) {
+  if (!discoveryOn()) { hideRelatedArtists(); return; }
   const request = ++relatedRequest;
   els.relatedSection.hidden = false;
   els.relatedTitle.textContent = "Buscando artistas relacionados…";
@@ -1200,6 +1207,10 @@ let relatedRenderGeneration = 0;
 let disposeRecommendations = () => {};
 
 async function renderDialogRelated(song) {
+  if (!discoveryOn()) {
+    if (els.dialogRelated) els.dialogRelated.hidden = true;
+    return;
+  }
   const generation = ++relatedRenderGeneration;
   disposeRecommendations();
   if (!els.dialogRelated || !els.dialogRelatedList) return;
@@ -1496,7 +1507,7 @@ function resetDialogListen(song) {
 function applyDialogMeta(song, meta) {
   if (!meta || activeSong?.code !== song.code) return;
   if (meta.cover) setDialogCover(song, meta.cover);
-  if (meta.previewUrl && els.dialogPreview) {
+  if (deezerOn() && meta.previewUrl && els.dialogPreview) {
     els.dialogPreview.hidden = false;
     els.dialogPreview.dataset.preview = meta.previewUrl;
     if (previewCode === song.code && !els.previewAudio.paused) {
@@ -1581,7 +1592,7 @@ function showSongToDJ(song) {
       || (discoveryMatch ? els.discoveryCard?.querySelector(".preview-btn")?.dataset.preview : null)
       || null;
     setDialogCover(song, liveCover);
-    if (els.dialogPreview && (livePreview || catalogMeta.deezerId)) {
+    if (deezerOn() && els.dialogPreview && (livePreview || catalogMeta.deezerId)) {
       els.dialogPreview.hidden = false;
       if (livePreview) els.dialogPreview.dataset.preview = livePreview;
       if (previewCode === song.code && !els.previewAudio.paused) {
@@ -1725,7 +1736,7 @@ function createCategoryTile({ id, title, color, onClick, artLabel }) {
 function buildCategories() {
   const tiles = [];
 
-  if (POPULARITY_ENABLED) tiles.push(createCategoryTile({ id: "popular", title: "Mais populares", color: "#1e3264", artLabel: "★", onClick: showPopular }));
+  if (popularityOn()) tiles.push(createCategoryTile({ id: "popular", title: "Mais populares", color: "#1e3264", artLabel: "★", onClick: showPopular }));
 
   for (const pack of CURATED) {
     tiles.push(
@@ -1849,7 +1860,35 @@ els.artistSelectionToggle?.addEventListener("click", () => {
 els.startDiscovery.addEventListener("click", () => startDiscovery());
 els.skipArtistPicker.addEventListener("click", () => startDiscovery([]));
 els.changeArtists.addEventListener("click", () => showDiscoverStep("genres"));
-els.discoverFab.hidden = !DISCOVERY_ENABLED;
+function applyCatalogFeatures() {
+  const discovery = discoveryOn();
+  const favorites = favoritesOn();
+  const spotify = spotifyConfigured();
+  if (els.discoverFab) els.discoverFab.hidden = !discovery;
+  const favLink = document.querySelector("#show-favorites");
+  if (favLink) favLink.hidden = !favorites;
+  const favFilter = document.querySelector("#filter-favorites")?.closest("label");
+  if (favFilter) favFilter.hidden = !favorites;
+  if (!favorites) favoritesOnly = false;
+  if (els.goToFavorites) els.goToFavorites.hidden = !favorites;
+  document.querySelectorAll(".favorite-btn").forEach((button) => { button.hidden = !favorites; });
+  if (!deezerOn() && els.dialogPreview) els.dialogPreview.hidden = true;
+  if (!discovery) {
+    hideRelatedArtists();
+    if (els.dialogRelated) els.dialogRelated.hidden = true;
+    if (els.discoverDialog?.open) closeDiscover();
+  }
+  if (els.spotifyButton) els.spotifyButton.hidden = !spotify;
+  if (els.spotifyStatus) {
+    if (!spotify) els.spotifyStatus.hidden = true;
+    else if (!els.spotifyStatus.textContent) {
+      els.spotifyStatus.hidden = false;
+      els.spotifyStatus.textContent = "Com sua autorização, usamos suas músicas mais ouvidas para sugerir opções disponíveis no karaokê.";
+    }
+  }
+}
+
+applyCatalogFeatures();
 els.discoverFab.addEventListener("click", openDiscover);
 els.closeDiscover.addEventListener("click", closeDiscover);
 els.discoverBack.addEventListener("click", discoverBack);
@@ -2099,15 +2138,6 @@ window.addEventListener("hashchange", () => {
   updateMobileTabs();
 });
 updateMobileTabs();
-initializeIsland();
-initializeTheme();
-initAnalytics();
-initSongRequests();
-els.spotifyButton.hidden = !spotifyConfigured;
-els.spotifyStatus.hidden = !spotifyConfigured;
-if (spotifyConfigured) {
-  els.spotifyStatus.textContent = "Com sua autorização, usamos suas músicas mais ouvidas para sugerir opções disponíveis no karaokê.";
-}
 els.spotifyButton.addEventListener("click", async () => {
   try {
     els.spotifyStatus.textContent = "Redirecionando para o Spotify…";
@@ -2139,8 +2169,11 @@ async function init() {
   } catch (err) {
     els.resultsCount.textContent = "Não foi possível carregar o catálogo.";
     console.error(err);
+    await loadSiteFeatures();
     return;
   }
+  await loadSiteFeatures();
+  applyCatalogFeatures();
 
   // Covers sidecar: start immediately; the row loader awaits it before painting / Deezer.
   void ensureSongCovers();
@@ -2158,7 +2191,7 @@ async function init() {
   void applyAccountFavorites();
 
   try {
-  const topTracks = spotifyConfigured ? await completeSpotifyConnection() : null;
+  const topTracks = spotifyConfigured() ? await completeSpotifyConnection() : null;
     if (topTracks) {
       const matches = matchSpotifyTracks(songs, topTracks);
       spotifySuggestions = matches;
@@ -2213,9 +2246,22 @@ function enhanceHeroLogo() {
   }
 }
 
-hideExpiredEventNav();
-setFooterYear();
-enhanceHeroLogo();
-void initializeAccountMenu();
-void watchAccountFavorites();
-init();
+async function boot() {
+  const ready = loadSiteFeatures();
+  hideExpiredEventNav();
+  setFooterYear();
+  enhanceHeroLogo();
+  const catalog = init();
+  await ready;
+  applyFeatureChrome();
+  applyCatalogFeatures();
+  initAnalytics();
+  initSongRequests();
+  initializeIsland();
+  initializeTheme();
+  void initializeAccountMenu();
+  void watchAccountFavorites();
+  await catalog;
+}
+
+void boot();
