@@ -269,13 +269,17 @@ update public.staff set role = 'dono'
 where user_id = (select id from auth.users where email = 'dono@exemplo.com');
 ```
 
-### Painel do administrador (`010_site_config.sql`)
+### Painel do administrador (`010_site_config.sql` a `012_admin_console_logs.sql`)
 
-`admin.html` liga e desliga, sem novo deploy, descoberta, favoritas, sincronização de favoritas, ranking, Spotify (mais ouvidas), Deezer, login público, pedidos, painel do garçom, as páginas Evento, O bar e Cartaz, o tema e o analytics. Também escolhe o modo do pedido (`qr` ou `remoto`) e quais botões OAuth aparecem, entre os que o build já permite (`VITE_AUTH_PROVIDERS`). Busca e código ao DJ ficam sempre ligados. Chaves, Client ID, Turnstile, proxy e o id de analytics não entram no banco: o interruptor de analytics só usa ou deixa de usar o `VITE_ANALYTICS_ID` que já está no build.
+`admin.html` (`src/admin.js` + `src/admin.css`) organiza a operação em **5 abas** sincronizadas pelo hash da URL:
 
-A leitura é `get_site_features` (anônimo e autenticado). Gravar e mudar papéis exige `profiles.role = 'admin'`. O login público pode ser desligado; a tela de `admin.html` continua aceitando e-mail e senha, para o painel não se trancar. Cliente, garçom e dono sem essa promoção não entram.
+1. **Visão Geral (`#visao`)**: períodos (`Noite atual` a partir das 18h em Brasília, `7d`, `30d`, `90d`) combinando `owner_metrics` e `admin_db_overview` (KPIs, funil, top músicas, garçons e saúde do banco).
+2. **Configurações sem Deploy (`#config`)**: interruptores em pílula (`role="switch"`, incluindo `manager_panel` para `gerente.html`), modo do pedido (`qr` ou `remoto`), provedores OAuth permitidos no build, operação ao vivo da fila/rodada/código da noite (`bar_settings`) e parâmetros dinâmicos (`admin_set_runtime_params`: `site_notice`, `pending_expire_minutes`, `max_pending_per_user`, `max_pending_total`, `write_limit_per_minute`, `popular_limit`).
+3. **Aparência (`#aparencia`)**: tema inicial padrão (`default_theme`: `auto`, `light`, `dark`), editor hexadecimal + seletor das paletas clara e noturna (`set_site_palette`), amostra ao vivo e restauração das cores da logo.
+4. **Acessos (`#acessos`)**: busca e filtro por papel (`admin_list_users`) e atualização integrada de `profiles.role` + vínculo em `public.staff` na mesma transação (`admin_update_user_access`), nunca expondo `private.profile_secrets`.
+5. **Banco e Logs (`#banco-logs`)**: monitor de pedidos com moderação direta (`admin_list_requests` com telefone mascarado), inspetor somente-leitura com whitelist estrita de 9 tabelas (`admin_inspect_table`) e trilha cronológica de auditoria (`admin_audit_logs` via `admin_list_audit_logs`).
 
-A migração `011_site_palette.sql` acrescenta `palette` em `site_features`. Em `admin.html`, a seção Cores grava com `set_site_palette` e não mexe nos interruptores, no modo do pedido nem nos papéis. Objeto vazio volta às cores da logo no CSS. A leitura continua sendo `get_site_features`.
+A leitura pública continua sendo `get_site_features` (anônimo e autenticado). Gravar configurações, consultar tabelas/logs e mudar papéis exige `profiles.role = 'admin'`. O login público pode ser desligado; a tela de `admin.html` continua aceitando e-mail e senha, para o painel não se trancar.
 
 A migração copia `staff`: `dono` vira `admin` no perfil e `garcom` continua `garcom`, sem rebaixar quem já é admin. A fila segue aceitando a linha antiga em `staff` ou o papel `garcom` / `dono` / `admin`. Resultados aceita `staff.role = 'dono'` ou perfil `dono` / `admin`.
 
@@ -301,7 +305,7 @@ O cartaz aponta para o site com `?origem=mesa` (ou balcão, banheiro, instagram)
 
 ### Configuração
 
-1. Aplique as migrações `001` a `011` pelo workflow `supabase.yml` (session pooler IPv4) ou pelo SQL Editor. Se alguma foi aplicada à mão, use `supabase migration repair` no remoto antes do próximo push. A `010` cria o papel no perfil e os interruptores do painel admin. A `011` guarda as cores que o admin edita em `admin.html`.
+1. Aplique as migrações `001` a `012` pelo workflow `supabase.yml` (session pooler IPv4) ou pelo SQL Editor. Se alguma foi aplicada à mão, use `supabase migration repair` no remoto antes do próximo push. A `010` cria o papel no perfil e os interruptores do painel admin, a `011` guarda a paleta e a `012` adiciona parâmetros runtime, sincronização de equipe, inspeção segura e `admin_audit_logs`.
 2. Mantenha os Anonymous Sign-Ins ativos. Visitantes pedem com a sessão anônima; quem está logado pede com a própria conta.
 3. Crie um usuário para cada garçom em Authentication > Users > Add user, com e-mail e senha e a opção de confirmar automaticamente.
 4. Autorize esse usuário no painel:

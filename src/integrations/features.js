@@ -2,6 +2,7 @@ import { getSupabase, supabaseConfigured } from "./supabase.js";
 import { adoptRemoteFeatures, getFeatures } from "../lib/feature-state.js";
 import { FEATURE_IDS, requestModeOf } from "../lib/features.js";
 import { applyPalette, clearPalette } from "../lib/palette.js";
+import { applyDefaultTheme } from "../lib/theme.js";
 
 const LOAD_MS = 3000;
 
@@ -10,6 +11,11 @@ function rpcError(error) {
   wrapped.code = error?.code || "";
   wrapped.hint = error?.hint || "";
   return wrapped;
+}
+
+function shouldApplySiteDefaultTheme() {
+  if (typeof document === "undefined" || !document?.body) return true;
+  return !document.body.classList?.contains("admin-page");
 }
 
 /** null quando o Supabase não está configurado ou a RPC falha. O chamador fica no padrão do build. */
@@ -36,13 +42,25 @@ export function peekSitePayload() {
   return lastPayload;
 }
 
+export function updateCachedSitePayload(remote) {
+  if (!remote || typeof remote !== "object" || Array.isArray(remote)) return getFeatures();
+  lastPayload = remote;
+  adoptRemoteFeatures(remote);
+  if (Object.prototype.hasOwnProperty.call(remote, "palette")) {
+    applyPalette(remote.palette);
+  }
+  if (shouldApplySiteDefaultTheme() && Object.prototype.hasOwnProperty.call(remote, "default_theme")) {
+    applyDefaultTheme(remote.default_theme);
+  }
+  return getFeatures();
+}
+
 export function loadSiteFeatures() {
   loading ??= (async () => {
     const remote = await fetchSiteFeatures();
     lastPayload = remote;
     if (remote) {
-      adoptRemoteFeatures(remote);
-      if (Object.prototype.hasOwnProperty.call(remote, "palette")) applyPalette(remote.palette);
+      updateCachedSitePayload(remote);
     } else {
       clearPalette();
     }
@@ -59,7 +77,7 @@ export async function saveSiteFeatures(features) {
   args.p_auth_providers = String(features?.auth_providers ?? "");
   const { data, error } = await supabase.rpc("set_site_features", args);
   if (error) throw rpcError(error);
-  if (data && typeof data === "object" && !Array.isArray(data)) adoptRemoteFeatures(data);
+  if (data && typeof data === "object" && !Array.isArray(data)) updateCachedSitePayload(data);
   return getFeatures();
 }
 
@@ -68,9 +86,7 @@ export async function saveSitePalette(palette) {
   const { data, error } = await supabase.rpc("set_site_palette", { p_palette: palette });
   if (error) throw rpcError(error);
   if (data && typeof data === "object" && !Array.isArray(data)) {
-    adoptRemoteFeatures(data);
-    lastPayload = data;
-    if (Object.prototype.hasOwnProperty.call(data, "palette")) applyPalette(data.palette);
+    updateCachedSitePayload(data);
     return data.palette ?? {};
   }
   applyPalette(palette);

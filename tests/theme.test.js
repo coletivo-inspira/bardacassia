@@ -102,6 +102,22 @@ test("saved theme wins over the page default on first initialization", async () 
   assert.equal(menuItem.getAttribute("aria-pressed"), "false");
 });
 
+test("applyDefaultTheme applies remote default_theme only when bdc-theme-v1 is not saved", async () => {
+  const domNoSaved = installFakeDom({ theme: "dark" });
+  const mod1 = await freshThemeModule();
+  mod1.initializeTheme();
+  mod1.applyDefaultTheme("light");
+  assert.equal(domNoSaved.theme(), "light");
+  assert.equal(domNoSaved.storage.get("bdc-theme-v1"), undefined);
+
+  const domSaved = installFakeDom({ theme: "dark", saved: "dark" });
+  const mod2 = await freshThemeModule();
+  mod2.initializeTheme();
+  mod2.applyDefaultTheme("light");
+  assert.equal(domSaved.theme(), "dark");
+  assert.equal(domSaved.storage.get("bdc-theme-v1"), "dark");
+});
+
 test("account menu leaves theme toggling to initializeTheme", () => {
   const site = readFileSync(new URL("../src/site.js", import.meta.url), "utf8");
   assert.doesNotMatch(site, /toggleTheme\(/, "a second click handler on [data-theme-toggle] cancels the first");

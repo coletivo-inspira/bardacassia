@@ -3,7 +3,7 @@ import { loadSiteFeatures } from "./integrations/features.js";
 import { getMyPhone, getMyProfile, getMyRole } from "./integrations/profile.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
 import { getFeatures } from "./lib/feature-state.js";
-import { showFavorites, showPageFile, showStaffPanel, showThemeToggle } from "./lib/features.js";
+import { showFavorites, showManagerPanel, showPageFile, showStaffPanel, showThemeToggle } from "./lib/features.js";
 import { formatPhoneMask, providerAvatarUrl } from "./lib/profile.js";
 import {
   hideExpiredEventNav,
@@ -140,7 +140,7 @@ function rolePanelRows(role, features) {
       detail: "Interruptores, provedores e papéis",
     }));
   }
-  if (isDono) {
+  if (isDono && showManagerPanel(features)) {
     rows.push(menuRow({
       href: "gerente.html",
       icon: MANAGER_ICON,

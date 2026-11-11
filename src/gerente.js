@@ -4,6 +4,8 @@ import {
   getStaffSession, ownerMetrics, requestsConfigured, staffGetNightCode, staffGetSettings, staffListPlayed,
   staffListRequests, staffSignIn, staffSignOut, staffWhoami,
 } from "./integrations/requests.js";
+import { getFeatures } from "./lib/feature-state.js";
+import { showManagerPanel } from "./lib/features.js";
 import { barRows, metricCards, metricsRange, nightLabel, weekdayLabel } from "./lib/metrics.js";
 import { filterTopSongs, funnelRows, localManagerSnapshot, periodHasActivity } from "./lib/manager-board.js";
 import { requestErrorMessage, roundSummary, songLabel, splitStaffRequests } from "./lib/requests.js";
@@ -285,8 +287,26 @@ async function enterPanel() {
   watchLive();
 }
 
-function init() {
-  void loadSiteFeatures();
+function showManagerDisabled() {
+  clearInterval(timer);
+  timer = null;
+  els.deniedCopy.textContent = "O painel do gerente está desativado no momento pelo administrador.";
+  show(els.boot, false);
+  show(els.board, false);
+  show(els.loginView, false);
+  show(els.deniedView, true);
+  show(els.logout, false);
+  show(els.deniedLogout, false);
+  els.badge.textContent = "Desativado";
+  els.badge.dataset.source = "local";
+}
+
+async function init() {
+  await loadSiteFeatures();
+  if (!showManagerPanel(getFeatures())) {
+    showManagerDisabled();
+    return;
+  }
   els.ranges.forEach((button) => button.addEventListener("click", () => {
     rangeId = button.dataset.range;
     setPressed(els.ranges, rangeId, "range");

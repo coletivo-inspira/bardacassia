@@ -41,7 +41,7 @@ import { fetchPopularSongs, popularityNeedsUpdate, recordSongOpen, setFavoriteSy
 import { authBackendReady, getCurrentUser, onAuthChange, publicAuthEnabled } from "./integrations/auth.js";
 import { loadSiteFeatures } from "./integrations/features.js";
 import { getFeatures } from "./lib/feature-state.js";
-import { showDeezer, showDiscovery, showFavorites, showFavoritesSync, showPopularity } from "./lib/features.js";
+import { popularLimitOf, showDeezer, showDiscovery, showFavorites, showFavoritesSync, showPopularity, siteNoticeOf } from "./lib/features.js";
 import { applyFeatureChrome, hideExpiredEventNav, initializeAccountMenu, initializeIsland, initializeTheme, setFooterYear, setIslandTab } from "./site.js";
 import { syncAccountFavorites } from "./integrations/favorites-sync.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
@@ -185,6 +185,8 @@ const els = {
   dialogSpotify: document.querySelector("#dialog-spotify"),
   viewList: document.querySelector("#view-list"),
   viewGrid: document.querySelector("#view-grid"),
+  siteNotice: document.querySelector("#site-notice"),
+  siteNoticeText: document.querySelector("#site-notice-text"),
 };
 
 /** @type {Array<{code:string,artist:string,title:string,lyricStart:string,lang:string}>} */
@@ -966,7 +968,7 @@ function undoDiscovery() {
 }
 
 function renderPopularSongs() {
-  const entries = popularSongs.slice(0, 40);
+  const entries = popularSongs.slice(0, popularLimitOf(getFeatures()));
   els.popularList.replaceChildren(...entries.map((song) => {
     const row = document.createElement("article");
     row.className = "popular-song";
@@ -1861,9 +1863,15 @@ els.startDiscovery.addEventListener("click", () => startDiscovery());
 els.skipArtistPicker.addEventListener("click", () => startDiscovery([]));
 els.changeArtists.addEventListener("click", () => showDiscoverStep("genres"));
 function applyCatalogFeatures() {
+  const features = getFeatures();
   const discovery = discoveryOn();
   const favorites = favoritesOn();
   const spotify = spotifyConfigured();
+  const notice = siteNoticeOf(features);
+  if (els.siteNotice && els.siteNoticeText) {
+    els.siteNoticeText.textContent = notice;
+    els.siteNotice.hidden = !notice;
+  }
   if (els.discoverFab) els.discoverFab.hidden = !discovery;
   const favLink = document.querySelector("#show-favorites");
   if (favLink) favLink.hidden = !favorites;

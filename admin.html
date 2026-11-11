@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#1a2218" />
+    <meta name="theme-color" content="#eef7f6" />
     <script>
       (() => {
         const hex = /^#[0-9a-fA-F]{6}$/;
         const ids = ["bg", "bg-elev", "bg-soft", "text", "muted", "amber", "sky", "coral", "swipe-like"];
         const root = document.documentElement;
-        const fallback = { dark: "#1a2218", light: "#f7f1e1" };
+        const fallback = { dark: "#09191f", light: "#eef7f6" };
         try {
           const raw = JSON.parse(localStorage.getItem("bdc-palette-v1") || "null");
           const decl = (theme) => {
@@ -25,16 +25,13 @@
             style.textContent = (dark ? ":root{" + dark + "}" : "") + (light ? ':root[data-theme="light"]{' + light + "}" : "");
             document.head.appendChild(style);
           }
-          const saved = localStorage.getItem("bdc-theme-v1");
-          const theme = saved === "light" || saved === "dark"
-            ? saved
-            : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          const adminSurface = localStorage.getItem("bdc-admin-surface-v1");
+          const theme = adminSurface === "dark" ? "dark" : "light";
           root.dataset.theme = theme;
-          const bg = getComputedStyle(root).getPropertyValue("--bg").trim();
           const meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.content = hex.test(bg) ? bg : fallback[theme];
+          if (meta) meta.content = fallback[theme];
         } catch {
-          root.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          root.dataset.theme = "light";
         }
       })();
     </script>
@@ -48,80 +45,551 @@
       rel="stylesheet"
     />
   </head>
-  <body class="staff-page">
-    <header class="staff-header">
-      <a class="staff-brand" href="index.html">
-        <img src="%BASE_URL%logo_bar_da_cacia.svg" alt="" width="36" height="36" />
-        <span>Painel do administrador</span>
-      </a>
-      <div class="staff-header-actions">
-        <a class="staff-link" href="garcom.html">Fila e resultados</a>
-        <button id="admin-logout" class="staff-link" type="button" hidden>Sair</button>
-      </div>
-    </header>
+  <body class="admin-page">
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
 
-    <main class="staff-main">
-      <p id="admin-unconfigured" class="staff-notice" hidden>
-        O Supabase não está configurado neste site. Sem ele, os interruptores ficam no padrão do build.
-      </p>
+    <div class="admin-ambient" aria-hidden="true">
+      <span class="admin-orb admin-orb--aqua"></span>
+      <span class="admin-orb admin-orb--seafoam"></span>
+      <span class="admin-orb admin-orb--breeze"></span>
+    </div>
 
-      <form id="login-view" class="staff-card staff-login" hidden>
-        <h1>Entrar</h1>
-        <label for="admin-email">E-mail</label>
-        <input id="admin-email" type="email" autocomplete="username" required />
-        <label for="admin-password">Senha</label>
-        <input id="admin-password" type="password" autocomplete="current-password" required />
-        <button id="admin-login" class="staff-button staff-primary" type="submit">Entrar</button>
-        <p id="login-status" class="staff-status" role="status" aria-live="polite"></p>
-        <p class="staff-hint">Se o site pedir verificação de segurança, <a href="login.html?next=admin.html">entre pela página de login</a> e volte para cá. Este acesso continua disponível mesmo com o login público desligado.</p>
-      </form>
+    <div class="admin-shell">
+      <header class="admin-header glass-card">
+        <a class="admin-brand" href="index.html">
+          <img src="%BASE_URL%logo_bar_da_cacia.svg" alt="" width="40" height="40" />
+          <span class="admin-brand-copy">
+            <strong>Console do Administrador</strong>
+            <small id="admin-actor-subtitle">Bar da Cácia · Gestão em tempo real</small>
+          </span>
+        </a>
+        <div class="admin-header-tools">
+          <a class="admin-chip-link" href="garcom.html">Fila</a>
+          <a class="admin-chip-link" href="gerente.html">Gerente</a>
+          <button id="admin-surface-toggle" class="admin-icon-pill" type="button" aria-pressed="false" title="Alternar modo claro ou noturno neste console">
+            <span id="admin-surface-label">Pré-ver noturno</span>
+          </button>
+          <button id="admin-refresh" class="admin-icon-pill" type="button" hidden title="Atualizar dados da aba">
+            Atualizar
+          </button>
+          <button id="admin-logout" class="admin-icon-pill" type="button" hidden>Sair</button>
+        </div>
+      </header>
 
-      <section id="denied-view" class="staff-card" hidden>
-        <h1>Acesso restrito</h1>
-        <p>Esta área é só para quem tem o papel de administrador no perfil.</p>
-        <button id="denied-logout" class="staff-button staff-primary" type="button">Sair</button>
-      </section>
-
-      <section id="panel-view" hidden>
-        <p class="staff-hint">Busca do catálogo e o código ao DJ ficam sempre ligados. Fila, rodada, código da noite e resultados continuam no painel do garçom.</p>
-        <p id="admin-status" class="staff-status" role="status" aria-live="polite"></p>
-
-        <form id="features-form">
-          <div id="feature-groups"></div>
-
-          <h2 class="staff-subtitle">Modo do pedido</h2>
-          <div class="staff-card">
-            <label class="staff-check"><input type="radio" name="request-mode" value="qr" /> QR — o garçom cobra e põe na fila</label>
-            <label class="staff-check"><input type="radio" name="request-mode" value="remoto" /> Remoto — o cliente pede com o código da noite</label>
+      <main id="conteudo">
+        <section id="admin-unconfigured" class="glass-card admin-auth-card" hidden>
+          <h1>Supabase não configurado</h1>
+          <p class="admin-lead">
+            Este ambiente está sem <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_ANON_KEY</code>. Sem o banco, os interruptores e limites seguem os padrões do build.
+          </p>
+          <div class="actions-row">
+            <a class="btn btn-secondary" href="index.html">Voltar ao catálogo</a>
           </div>
+        </section>
 
-          <div id="providers-section" hidden>
-            <h2 class="staff-subtitle">Login social</h2>
-            <div id="provider-switches" class="staff-card"></div>
-            <p class="staff-hint">Só dá para marcar provedores já permitidos neste build. Se todos ficarem marcados, o site segue o build.</p>
+        <form id="login-view" class="glass-card admin-auth-card" hidden>
+          <h1>Entrar no Console</h1>
+          <p class="admin-lead">Acesso exclusivo para contas com papel de administrador no perfil.</p>
+          <div class="field">
+            <label for="admin-email">E-mail</label>
+            <input id="admin-email" type="email" autocomplete="username" required />
           </div>
-
-          <button class="staff-button staff-primary" type="submit">Salvar funcionalidades</button>
+          <div class="field">
+            <label for="admin-password">Senha</label>
+            <input id="admin-password" type="password" autocomplete="current-password" required />
+          </div>
+          <button id="admin-login" class="btn btn-primary" type="submit">Entrar</button>
+          <p id="login-status" class="status-feedback" role="status" aria-live="polite"></p>
+          <p class="admin-lead">
+            Se o site pedir verificação de segurança, <a href="login.html?next=admin.html">entre pela página de login</a> e volte para cá.
+          </p>
         </form>
 
-        <h2 class="staff-subtitle">Cores</h2>
-        <p class="staff-hint">Valem para o catálogo, a conta, o cartaz e os painéis. Salvar aqui não mexe nos interruptores, no modo do pedido nem nos papéis.</p>
-        <form id="palette-form">
-          <div id="palette-fields" class="palette-fields"></div>
-          <div class="palette-actions">
-            <button id="palette-reset" class="staff-button staff-ghost" type="button">Restaurar cores da logo</button>
-            <button class="staff-button staff-primary" type="submit">Salvar cores</button>
+        <section id="denied-view" class="glass-card admin-auth-card" hidden>
+          <h1>Acesso restrito</h1>
+          <p class="admin-lead">Esta área exige o papel <strong>admin</strong> em <code>profiles.role</code>.</p>
+          <div class="actions-row">
+            <a class="btn btn-secondary" href="conta.html">Minha conta</a>
+            <button id="denied-logout" class="btn btn-primary" type="button">Sair desta conta</button>
           </div>
-        </form>
-        <p id="palette-status" class="staff-status" role="status" aria-live="polite"></p>
+        </section>
 
-        <h2 class="staff-subtitle">Papéis das contas</h2>
-        <p class="staff-hint">Aparecem o nome e o papel. O telefone não entra nesta lista.</p>
-        <ul id="role-list" class="staff-list"></ul>
-        <p id="role-empty" class="staff-empty" hidden>Nenhuma conta encontrada.</p>
-        <p id="role-status" class="staff-status" role="status" aria-live="polite"></p>
-      </section>
-    </main>
+        <div id="panel-view" hidden>
+          <div class="admin-tabbar-wrap">
+            <nav id="admin-tabbar" class="admin-tabbar" role="tablist" aria-label="Seções do painel administrativo">
+              <span class="admin-tab-pill" aria-hidden="true"></span>
+              <a id="tab-btn-visao" class="admin-tab" role="tab" href="#visao" data-tab="visao" aria-controls="panel-visao" aria-selected="true">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 19V5m0 14h16M8 15v-4m4 4V8m4 7v-6"/></svg>
+                <span class="admin-tab-full">Visão Geral</span>
+                <span class="admin-tab-short">Visão</span>
+              </a>
+              <a id="tab-btn-config" class="admin-tab" role="tab" href="#config" data-tab="config" aria-controls="panel-config" aria-selected="false">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h10m4 0h2M14 7a2 2 0 1 0 4 0 2 2 0 0 0-4 0ZM4 17h4m4 0h8M8 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/></svg>
+                <span class="admin-tab-full">Configurações</span>
+                <span class="admin-tab-short">Config</span>
+              </a>
+              <a id="tab-btn-aparencia" class="admin-tab" role="tab" href="#aparencia" data-tab="aparencia" aria-controls="panel-aparencia" aria-selected="false">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="9" cy="10" r="1.2"/><circle cx="13.5" cy="8.8" r="1.2"/><circle cx="15.2" cy="13" r="1.2"/></svg>
+                <span class="admin-tab-full">Aparência</span>
+                <span class="admin-tab-short">Cores</span>
+              </a>
+              <a id="tab-btn-acessos" class="admin-tab" role="tab" href="#acessos" data-tab="acessos" aria-controls="panel-acessos" aria-selected="false">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19c1.1-3 3.4-4.5 5.5-4.5s4.4 1.5 5.5 4.5"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.5 18.5c.6-2 2-3.1 3.8-3.1"/></svg>
+                <span class="admin-tab-full">Acessos</span>
+                <span class="admin-tab-short">Acessos</span>
+              </a>
+              <a id="tab-btn-banco-logs" class="admin-tab" role="tab" href="#banco-logs" data-tab="banco-logs" aria-controls="panel-banco-logs" aria-selected="false">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/></svg>
+                <span class="admin-tab-full">Banco e Logs</span>
+                <span class="admin-tab-short">Logs</span>
+              </a>
+            </nav>
+          </div>
+
+          <!-- ABA 1: VISÃO GERAL E RELATÓRIOS -->
+          <section id="panel-visao" class="admin-tab-panel" role="tabpanel" aria-labelledby="tab-btn-visao">
+            <div class="section-head">
+              <div class="section-head-copy">
+                <h1>Visão Geral e Relatórios</h1>
+                <p>Indicadores operacionais da noite, engajamento do catálogo e saúde da base em tempo real.</p>
+              </div>
+              <div id="visao-ranges" class="segmented-pills" role="group" aria-label="Período do relatório">
+                <button class="pill-btn" type="button" data-range="hoje" aria-pressed="false">Noite atual</button>
+                <button class="pill-btn" type="button" data-range="7d" aria-pressed="false">7 dias</button>
+                <button class="pill-btn" type="button" data-range="30d" aria-pressed="true">30 dias</button>
+                <button class="pill-btn" type="button" data-range="90d" aria-pressed="false">90 dias</button>
+              </div>
+            </div>
+
+            <div class="glass-card live-strip">
+              <div id="visao-live-strip" class="live-strip-info">
+                <span class="badge">Carregando operação…</span>
+              </div>
+              <a class="btn btn-secondary btn-sm" href="#config">Ajustar fila e limites</a>
+            </div>
+
+            <p id="visao-status" class="status-feedback" role="status" aria-live="polite"></p>
+
+            <div id="visao-kpis" class="kpi-grid-admin" aria-label="Indicadores do período"></div>
+
+            <div class="charts-grid">
+              <section class="glass-card card-pad">
+                <h2 class="card-title">Movimento por noite</h2>
+                <p class="card-subtitle">Pedidos pagos agrupados por noite (início às 18h em Brasília).</p>
+                <ol id="chart-nights" class="glass-bars"></ol>
+              </section>
+
+              <section class="glass-card card-pad">
+                <h2 class="card-title">Funil de pedidos</h2>
+                <p class="card-subtitle">Conversão entre pagamento, palco, QR e cancelamentos.</p>
+                <ol id="chart-funnel" class="glass-bars"></ol>
+              </section>
+
+              <section class="glass-card card-pad">
+                <h2 class="card-title">Por dia da semana</h2>
+                <p class="card-subtitle">Distribuição acumulada de pedidos pagos no período.</p>
+                <ol id="chart-weekdays" class="glass-bars"></ol>
+              </section>
+
+              <section class="glass-card card-pad">
+                <h2 class="card-title">Desempenho por garçom</h2>
+                <p class="card-subtitle">Pedidos lançados presencialmente pela equipe.</p>
+                <ol id="chart-staff" class="glass-bars"></ol>
+              </section>
+            </div>
+
+            <section class="glass-card card-pad">
+              <h2 class="card-title">Top 10 músicas mais pedidas</h2>
+              <p class="card-subtitle">Ranking das faixas pagas no período selecionado.</p>
+              <ol id="chart-top-songs" class="glass-bars"></ol>
+            </section>
+
+            <section class="glass-card card-pad">
+              <div class="section-head">
+                <div class="section-head-copy">
+                  <h2 class="card-title">Saúde do Banco e Tráfego</h2>
+                  <p class="card-subtitle">Resumo ao vivo de tabelas, catálogo sincronizado e rate-limit.</p>
+                </div>
+                <a class="btn btn-secondary btn-sm" href="#banco-logs">Inspecionar banco</a>
+              </div>
+              <div id="visao-health" class="health-grid"></div>
+            </section>
+          </section>
+
+          <!-- ABA 2: CONFIGURAÇÕES SEM DEPLOY -->
+          <section id="panel-config" class="admin-tab-panel" role="tabpanel" aria-labelledby="tab-btn-config" hidden>
+            <div class="section-head">
+              <div class="section-head-copy">
+                <h1>Configurações sem Deploy</h1>
+                <p>Ligue ou desligue recursos, opere a rodada ao vivo e ajuste limites imediatamente no banco.</p>
+              </div>
+            </div>
+
+            <div class="config-columns">
+              <form id="features-form" class="glass-card card-pad config-stack">
+                <div>
+                  <h2 class="card-title">Interruptores do Site</h2>
+                  <p class="card-subtitle">Busca do catálogo e código ao DJ permanecem sempre ativos.</p>
+                </div>
+
+                <div id="feature-groups" class="switch-groups-grid"></div>
+
+                <div>
+                  <h3 class="card-title">Modo do Pedido</h3>
+                  <div class="mode-cards">
+                    <label class="mode-option">
+                      <input type="radio" name="request-mode" value="qr" />
+                      <span class="mode-option-copy">
+                        <strong>QR Presencial</strong>
+                        <small>O cliente mostra o QR e o garçom confirma após cobrar.</small>
+                      </span>
+                    </label>
+                    <label class="mode-option">
+                      <input type="radio" name="request-mode" value="remoto" />
+                      <span class="mode-option-copy">
+                        <strong>Remoto com Código</strong>
+                        <small>O cliente envia o pedido usando o código da noite.</small>
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div id="providers-section" hidden>
+                  <h3 class="card-title">Provedores de Login Social</h3>
+                  <p class="card-subtitle">Subconjunto ativo dentro dos provedores configurados neste build.</p>
+                  <div id="provider-switches"></div>
+                </div>
+
+                <div class="actions-row">
+                  <button class="btn btn-primary" type="submit">Salvar funcionalidades</button>
+                </div>
+                <p id="admin-status" class="status-feedback" role="status" aria-live="polite"></p>
+              </form>
+
+              <div class="config-stack">
+                <form id="bar-ops-form" class="glass-card card-pad">
+                  <h2 class="card-title">Operação da Fila e Rodada</h2>
+                  <p class="card-subtitle">Controle ao vivo de <code>bar_settings</code> usado pelo salão.</p>
+
+                  <div class="switch-row">
+                    <span class="switch-copy">
+                      <strong>Fila aberta para pedidos</strong>
+                      <small>Quando desligada, novos pedidos remotos ficam bloqueados.</small>
+                    </span>
+                    <button id="cfg-queue-open" class="glass-switch" type="button" role="switch" aria-checked="true" aria-label="Fila aberta para pedidos"></button>
+                  </div>
+
+                  <div class="field-grid" style="margin-top: 0.75rem;">
+                    <div class="field">
+                      <label for="cfg-round-limit">Limite da rodada</label>
+                      <input id="cfg-round-limit" type="number" min="0" max="200" step="1" />
+                      <small>0 = sem limite automático.</small>
+                    </div>
+                    <div class="field">
+                      <label for="cfg-next-round">Próxima rodada (HH:MM)</label>
+                      <input id="cfg-next-round" type="time" />
+                      <small>Opcional quando a fila fecha.</small>
+                    </div>
+                  </div>
+
+                  <div class="field" style="margin-top: 0.75rem;">
+                    <label for="cfg-bar-message">Mensagem pública da fila</label>
+                    <input id="cfg-bar-message" type="text" maxlength="200" placeholder="Ex.: Microfone aberto · fale com o garçom" />
+                  </div>
+
+                  <div class="actions-row">
+                    <button class="btn btn-primary" type="submit">Salvar operação</button>
+                    <button id="cfg-new-round" class="btn btn-secondary" type="button">Iniciar nova rodada</button>
+                  </div>
+                  <p id="bar-ops-status" class="status-feedback" role="status" aria-live="polite"></p>
+                </form>
+
+                <form id="night-code-form" class="glass-card card-pad">
+                  <h2 class="card-title">Código da Noite (Modo Remoto)</h2>
+                  <p class="card-subtitle">Impede pedidos enviados por quem não está no bar.</p>
+
+                  <div class="switch-row">
+                    <span class="switch-copy">
+                      <strong>Exigir código da noite</strong>
+                      <small>Obrigatório ao pedir música no modo remoto.</small>
+                    </span>
+                    <button id="cfg-night-required" class="glass-switch" type="button" role="switch" aria-checked="false" aria-label="Exigir código da noite"></button>
+                  </div>
+
+                  <div class="field" style="margin-top: 0.75rem;">
+                    <label for="cfg-night-code">Código alfanumérico (até 12 caracteres)</label>
+                    <input id="cfg-night-code" class="uppercase-code" type="text" maxlength="12" autocomplete="off" placeholder="CACIA" />
+                  </div>
+
+                  <div class="actions-row">
+                    <button class="btn btn-primary" type="submit">Salvar código</button>
+                    <button id="cfg-night-generate" class="btn btn-secondary" type="button">Gerar aleatório</button>
+                  </div>
+                  <p id="night-code-status" class="status-feedback" role="status" aria-live="polite"></p>
+                </form>
+
+                <form id="runtime-params-form" class="glass-card card-pad">
+                  <h2 class="card-title">Comunicado e Limites Dinâmicos</h2>
+                  <p class="card-subtitle">Aplicados imediatamente no catálogo e nas validações SQL.</p>
+
+                  <div class="field" style="margin-top: 0.75rem;">
+                    <label for="param-site-notice">Comunicado no topo do catálogo</label>
+                    <textarea id="param-site-notice" maxlength="240" rows="2" placeholder="Deixe vazio para ocultar a faixa de aviso na página inicial."></textarea>
+                    <div class="notice-counter">
+                      <span id="param-notice-count">0 / 240 caracteres</span>
+                      <button id="param-notice-clear" class="btn btn-secondary btn-sm" type="button">Limpar aviso</button>
+                    </div>
+                  </div>
+
+                  <div class="field-grid" style="margin-top: 0.75rem;">
+                    <div class="field">
+                      <label for="param-pending-expire">Expiração de pendentes (min)</label>
+                      <input id="param-pending-expire" type="number" min="5" max="240" step="1" required />
+                      <small>Entre 5 e 240 min (padrão 30).</small>
+                    </div>
+                    <div class="field">
+                      <label for="param-max-user">Máx. pendentes por pessoa</label>
+                      <input id="param-max-user" type="number" min="1" max="20" step="1" required />
+                      <small>Entre 1 e 20 (padrão 3).</small>
+                    </div>
+                    <div class="field">
+                      <label for="param-max-total">Teto global de pendentes</label>
+                      <input id="param-max-total" type="number" min="5" max="500" step="1" required />
+                      <small>Entre 5 e 500 (padrão 40).</small>
+                    </div>
+                    <div class="field">
+                      <label for="param-write-limit">Gravações/min por sessão</label>
+                      <input id="param-write-limit" type="number" min="20" max="1000" step="1" required />
+                      <small>Entre 20 e 1000 (padrão 120).</small>
+                    </div>
+                    <div class="field">
+                      <label for="param-popular-limit">Tamanho do ranking popular</label>
+                      <input id="param-popular-limit" type="number" min="5" max="100" step="1" required />
+                      <small>Entre 5 e 100 músicas (padrão 40).</small>
+                    </div>
+                  </div>
+
+                  <div class="actions-row">
+                    <button class="btn btn-primary" type="submit">Salvar parâmetros</button>
+                    <button id="param-reset-defaults" class="btn btn-secondary" type="button">Padrões recomendados</button>
+                  </div>
+                  <p id="runtime-params-status" class="status-feedback" role="status" aria-live="polite"></p>
+                </form>
+              </div>
+            </div>
+          </section>
+
+          <!-- ABA 3: APARÊNCIA E TEMA -->
+          <section id="panel-aparencia" class="admin-tab-panel" role="tabpanel" aria-labelledby="tab-btn-aparencia" hidden>
+            <div class="section-head">
+              <div class="section-head-copy">
+                <h1>Aparência e Tema</h1>
+                <p>Defina o tema inicial padrão para visitantes e personalize as cores dos modos claro e noturno.</p>
+              </div>
+            </div>
+
+            <div class="appearance-layout">
+              <div class="config-stack">
+                <section class="glass-card card-pad">
+                  <h2 class="card-title">Tema Inicial Padrão do Site</h2>
+                  <p class="card-subtitle">Aplicado quando o visitante ainda não escolheu manualmente entre claro ou noturno neste aparelho.</p>
+
+                  <div id="default-theme-group" class="segmented-pills" role="group" aria-label="Tema inicial padrão" style="margin-top: 0.75rem;">
+                    <button class="pill-btn" type="button" data-default-theme="auto" aria-pressed="true">Automático (sistema)</button>
+                    <button class="pill-btn" type="button" data-default-theme="light" aria-pressed="false">Modo claro</button>
+                    <button class="pill-btn" type="button" data-default-theme="dark" aria-pressed="false">Modo noturno</button>
+                  </div>
+
+                  <div class="actions-row">
+                    <button id="save-default-theme" class="btn btn-primary" type="button">Salvar tema padrão</button>
+                  </div>
+                  <p id="default-theme-status" class="status-feedback" role="status" aria-live="polite"></p>
+                </section>
+
+                <form id="palette-form" class="glass-card card-pad">
+                  <h2 class="card-title">Paleta do Site (Claro e Noturno)</h2>
+                  <p class="card-subtitle">Use o seletor visual ou digite o código hexadecimal <code>#rrggbb</code>. Vale em todas as páginas.</p>
+
+                  <div id="palette-fields" class="palette-themes-grid" style="margin-top: 0.85rem;"></div>
+
+                  <div class="actions-row">
+                    <button class="btn btn-primary" type="submit">Salvar cores</button>
+                    <button id="palette-reset" class="btn btn-secondary" type="button">Restaurar cores da logo</button>
+                  </div>
+                  <p id="palette-status" class="status-feedback" role="status" aria-live="polite"></p>
+                </form>
+              </div>
+
+              <aside class="glass-card card-pad">
+                <div class="section-head">
+                  <div class="section-head-copy">
+                    <h2 class="card-title">Amostra ao Vivo</h2>
+                    <p class="card-subtitle">Veja o contraste antes de gravar.</p>
+                  </div>
+                  <div id="preview-theme-switch" class="segmented-pills" role="group" aria-label="Tema da amostra">
+                    <button class="pill-btn" type="button" data-pv-theme="light" aria-pressed="true">Claro</button>
+                    <button class="pill-btn" type="button" data-pv-theme="dark" aria-pressed="false">Noturno</button>
+                  </div>
+                </div>
+
+                <div id="palette-mini-preview" class="mini-preview-stage">
+                  <div class="mini-pv-header">
+                    <span class="mini-pv-brand">BAR DA CÁCIA</span>
+                    <span class="mini-pv-badge">Microfone aberto</span>
+                  </div>
+                  <div class="mini-pv-song">
+                    <span class="mini-pv-cover" aria-hidden="true">CX</span>
+                    <div class="mini-pv-meta">
+                      <strong>Evidências</strong>
+                      <span>Chitãozinho &amp; Xororó · BRA</span>
+                    </div>
+                    <span class="mini-pv-code">3104</span>
+                  </div>
+                  <div class="mini-pv-actions">
+                    <span class="mini-pv-cta">Escolher música</span>
+                    <span class="mini-pv-like">♥ Favorita salva</span>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          </section>
+
+          <!-- ABA 4: USUÁRIOS, PERFIS E ACESSOS -->
+          <section id="panel-acessos" class="admin-tab-panel" role="tabpanel" aria-labelledby="tab-btn-acessos" hidden>
+            <div class="section-head">
+              <div class="section-head-copy">
+                <h1>Usuários, Perfis e Acessos</h1>
+                <p>Gerencie papéis e sincronize automaticamente a equipe de fila (<code>public.staff</code>). Telefones permanecem protegidos.</p>
+              </div>
+            </div>
+
+            <div class="glass-card toolbar-card">
+              <div id="users-role-pills" class="segmented-pills" role="group" aria-label="Filtrar por papel"></div>
+              <div class="toolbar-search">
+                <label class="visually-hidden" for="users-search">Buscar por nome, e-mail ou ID</label>
+                <input id="users-search" type="search" placeholder="Buscar nome, e-mail, apelido na fila ou ID…" autocomplete="off" />
+              </div>
+            </div>
+
+            <p id="role-status" class="status-feedback" role="status" aria-live="polite"></p>
+
+            <div id="users-list" class="users-grid"></div>
+            <p id="role-empty" class="glass-card empty-state-admin" hidden>Nenhuma conta encontrada para este filtro.</p>
+
+            <div id="users-pagination" class="pagination-bar" hidden>
+              <span id="users-page-info" class="pagination-info"></span>
+              <div class="request-actions">
+                <button id="users-prev" class="btn btn-secondary btn-sm" type="button">Anterior</button>
+                <button id="users-next" class="btn btn-secondary btn-sm" type="button">Próxima</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- ABA 5: PEDIDOS, TABELAS E LOGS -->
+          <section id="panel-banco-logs" class="admin-tab-panel" role="tabpanel" aria-labelledby="tab-btn-banco-logs" hidden>
+            <div class="section-head">
+              <div class="section-head-copy">
+                <h1>Pedidos, Tabelas e Logs</h1>
+                <p>Moderação direta da fila, inspeção somente-leitura das tabelas permitidas e auditoria de eventos.</p>
+              </div>
+              <div id="data-subtabs" class="segmented-pills" role="tablist" aria-label="Sub-visões de dados e auditoria">
+                <button class="pill-btn" type="button" role="tab" data-subtab="requests" aria-selected="true">Pedidos</button>
+                <button class="pill-btn" type="button" role="tab" data-subtab="tabelas" aria-selected="false">Tabelas do Banco</button>
+                <button class="pill-btn" type="button" role="tab" data-subtab="logs" aria-selected="false">Logs de Monitoramento</button>
+              </div>
+            </div>
+
+            <!-- Sub-aba 5.1: Requests -->
+            <div id="subpanel-requests" class="config-stack">
+              <div class="glass-card card-pad filters-bar">
+                <label class="visually-hidden" for="req-status-filter">Status do pedido</label>
+                <select id="req-status-filter"></select>
+
+                <label class="visually-hidden" for="req-origin-filter">Origem do pedido</label>
+                <select id="req-origin-filter"></select>
+
+                <label class="visually-hidden" for="req-search">Buscar pedido</label>
+                <input id="req-search" type="search" placeholder="Buscar código, música, artista ou cliente…" autocomplete="off" />
+
+                <button id="req-refresh" class="btn btn-secondary btn-sm" type="button">Atualizar</button>
+              </div>
+
+              <p id="req-status-msg" class="status-feedback" role="status" aria-live="polite"></p>
+              <ul id="req-list" class="requests-list"></ul>
+              <p id="req-empty" class="glass-card empty-state-admin" hidden>Nenhum pedido encontrado para os filtros selecionados.</p>
+
+              <div id="req-pagination" class="pagination-bar" hidden>
+                <span id="req-page-info" class="pagination-info"></span>
+                <div class="request-actions">
+                  <button id="req-prev" class="btn btn-secondary btn-sm" type="button">Anterior</button>
+                  <button id="req-next" class="btn btn-secondary btn-sm" type="button">Próxima</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sub-aba 5.2: Tabelas do Banco -->
+            <div id="subpanel-tabelas" class="config-stack" hidden>
+              <div class="glass-card card-pad filters-bar">
+                <label class="visually-hidden" for="inspect-table-select">Selecionar tabela</label>
+                <select id="inspect-table-select"></select>
+
+                <label class="visually-hidden" for="inspect-search">Filtrar registros</label>
+                <input id="inspect-search" type="search" placeholder="Filtrar texto na tabela selecionada…" autocomplete="off" />
+
+                <span id="inspect-count-badge" class="badge">0 linhas</span>
+                <button id="inspect-refresh" class="btn btn-secondary btn-sm" type="button">Atualizar</button>
+              </div>
+
+              <p id="inspect-description" class="card-subtitle"></p>
+              <p id="inspect-status-msg" class="status-feedback" role="status" aria-live="polite"></p>
+
+              <div id="inspect-table-wrap" class="glass-card card-pad">
+                <div class="table-scroll">
+                  <table class="glass-table">
+                    <thead id="inspect-thead"></thead>
+                    <tbody id="inspect-tbody"></tbody>
+                  </table>
+                </div>
+                <p id="inspect-empty" class="empty-state-admin" hidden>Nenhum registro retornado nesta tabela.</p>
+              </div>
+
+              <div id="inspect-pagination" class="pagination-bar" hidden>
+                <span id="inspect-page-info" class="pagination-info"></span>
+                <div class="request-actions">
+                  <button id="inspect-prev" class="btn btn-secondary btn-sm" type="button">Anterior</button>
+                  <button id="inspect-next" class="btn btn-secondary btn-sm" type="button">Próxima</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sub-aba 5.3: Logs de Monitoramento -->
+            <div id="subpanel-logs" class="config-stack" hidden>
+              <div class="glass-card card-pad filters-bar">
+                <label class="visually-hidden" for="audit-category-filter">Categoria do log</label>
+                <select id="audit-category-filter"></select>
+
+                <label class="visually-hidden" for="audit-search">Buscar nos logs</label>
+                <input id="audit-search" type="search" placeholder="Buscar ação, responsável, alvo ou detalhe…" autocomplete="off" />
+
+                <button id="audit-refresh" class="btn btn-secondary btn-sm" type="button">Atualizar</button>
+              </div>
+
+              <p id="audit-status-msg" class="status-feedback" role="status" aria-live="polite"></p>
+              <ul id="audit-list" class="audit-list"></ul>
+              <p id="audit-empty" class="glass-card empty-state-admin" hidden>Nenhum evento de auditoria registrado para este filtro.</p>
+
+              <div id="audit-pagination" class="pagination-bar" hidden>
+                <span id="audit-page-info" class="pagination-info"></span>
+                <div class="request-actions">
+                  <button id="audit-prev" class="btn btn-secondary btn-sm" type="button">Anterior</button>
+                  <button id="audit-next" class="btn btn-secondary btn-sm" type="button">Próxima</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
 
     <script type="module" src="/src/admin.js"></script>
   </body>
