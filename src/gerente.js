@@ -1,4 +1,5 @@
 import "./gerente.css";
+import { getCurrentUser } from "./integrations/auth.js";
 import { loadSiteFeatures } from "./integrations/features.js";
 import {
   getStaffSession, ownerMetrics, requestsConfigured, staffGetNightCode, staffGetSettings, staffListPlayed,
@@ -7,8 +8,11 @@ import {
 import { getFeatures } from "./lib/feature-state.js";
 import { showManagerPanel } from "./lib/features.js";
 import { barRows, metricCards, metricsRange, nightLabel, weekdayLabel } from "./lib/metrics.js";
-import { filterTopSongs, funnelRows, localManagerSnapshot, periodHasActivity } from "./lib/manager-board.js";
+import {
+  failedPartsMessage, filterTopSongs, funnelRows, liveManagerSnapshot, localManagerSnapshot, periodHasActivity,
+} from "./lib/manager-board.js";
 import { requestErrorMessage, roundSummary, songLabel, splitStaffRequests } from "./lib/requests.js";
+import { initPanelHeader } from "./panel-header.js";
 
 const REFRESH_MS = 30000;
 const $ = (selector) => document.querySelector(selector);
@@ -17,7 +21,6 @@ const els = {
   boot: $("#boot-status"),
   subtitle: $("#mgr-subtitle"),
   badge: $("#source-badge"),
-  logout: $("#mgr-logout"),
   ranges: [...document.querySelectorAll(".range-switch .range-button")],
   loginView: $("#login-view"),
   loginForm: $("#login-form"),
@@ -32,7 +35,10 @@ const els = {
   banner: $("#sample-banner"),
   variantCheio: $("#variant-cheio"),
   variantVazio: $("#variant-vazio"),
+  alert: $("#board-alert"),
   status: $("#board-status"),
+  retry: $("#board-retry"),
+  boardNote: $("#board-note"),
   kpis: $("#kpi-grid"),
   nowGrid: $("#now-grid"),
   nowMessage: $("#now-message"),
@@ -53,6 +59,18 @@ let songQuery = "";
 let snapshot = null;
 let timer = null;
 let me = null;
+let panelHeader = { setIdentity() {}, clearIdentity() {} };
+
+const SUBTITLE = "Bar da Cácia · Movimento da casa";
+const BADGES = {
+  loading: { text: "Carregando", tone: "muted" },
+  live: { text: "Ao vivo", tone: "teal" },
+  local: { text: "Exemplo local", tone: "amber" },
+  error: { text: "Sem dados", tone: "coral" },
+  partial: { text: "Ao vivo · parcial", tone: "amber" },
+  off: { text: "Desativado", tone: "muted" },
+  denied: { text: "Sem acesso", tone: "muted" },
+};
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -69,6 +87,18 @@ function setPressed(buttons, key, attr) {
   for (const button of buttons) button.setAttribute("aria-pressed", String(button.dataset[attr] === key));
 }
 
+function setBadge(state) {
+  const badge = BADGES[state] || BADGES.loading;
+  els.badge.textContent = badge.text;
+  els.badge.dataset.tone = badge.tone;
+  els.badge.dataset.source = state;
+}
+
+function setAlert(message) {
+  els.status.textContent = message || "";
+  show(els.alert, Boolean(message));
+}
+
 function emptyNote(text) {
   return el("li", "empty-note", text);
 }
@@ -79,12 +109,12 @@ function renderBars(list, rows, emptyText) {
     return;
   }
   list.replaceChildren(...rows.map((row) => {
-    const item = el("li", "bar-row");
-    const track = el("span", "bar-track");
-    const fill = el("span", "bar-fill");
+    const item = el("li", "glass-bar-row");
+    const track = el("span", "glass-bar-track");
+    const fill = el("span", "glass-bar-fill");
     fill.style.width = `${row.percent}%`;
     track.append(fill);
-    item.append(el("span", "bar-label", row.label), track, el("span", "bar-value", String(row.value)));
+    item.append(el("span", "glass-bar-label", row.label), track, el("span", "glass-bar-value", String(row.value)));
     item.title = `${row.label}: ${row.value}`;
     return item;
   }));
@@ -101,10 +131,10 @@ function renderSongs(songs) {
     return;
   }
   els.songs.replaceChildren(...rows.map((song) => {
-    const item = el("li", "song-row");
+    const item = el("li", "mgr-row");
     const copy = el("div");
-    copy.append(el("p", "song-title", songLabel(song)), el("p", "song-meta", `${song.requests} pedidos`));
-    item.append(el("span", "song-code", String(song.code)), copy);
+    copy.append(el("p", "mgr-row-title", songLabel(song)), el("p", "mgr-row-meta", `${song.requests} pedidos`));
+    item.append(el("span", "mgr-row-code", String(song.code)), copy);
     return item;
   }));
 }
@@ -115,11 +145,11 @@ function renderQueue(list, rows, emptyText) {
     return;
   }
   list.replaceChildren(...rows.map((row) => {
-    const item = el("li", "queue-row");
+    const item = el("li", "mgr-row");
     const copy = el("div");
-    copy.append(el("p", "queue-title", songLabel(row)));
-    if (row.customer_name) copy.append(el("p", "queue-customer", row.customer_name));
-    item.append(el("span", "queue-code", String(row.code)), copy);
+    copy.append(el("p", "mgr-row-title", songLabel(row)));
+    if (row.customer_name) copy.append(el("p", "mgr-row-meta", row.customer_name));
+    item.append(el("span", "mgr-row-code", String(row.code)), copy);
     return item;
   }));
 }
@@ -133,12 +163,13 @@ function filaDetail(floor) {
 function renderNow(floor) {
   const night = floor?.night || {};
   const code = night.code ? night.code : "Livre";
+  const known = typeof floor?.queue_open === "boolean";
   const cards = [
     {
       label: "Fila",
-      value: floor ? (floor.queue_open ? "Aberta" : "Fechada") : "—",
-      detail: filaDetail(floor),
-      open: floor ? String(Boolean(floor.queue_open)) : "",
+      value: known ? (floor.queue_open ? "Aberta" : "Fechada") : "—",
+      detail: known ? filaDetail(floor) : "",
+      open: known ? String(floor.queue_open) : "",
     },
     { label: "Código da noite", value: night.required ? code : "Não exigido" },
     { label: "Na fila", value: String(floor?.queue?.length || 0) },
@@ -160,31 +191,30 @@ function renderNow(floor) {
 function renderBoard(next) {
   snapshot = next;
   const local = next.source === "local";
-  els.badge.textContent = local ? "Exemplo local" : "Ao vivo";
-  els.badge.dataset.source = next.source;
-  els.subtitle.textContent = local ? "Exemplo neste navegador" : (me?.name ? `Olá, ${me.name}` : "Conta do gerente");
+  setBadge(local ? "local" : "live");
+  els.subtitle.textContent = local ? "Exemplo neste navegador" : SUBTITLE;
   show(els.banner, local);
-  show(els.logout, !local);
   setPressed(els.ranges, next.rangeId, "range");
   setPressed([els.variantCheio, els.variantVazio], next.variant || "cheio", "variant");
+  const metrics = next.metrics || {};
   els.kpis.replaceChildren(...metricCards(next.metrics).map((card) => {
-    const node = el("article", "kpi glass");
+    const node = el("article", "glass-card kpi-tile");
     node.append(el("span", "", card.label), el("strong", "", card.value));
     return node;
   }));
   renderNow(next.floor);
-  const nights = (next.metrics.by_night || []).slice(-14);
+  const nights = (metrics.by_night || []).slice(-14);
   renderBars(els.nights, barRows(nights, { label: (item) => nightLabel(item.night), value: (item) => item.requests }), "Sem pedidos no período.");
   renderBars(
     els.weekdays,
-    barRows(next.metrics.by_weekday || [], { label: (item) => weekdayLabel(item.weekday), value: (item) => item.requests }),
+    barRows(metrics.by_weekday || [], { label: (item) => weekdayLabel(item.weekday), value: (item) => item.requests }),
     "Sem pedidos no período.",
   );
   renderBars(els.funnel, funnelRows(next.metrics), "Nenhum pedido neste período.");
-  renderSongs(next.metrics.top_songs || []);
+  renderSongs(metrics.top_songs || []);
   renderBars(
     els.staff,
-    barRows(next.metrics.by_staff || [], { label: (item) => item.name, value: (item) => item.requests }),
+    barRows(metrics.by_staff || [], { label: (item) => item.name, value: (item) => item.requests }),
     "Nenhum pedido lançado por garçom.",
   );
   renderQueue(els.queue, next.floor.queue, "Nenhuma música na fila agora.");
@@ -203,11 +233,10 @@ function showLogin(message = "") {
   show(els.board, false);
   show(els.deniedView, false);
   show(els.loginView, true);
-  show(els.logout, false);
-  els.badge.textContent = "Ao vivo";
-  els.badge.dataset.source = "live";
-  els.subtitle.textContent = "Bar da Cácia";
+  setBadge("loading");
+  els.subtitle.textContent = SUBTITLE;
   els.loginStatus.textContent = message;
+  panelHeader.clearIdentity();
 }
 
 function showDenied(person) {
@@ -221,39 +250,35 @@ function showDenied(person) {
   show(els.board, false);
   show(els.loginView, false);
   show(els.deniedView, true);
-  show(els.logout, false);
-  els.badge.textContent = "Ao vivo";
-  els.badge.dataset.source = "live";
+  setBadge("denied");
 }
 
 async function loadLive() {
-  els.status.textContent = snapshot ? "Atualizando…" : "";
-  const [metrics, settings, night, requests, played] = await Promise.all([
+  const settled = await Promise.allSettled([
     ownerMetrics(metricsRange(rangeId)),
     staffGetSettings(),
     staffGetNightCode(),
     staffListRequests(""),
     staffListPlayed(),
   ]);
-  const split = splitStaffRequests(requests);
-  renderBoard({
-    source: "live",
-    rangeId,
-    metrics,
-    floor: {
-      ...settings,
-      night: night || { required: false, code: "" },
-      queue: split.queue,
-      pending: split.pending,
-      played,
-    },
-  });
-  els.status.textContent = periodHasActivity(metrics) ? "" : "Nenhum pedido pago neste período.";
+  const live = liveManagerSnapshot(rangeId, settled, splitStaffRequests);
+  for (const error of live.errors) console.warn("[gerente]", error);
+  if (live.errors.some((error) => error?.status === 401)) throw live.errors.find((error) => error?.status === 401);
+  if (live.failed.length === settled.length) throw live.errors[0];
+  renderBoard(live.snapshot);
+  if (live.failed.length) {
+    setBadge("partial");
+    setAlert(failedPartsMessage(live.failed));
+    return;
+  }
+  setAlert("");
+  els.boardNote.textContent = periodHasActivity(live.snapshot.metrics) ? "" : "Nenhum pedido pago neste período.";
 }
 
 function loadLocal() {
   renderBoard(localManagerSnapshot(rangeId, { variant }));
-  els.status.textContent = "";
+  setAlert("");
+  els.boardNote.textContent = "";
 }
 
 async function refresh() {
@@ -264,9 +289,14 @@ async function refresh() {
   try {
     await loadLive();
   } catch (error) {
-    els.status.textContent = requestErrorMessage(error);
-    show(els.boot, false);
-    if (!snapshot) show(els.board, true);
+    if (error?.status === 401) {
+      staffSignOut();
+      showLogin("Sessão expirada. Entre novamente.");
+      return;
+    }
+    if (!snapshot) renderBoard(liveManagerSnapshot(rangeId, [], splitStaffRequests).snapshot);
+    setBadge("error");
+    setAlert(requestErrorMessage(error));
   }
 }
 
@@ -277,8 +307,14 @@ function watchLive() {
   }, REFRESH_MS);
 }
 
+async function showIdentity() {
+  const user = await getCurrentUser().catch(() => null);
+  panelHeader.setIdentity({ user, name: me?.name, role: me?.role });
+}
+
 async function enterPanel() {
   me = await staffWhoami();
+  void showIdentity();
   if (me?.role !== "dono" && me?.role !== "admin") {
     showDenied(me);
     return;
@@ -295,13 +331,19 @@ function showManagerDisabled() {
   show(els.board, false);
   show(els.loginView, false);
   show(els.deniedView, true);
-  show(els.logout, false);
   show(els.deniedLogout, false);
-  els.badge.textContent = "Desativado";
-  els.badge.dataset.source = "local";
+  setBadge("off");
 }
 
+const signOut = () => {
+  staffSignOut();
+  me = null;
+  snapshot = null;
+  showLogin();
+};
+
 async function init() {
+  panelHeader = initPanelHeader({ panel: "gerente", onSignOut: signOut, surfaceToggle: true });
   await loadSiteFeatures();
   if (!showManagerPanel(getFeatures())) {
     showManagerDisabled();
@@ -323,8 +365,11 @@ async function init() {
     songQuery = els.songSearch.value;
     if (snapshot) renderSongs(snapshot.metrics.top_songs || []);
   });
-  els.logout.addEventListener("click", () => { staffSignOut(); showLogin(); });
-  els.deniedLogout.addEventListener("click", () => { staffSignOut(); showLogin(); });
+  els.deniedLogout.addEventListener("click", signOut);
+  els.retry.addEventListener("click", () => {
+    setAlert("");
+    void refresh();
+  });
   els.loginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     els.loginButton.disabled = true;

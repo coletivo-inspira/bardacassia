@@ -189,7 +189,8 @@ test("admin.html, src/admin.css e migração 012 expõem as 5 abas glass e audit
   assert.match(html, /role="switch"/);
   assert.doesNotMatch(html, /glass-island/);
 
-  const css = read("src/admin.css");
+  assert.match(read("src/admin.css"), /@import "\.\/panel-shell\.css"/);
+  const css = read("src/panel-shell.css");
   assert.match(css, /@import "\.\/styles\.css"/);
   assert.match(css, /blur\(22px\)\s+saturate\(165%\)/);
   assert.match(css, /border-radius:\s*24px/);

@@ -197,3 +197,49 @@ export function filterTopSongs(songs = [], query = "") {
   if (!needle) return [...songs];
   return songs.filter((song) => normalizeText(`${song.code} ${song.title} ${song.artist}`).includes(needle));
 }
+
+/** Ordem das leituras do quadro ao vivo, como em `Promise.allSettled`. */
+export const LIVE_PARTS = ["metrics", "settings", "night", "requests", "played"];
+
+const LIVE_PART_LABELS = {
+  metrics: "números do período",
+  settings: "situação da rodada",
+  night: "código da noite",
+  requests: "fila e pedidos a pagar",
+  played: "músicas que já tocaram",
+};
+
+/**
+ * Monta o quadro ao vivo com o que chegou. O que falhou fica vazio e entra em
+ * `failed`, para o painel avisar sem apagar o resto.
+ */
+export function liveManagerSnapshot(rangeId, settled, splitRequests) {
+  const ok = (index) => settled[index]?.status === "fulfilled";
+  const value = (index, fallback) => (ok(index) ? settled[index].value ?? fallback : fallback);
+  const failed = LIVE_PARTS.filter((_, index) => !ok(index));
+  const errors = LIVE_PARTS.map((_, index) => settled[index]).filter((item) => item?.status === "rejected").map((item) => item.reason);
+  const split = splitRequests(value(3, []));
+  return {
+    failed,
+    errors,
+    snapshot: {
+      source: "live",
+      rangeId,
+      metrics: value(0, null),
+      floor: {
+        ...(ok(1) ? value(1, {}) : {}),
+        night: value(2, null) || { required: false, code: "" },
+        queue: split.queue,
+        pending: split.pending,
+        played: value(4, []),
+      },
+    },
+  };
+}
+
+export function failedPartsMessage(failed = []) {
+  const labels = failed.map((part) => LIVE_PART_LABELS[part]).filter(Boolean);
+  if (!labels.length) return "";
+  const list = labels.length > 1 ? `${labels.slice(0, -1).join(", ")} e ${labels.at(-1)}` : labels[0];
+  return `Não deu para carregar ${list}. O resto do painel está atualizado.`;
+}

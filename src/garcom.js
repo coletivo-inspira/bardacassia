@@ -1,4 +1,5 @@
 import "./garcom.css";
+import { getCurrentUser } from "./integrations/auth.js";
 import { loadSiteFeatures } from "./integrations/features.js";
 import {
   getStaffSession, ownerMetrics, staffAddRequest, staffCancel, staffGetSettings, staffListPlayed,
@@ -12,6 +13,7 @@ import {
 } from "./lib/requests.js";
 import { newTicketId, parseTicket, ticketName } from "./lib/qr-ticket.js";
 import { barRows, metricCards, metricsRange, nightLabel, weekdayLabel } from "./lib/metrics.js";
+import { initPanelHeader } from "./panel-header.js";
 
 const REFRESH_MS = 10000;
 const SCAN_INTERVAL_MS = 200;
@@ -21,7 +23,6 @@ const PENDING_TICKET_KEY = "bdc-staff-ticket-v1";
 const $ = (selector) => document.querySelector(selector);
 const els = {
   unconfigured: $("#staff-unconfigured"),
-  logout: $("#staff-logout"),
   scan: $("#staff-scan"),
   ticketCard: $("#ticket-card"),
   ticketCode: $("#ticket-code"),
@@ -95,6 +96,7 @@ let scanTimer = null;
 let detector = null;
 let jsQR = null;
 let resultsRange = "30d";
+let panelHeader = { setIdentity() {}, clearIdentity() {} };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -123,10 +125,10 @@ function showLogin(message = "") {
   clearInterval(timer);
   timer = null;
   els.panel.hidden = true;
-  els.logout.hidden = true;
   els.scan.hidden = true;
   els.loginView.hidden = false;
   els.loginStatus.textContent = message;
+  panelHeader.clearIdentity();
 }
 
 function handleError(error) {
@@ -230,17 +232,24 @@ function render() {
 }
 
 async function refresh() {
+  const [list, state, history] = await Promise.allSettled([
+    staffListRequests(""), staffGetSettings(), staffListPlayed(),
+  ]);
+  if (list.status === "fulfilled") requests = list.value || [];
+  if (state.status === "fulfilled") settings = state.value;
+  if (history.status === "fulfilled") played = history.value || [];
   try {
-    const [list, state, history] = await Promise.all([
-      staffListRequests(""), staffGetSettings(), staffListPlayed().catch(() => played),
-    ]);
-    requests = list;
-    settings = state;
-    played = history;
     render();
-    if (!busy) setStatus("");
   } catch (error) {
     handleError(error);
+    return;
+  }
+  const failure = [list, state].find((result) => result.status === "rejected");
+  if (failure) {
+    console.warn("[garcom]", failure.reason);
+    handleError(failure.reason);
+  } else if (!busy) {
+    setStatus("");
   }
 }
 
@@ -459,16 +468,16 @@ function submitManual(event) {
 
 function renderBars(list, rows) {
   if (!rows.length) {
-    list.replaceChildren(el("li", "results-empty", "Sem pedidos no período."));
+    list.replaceChildren(el("li", "empty-note", "Sem pedidos no período."));
     return;
   }
   list.replaceChildren(...rows.map((row) => {
-    const item = el("li", "results-bar");
-    const track = el("span", "results-bar-track");
-    const fill = el("span", "results-bar-fill");
+    const item = el("li", "glass-bar-row");
+    const track = el("span", "glass-bar-track");
+    const fill = el("span", "glass-bar-fill");
     fill.style.width = `${row.percent}%`;
     track.append(fill);
-    item.append(el("span", "results-bar-label", row.label), track, el("span", "results-bar-value", String(row.value)));
+    item.append(el("span", "glass-bar-label", row.label), track, el("span", "glass-bar-value", String(row.value)));
     item.title = `${row.label}: ${row.value}`;
     return item;
   }));
@@ -481,8 +490,8 @@ async function loadResults() {
     const metrics = await ownerMetrics(metricsRange(resultsRange));
     els.resultsStatus.textContent = "";
     els.resultsCards.replaceChildren(...metricCards(metrics).map((card) => {
-      const node = el("div", "results-card");
-      node.append(el("strong", "", card.value), el("span", "", card.label));
+      const node = el("article", "glass-card kpi-tile");
+      node.append(el("span", "", card.label), el("strong", "", card.value));
       return node;
     }));
     renderBars(els.resultsNights, barRows(metrics.by_night.slice(-14), { label: (item) => nightLabel(item.night) }));
@@ -502,14 +511,14 @@ async function loadNightCode() {
 }
 
 async function applyRole() {
-  const me = await staffWhoami().catch(() => null);
+  const [me, user] = await Promise.all([staffWhoami().catch(() => null), getCurrentUser().catch(() => null)]);
   els.tabResults.hidden = me?.role !== "dono" && me?.role !== "admin";
+  panelHeader.setIdentity({ user, name: me?.name, role: me?.role || "garcom" });
 }
 
 async function startPanel() {
   els.loginView.hidden = true;
   els.panel.hidden = false;
-  els.logout.hidden = false;
   els.scan.hidden = false;
   pendingTicket ??= readPendingTicket();
   if (pendingTicket) void showTicket(pendingTicket);
@@ -519,14 +528,21 @@ async function startPanel() {
   timer = setInterval(() => { if (!document.hidden && !busy) void refresh(); }, REFRESH_MS);
 }
 
+function signOut() {
+  dismissTicket();
+  staffSignOut();
+  showLogin();
+}
+
 async function init() {
+  panelHeader = initPanelHeader({ panel: "garcom", onSignOut: signOut, surfaceToggle: true });
   await loadSiteFeatures();
   if (!supabaseConfigured) {
     els.unconfigured.hidden = false;
     return;
   }
   if (!staffPanelEnabled()) {
-    els.unconfigured.textContent = "O painel do garçom está desligado.";
+    els.unconfigured.querySelector(".panel-lead").textContent = "O painel do garçom está desligado pelo administrador.";
     els.unconfigured.hidden = false;
     return;
   }
@@ -545,7 +561,6 @@ async function init() {
       els.loginButton.disabled = false;
     }
   });
-  els.logout.addEventListener("click", () => { dismissTicket(); staffSignOut(); showLogin(); });
   els.scan.addEventListener("click", () => void openScanner());
   els.scanClose.addEventListener("click", () => els.scanDialog.close());
   els.scanDialog.addEventListener("close", stopScanner);
