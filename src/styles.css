@@ -5589,3 +5589,312 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   line-height: 1.4;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Favoritos — bigger covers, "Mover para…" on the right, glass tab controls   */
+/* -------------------------------------------------------------------------- */
+
+.favorites-portal .songs-list--list .song-row:has(> .move-favorite) {
+  grid-template-columns: 76px minmax(0, 1fr) auto auto;
+  grid-template-areas: "cover info move actions";
+  column-gap: 0.9rem;
+  align-items: center;
+}
+
+.favorites-portal .songs-list--list .song-row > .song-cover {
+  grid-area: cover;
+  width: 76px;
+  height: 76px;
+  border-radius: 14px;
+}
+
+.favorites-portal .songs-list--list .song-row > .song-info {
+  grid-area: info;
+}
+
+.favorites-portal .songs-list--list .song-row > .song-actions {
+  grid-area: actions;
+}
+
+.favorites-portal .songs-list--list .song-row > .move-favorite {
+  grid-area: move;
+  justify-self: end;
+}
+
+.favorites-portal .songs-list--list .move-favorite select {
+  width: auto;
+  max-width: 168px;
+  min-height: 34px;
+}
+
+@media (max-width: 719px) {
+  .favorites-portal .songs-list--list .song-row:has(> .move-favorite) {
+    grid-template-columns: 84px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "cover info move"
+      "cover actions actions";
+    gap: 0.45rem 0.7rem;
+  }
+
+  .favorites-portal .songs-list--list .song-row > .song-cover {
+    width: 84px;
+    height: 84px;
+  }
+
+  .favorites-portal .songs-list--list .song-row > .move-favorite {
+    align-self: start;
+  }
+
+  .favorites-portal .songs-list--list .move-favorite select {
+    max-width: 112px;
+    min-height: 32px;
+    padding: 0.3rem 0.55rem;
+    font-size: 0.76rem;
+  }
+
+  .favorites-portal .songs-list--list .song-row > .song-actions {
+    justify-content: flex-end;
+  }
+}
+
+/* Quadrados: the select floats over the cover's top-right corner so the art fills the card. */
+.favorites-portal .songs-list--grid .song-row > .move-favorite {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 3;
+  width: auto;
+  max-width: calc(100% - 1rem);
+  margin: 0;
+  padding: 0;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.favorites-portal .songs-list--grid .move-favorite select {
+  width: auto;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(8, 8, 12, 0.55);
+  color: #fff;
+  color-scheme: dark;
+  font-size: 0.75rem;
+  font-weight: 600;
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  backdrop-filter: blur(12px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
+.favorites-portal .favorite-tab-list {
+  padding: 0.2rem 0.1rem 0.45rem;
+}
+
+.favorites-portal .favorite-tab,
+.favorites-portal .favorite-tab-action,
+.favorites-portal .favorite-tab-form input {
+  position: relative;
+  isolation: isolate;
+  border: 0;
+  border-radius: 999px;
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04) 55%),
+    linear-gradient(180deg, var(--glass-base), transparent 70%),
+    color-mix(in srgb, var(--bg-soft) 48%, transparent);
+  color: var(--text);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 50%, transparent),
+    inset 0 0 0 1px var(--glass-rim),
+    0 8px 20px color-mix(in srgb, var(--glass-drop) 70%, transparent);
+  transition: transform 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.favorites-portal .favorite-tab-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0.5rem 0.95rem;
+  font: 700 0.86rem var(--font-body);
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.favorites-portal .favorite-tab-actions {
+  gap: 0.5rem;
+}
+
+.favorites-portal .favorite-tab-action[hidden] {
+  display: none;
+}
+
+.favorites-portal .favorite-tab:hover,
+.favorites-portal .favorite-tab-action:not(:disabled):hover {
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.07) 55%),
+    linear-gradient(180deg, var(--glass-base), transparent 70%),
+    color-mix(in srgb, var(--bg-soft) 58%, transparent);
+}
+
+.favorites-portal .favorite-tab:active,
+.favorites-portal .favorite-tab-action:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.favorites-portal .favorite-tab.is-active,
+.favorites-portal .favorite-tab-form .favorite-tab-action--primary,
+.favorites-empty .favorites-empty-cta {
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.08) 55%),
+    var(--amber);
+  color: var(--ink);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 0 0 1px color-mix(in srgb, #fff 28%, transparent),
+    0 6px 16px color-mix(in srgb, var(--amber) 28%, rgba(0, 0, 0, 0.18));
+}
+
+.favorites-portal .favorite-tab.is-active .favorite-count {
+  background: color-mix(in srgb, var(--ink) 82%, transparent);
+  color: var(--amber);
+}
+
+.favorites-portal .favorite-tab-actions .favorite-tab-action--primary {
+  color: var(--amber);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 50%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--amber) 55%, transparent),
+    0 8px 20px color-mix(in srgb, var(--glass-drop) 70%, transparent);
+}
+
+.favorites-portal .favorite-tab-action--danger {
+  color: var(--coral);
+}
+
+/* Disabled stays legible: muted text on a flat dashed outline instead of fading the label. */
+.favorites-portal .favorite-tab-action:disabled {
+  border: 1px dashed color-mix(in srgb, var(--text) 32%, transparent);
+  background: transparent;
+  color: var(--muted);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.favorites-portal .favorite-tab:focus-visible,
+.favorites-portal .favorite-tab-action:focus-visible,
+.favorites-portal .favorite-tab-form input:focus-visible,
+.favorites-empty .favorites-empty-cta:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
+}
+
+.favorites-portal .favorite-tab-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.favorites-portal .favorite-tab-form[hidden] {
+  display: none;
+}
+
+.favorites-portal .favorite-tab-form input {
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 360px;
+  min-height: 42px;
+  padding: 0.5rem 1rem;
+  font: 500 16px var(--font-body);
+}
+
+.favorites-portal .favorite-tab-form input::placeholder {
+  color: var(--muted);
+}
+
+.favorites-empty .favorites-empty-cta {
+  min-height: 46px;
+  padding: 0.7rem 1.3rem;
+  border: 0;
+}
+
+.favorites-empty .favorites-empty-cta:hover {
+  filter: brightness(1.05);
+}
+
+@media (max-width: 719px) {
+  .favorites-portal .favorite-tab-action {
+    min-height: 44px;
+  }
+
+  .favorites-portal .favorite-tab-form input {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .favorites-portal .favorite-tab-form .favorite-tab-action {
+    flex: 1 1 0;
+  }
+}
+
+:root[data-theme="light"] .favorites-portal .favorite-tab.is-active,
+:root[data-theme="light"] .favorites-portal .favorite-tab-form .favorite-tab-action--primary,
+:root[data-theme="light"] .favorites-empty .favorites-empty-cta {
+  color: var(--paper);
+}
+
+:root[data-theme="light"] .favorites-portal .favorite-tab.is-active .favorite-count {
+  background: var(--paper);
+  color: var(--amber);
+}
+
+:root[data-theme="light"] .favorites-portal .favorite-tab:not(.is-active),
+:root[data-theme="light"] .favorites-portal .favorite-tab-actions .favorite-tab-action:not(:disabled),
+:root[data-theme="light"] .favorites-portal .favorite-tab-form .favorite-tab-action:not(.favorite-tab-action--primary),
+:root[data-theme="light"] .favorites-portal .favorite-tab-form input {
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.35)),
+    color-mix(in srgb, var(--bg-soft) 60%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px var(--glass-rim),
+    0 8px 18px rgba(32, 35, 31, 0.08);
+}
+
+:root[data-theme="light"] .favorites-portal .favorite-tab-actions .favorite-tab-action--primary:not(:disabled) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px color-mix(in srgb, var(--amber) 55%, transparent),
+    0 8px 18px rgba(32, 35, 31, 0.08);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .favorites-portal .favorite-tab,
+  .favorites-portal .favorite-tab-action,
+  .favorites-portal .favorite-tab-form input,
+  .favorites-portal .songs-list--grid .move-favorite select {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .favorites-portal .favorite-tab:not(.is-active),
+  .favorites-portal .favorite-tab-actions .favorite-tab-action:not(:disabled),
+  .favorites-portal .favorite-tab-form .favorite-tab-action:not(.favorite-tab-action--primary),
+  .favorites-portal .favorite-tab-form input {
+    background: var(--bg-soft);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .favorites-portal .favorite-tab,
+  .favorites-portal .favorite-tab-action {
+    transition: none;
+  }
+}
+

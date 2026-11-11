@@ -30,6 +30,25 @@ test("favoritos.html has the tabs, the song list and its own script", () => {
   assert.match(read("vite.config.js"), /favoritos: resolve\(__dirname, "favoritos\.html"\)/);
 });
 
+test("tab names use an inline form, not window.prompt (ignored by embedded browsers)", () => {
+  const html = read("favoritos.html");
+  assert.match(html, /<form id="favorite-tab-form"[^>]*hidden>/);
+  assert.match(html, /<input id="favorite-tab-name"[^>]*maxlength="40"[^>]*required/);
+  assert.match(html, /id="favorite-tab-submit"[^>]*type="submit"/);
+  const page = read("src/favorites-page.js");
+  assert.doesNotMatch(page, /window\.prompt/);
+  assert.match(page, /els\.newTab\.addEventListener\("click", \(\) => openTabForm\(\{ mode: "new" \}\)\)/);
+  assert.match(page, /onNewTab: \(target\) => openTabForm\(\{ mode: "move", code: target\.code \}\)/);
+});
+
+test("Limpar aba keeps favorites and is disabled on Rascunho", () => {
+  const page = read("src/favorites-page.js");
+  assert.match(page, /els\.clearTab\.disabled = !canClearTab\(favoritesState, current\.id\)/);
+  assert.match(page, /continuam nas suas favoritas/);
+  const clearHandler = page.slice(page.indexOf("function confirmClearTab"), page.indexOf("function stopPreview"));
+  assert.doesNotMatch(clearHandler, /setSongFavorite/);
+});
+
 test("catalog and favorites page share one song-row module", () => {
   for (const file of ["src/main.js", "src/favorites-page.js"]) {
     const source = read(file);
