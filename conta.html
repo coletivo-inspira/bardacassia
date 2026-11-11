@@ -39,7 +39,7 @@
       })();
     </script>
     <meta name="robots" content="noindex" />
-    <meta name="description" content="Sua conta no Bar da Cácia: favoritos, pedidos, perfil, tema e saída." />
+    <meta name="description" content="Sua conta no Bar da Cácia: perfil, dados e privacidade, favoritos, pedidos, tema e saída." />
     <title>Conta — Bar da Cácia</title>
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%logo.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -81,6 +81,7 @@
               <p class="eyebrow">Sua conta</p>
               <h1 id="account-title">Conta</h1>
               <p class="account-subtitle" data-account-subtitle>Entre para sincronizar favoritos e perfil entre aparelhos.</p>
+              <p class="account-hero-hint" data-account-hero-hint hidden>Perfil, dados e privacidade</p>
             </div>
             <button
               type="button"
@@ -88,17 +89,86 @@
               data-account-hero-toggle
               aria-expanded="false"
               aria-controls="account-details"
-              aria-label="Mostrar detalhes da conta"
+              aria-label="Editar perfil, dados e privacidade"
               disabled
             >
               <span class="account-menu-chevron account-hero-chevron" aria-hidden="true"></span>
             </button>
           </div>
-          <div id="account-details" class="account-hero-details" data-account-details hidden></div>
+          <div id="account-details" class="account-hero-details" data-account-details hidden>
+            <div class="account-editor">
+              <p class="account-editor-role" data-account-role hidden>Papel: <strong></strong></p>
+
+              <section class="auth-account-section account-editor-photo" aria-label="Foto do perfil">
+                <label class="auth-avatar-upload">
+                  Trocar foto
+                  <input id="conta-avatar-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+                </label>
+                <p id="conta-avatar-status" class="auth-hint" role="status" aria-live="polite"></p>
+              </section>
+
+              <section class="auth-account-section" aria-labelledby="conta-data-title">
+                <h2 id="conta-data-title" class="auth-account-section-title">Seus dados</h2>
+                <form id="conta-profile-form" class="auth-profile-form" novalidate>
+                  <div class="auth-field">
+                    <label class="auth-label" for="conta-birth-date">Data de aniversário</label>
+                    <div class="auth-input-wrap">
+                      <input id="conta-birth-date" class="auth-input" name="birthDate" type="date" maxlength="10" aria-describedby="conta-birth-date-hint conta-birth-date-error" />
+                    </div>
+                    <p id="conta-birth-date-hint" class="auth-hint">Opcional. Usamos só pra te lembrar da promoção de aniversariante do bar.</p>
+                    <div id="conta-birth-date-error" class="auth-error" aria-live="polite"></div>
+                  </div>
+                  <div class="auth-field">
+                    <label class="auth-label" for="conta-phone">Telefone (WhatsApp)</label>
+                    <div class="auth-input-wrap">
+                      <input id="conta-phone" class="auth-input" name="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="(00) 00000-0000" maxlength="15" aria-invalid="false" aria-describedby="conta-phone-hint conta-phone-error" />
+                    </div>
+                    <p id="conta-phone-hint" class="auth-hint">Opcional. Usado só pra contato do bar sobre seus pedidos e promoções.</p>
+                    <div id="conta-phone-error" class="auth-error" aria-live="polite"></div>
+                  </div>
+                  <div class="auth-lgpd">
+                    <label class="auth-checkbox auth-consent">
+                      <input id="conta-consent" type="checkbox" aria-describedby="conta-lgpd-status" />
+                      <span class="auth-checkbox-box" aria-hidden="true"></span>
+                      <span>Autorizo o Bar da Cácia a usar esses dados só para minha conta e o contato do bar (LGPD).</span>
+                    </label>
+                    <p id="conta-lgpd-status" class="auth-hint" aria-live="polite"></p>
+                    <details>
+                      <summary>Como usamos seus dados</summary>
+                      <p>Guardamos o mínimo: nome, e-mail, foto, aniversário e telefone, só no seu usuário e com acesso restrito. O telefone fica criptografado e a senha só existe em hash no serviço de autenticação. Você pode apagar qualquer campo ou excluir a conta quando quiser.</p>
+                    </details>
+                  </div>
+                  <p id="conta-editor-status" class="auth-banner" role="status" aria-live="polite" hidden></p>
+                  <button id="conta-profile-save" class="auth-submit auth-account-save" type="submit">Salvar</button>
+                </form>
+              </section>
+
+              <section class="auth-account-section auth-account-session" aria-labelledby="conta-session-title">
+                <h2 id="conta-session-title" class="auth-account-section-title">Senha e conta</h2>
+                <a class="auth-secondary" href="login.html#nova-senha">Alterar senha</a>
+                <button id="conta-delete" class="auth-danger" type="button">Excluir minha conta</button>
+              </section>
+            </div>
+          </div>
         </header>
+
+        <p id="conta-status" class="auth-banner" role="status" aria-live="polite" hidden></p>
 
         <nav class="account-menu-panel" aria-label="Opções da conta">
           <ul class="account-menu-list" data-account-menu>
+            <li>
+              <button class="account-menu-row" type="button" data-theme-toggle>
+                <span class="account-menu-icon" aria-hidden="true">
+                  <svg class="theme-icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+                  <svg class="theme-icon-moon" viewBox="0 0 24 24"><path d="M20.2 15.1A8.4 8.4 0 0 1 8.9 3.8 8.5 8.5 0 1 0 20.2 15.1Z"/></svg>
+                </span>
+                <span class="account-menu-text">
+                  <strong class="theme-toggle-label">Modo noturno</strong>
+                  <span>Claro ou escuro na tela</span>
+                </span>
+                <span class="account-menu-chevron" aria-hidden="true"></span>
+              </button>
+            </li>
             <li>
               <a class="account-menu-row" href="login.html">
                 <span class="account-menu-icon" aria-hidden="true">
@@ -123,20 +193,15 @@
                 <span class="account-menu-chevron" aria-hidden="true"></span>
               </a>
             </li>
-            <li>
-              <button class="account-menu-row" type="button" data-theme-toggle>
-                <span class="account-menu-icon" aria-hidden="true">
-                  <svg class="theme-icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-                  <svg class="theme-icon-moon" viewBox="0 0 24 24"><path d="M20.2 15.1A8.4 8.4 0 0 1 8.9 3.8 8.5 8.5 0 1 0 20.2 15.1Z"/></svg>
-                </span>
-                <span class="account-menu-text">
-                  <strong class="theme-toggle-label">Modo noturno</strong>
-                  <span>Claro ou escuro na tela</span>
-                </span>
-                <span class="account-menu-chevron" aria-hidden="true"></span>
-              </button>
-            </li>
           </ul>
+        </nav>
+
+        <nav id="gestao" class="account-menu-panel account-staff-panel" aria-labelledby="account-staff-title" data-account-staff hidden>
+          <header class="account-menu-heading">
+            <h2 id="account-staff-title">Gestão do bar</h2>
+            <p>Painéis da equipe liberados para o seu papel.</p>
+          </header>
+          <ul class="account-menu-list" data-account-staff-menu></ul>
         </nav>
       </section>
     </main>
@@ -176,6 +241,47 @@
         </a>
       </div>
     </nav>
+
+    <dialog id="conta-avatar-crop" class="auth-avatar-crop" aria-labelledby="conta-avatar-crop-title">
+      <div class="auth-avatar-crop-panel">
+        <h2 id="conta-avatar-crop-title" class="auth-avatar-crop-title">Enquadrar foto</h2>
+        <p class="auth-avatar-crop-hint">Arraste para ajustar. A área circular é o que aparece no perfil.</p>
+        <div class="auth-avatar-crop-stage">
+          <div class="auth-avatar-crop-frame" id="conta-avatar-crop-frame">
+            <img id="conta-avatar-crop-image" class="auth-avatar-crop-image" alt="" draggable="false" />
+            <div class="auth-avatar-crop-mask" aria-hidden="true"></div>
+            <div class="auth-avatar-crop-corners" aria-hidden="true">
+              <span class="auth-avatar-crop-corner is-tl"></span>
+              <span class="auth-avatar-crop-corner is-tr"></span>
+              <span class="auth-avatar-crop-corner is-bl"></span>
+              <span class="auth-avatar-crop-corner is-br"></span>
+            </div>
+          </div>
+        </div>
+        <label class="auth-avatar-crop-zoom">
+          <span>Zoom</span>
+          <input id="conta-avatar-crop-zoom" type="range" min="100" max="300" value="100" step="1" />
+        </label>
+        <div class="auth-avatar-crop-actions">
+          <button id="conta-avatar-crop-cancel" class="auth-secondary" type="button">Cancelar</button>
+          <button id="conta-avatar-crop-confirm" class="auth-submit" type="button">Definir Foto</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="conta-unsaved" class="auth-confirm" aria-modal="true" aria-labelledby="conta-unsaved-title" aria-describedby="conta-unsaved-text">
+      <div class="auth-confirm-panel">
+        <button id="conta-unsaved-close" class="auth-confirm-close" type="button" aria-label="Continuar editando">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+        </button>
+        <h2 id="conta-unsaved-title" class="auth-confirm-title">Salvar as alterações?</h2>
+        <p id="conta-unsaved-text" class="auth-confirm-text">Você mudou seus dados e ainda não salvou.</p>
+        <div class="auth-confirm-actions">
+          <button id="conta-unsaved-discard" class="auth-secondary" type="button">Não</button>
+          <button id="conta-unsaved-save" class="auth-submit" type="button">Sim</button>
+        </div>
+      </div>
+    </dialog>
 
     <script type="module" src="/src/conta-page.js"></script>
     <script

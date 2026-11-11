@@ -93,7 +93,7 @@ O ranking, o login e a sincronização de favoritas compartilham o mesmo cliente
 
 ## Autenticação (login e contas)
 
-A página `login.html` (`src/login.js`) segue o layout de um cartão de login clássico: e-mail, senha com botão de mostrar/ocultar e link "Esqueceu?", opção "Manter conectado", link de acesso por e-mail, botões sociais opcionais e o rodapé "Cadastrar". Os modos ficam no hash da URL: `#entrar`, `#cadastrar`, `#link`, `#redefinir`, `#nova-senha` e `#conta`. O cabeçalho de todas as páginas mostra "Entrar" ou o menu da conta.
+A página `login.html` (`src/login.js`) segue o layout de um cartão de login clássico: e-mail, senha com botão de mostrar/ocultar e link "Esqueceu?", opção "Manter conectado", link de acesso por e-mail, botões sociais opcionais e o rodapé "Cadastrar". Os modos ficam no hash da URL: `#entrar`, `#cadastrar`, `#link`, `#redefinir` e `#nova-senha`. Links antigos para `#conta` vão para `conta.html#perfil`, e quem já está logado e abre um modo de entrada segue para o `?next=` ou para a Conta. O cabeçalho de todas as páginas leva à Conta.
 
 ### Arquitetura
 
@@ -114,9 +114,9 @@ Navegador (GitHub Pages) ──PKCE──> Supabase Auth (hash bcrypt, JWT de 1h
 ### Banco de dados (`002_auth_profiles.sql` + `008_profile_extras.sql`)
 
 - `public.profiles`: `id` (FK para `auth.users`, com `on delete cascade`), `display_name`, `birth_date` (opcional), `avatar_url` (opcional), `data_consent_at` / `data_consent_version` (LGPD), `created_at`, `updated_at`. RLS permite `select` e `update` apenas do próprio perfil e não permite nada para `anon` ou para sessões anônimas. O perfil é criado por trigger quando surge uma conta permanente, inclusive na conversão de uma conta anônima.
-- **Minha conta** (`src/integrations/profile.js`, `login.html#conta`): lê/atualiza o próprio perfil via PostgREST. **Trocar foto** abre um modal de enquadramento (preview circular; **Definir Foto** / **Cancelar**); só então `compressAvatarFile` gera um JPEG **320×320** (~qualidade 0.72) e `uploadMyAvatar` grava no bucket Storage público `avatars` em `{user_id}/avatar.jpg` (entrada JPG/PNG/WebP até 8 MB; objeto final ≤ ~500 KiB; policies na migração `008`). Fotos já no Storage não são reprocessadas. O cadastro exige consentimento LGPD versionado (`data_consent_*`).
+- **Perfil, dados e privacidade** (`src/account-editor.js`, topo expansível de `conta.html`, link direto `conta.html#perfil`): lê/atualiza o próprio perfil via PostgREST. **Trocar foto** abre um modal de enquadramento (preview circular; **Definir Foto** / **Cancelar**); só então `compressAvatarFile` gera um JPEG **320×320** (~qualidade 0.72) e `uploadMyAvatar` grava no bucket Storage público `avatars` em `{user_id}/avatar.jpg` (entrada JPG/PNG/WebP até 8 MB; objeto final ≤ ~500 KiB; policies na migração `008`). Fotos já no Storage não são reprocessadas. O cadastro exige consentimento LGPD versionado (`data_consent_*`).
 - `private.consume_write()` aceita contas logadas e anônimas, com limite de 120 gravações por minuto.
-- **Telefone cifrado:** Minha conta salva o telefone (WhatsApp, máscara `(00) 00000-0000`, validado no cliente) em E.164 (`+55…`) via `set_my_phone` / `get_my_phone` (`security definer`). `private.profile_secrets` usa `pgp_sym_encrypt` (pgcrypto) com a chave `profile_encryption_key` do **Supabase Vault**; a migração `009` cria a chave se ainda não existir. Sem verificação por SMS. Para criar à mão:
+- **Telefone cifrado:** a Conta salva o telefone (WhatsApp, máscara `(00) 00000-0000`, validado no cliente) em E.164 (`+55…`) via `set_my_phone` / `get_my_phone` (`security definer`). `private.profile_secrets` usa `pgp_sym_encrypt` (pgcrypto) com a chave `profile_encryption_key` do **Supabase Vault**; a migração `009` cria a chave se ainda não existir. Sem verificação por SMS. Para criar à mão:
 
   ```sql
   select vault.create_secret(encode(extensions.gen_random_bytes(32), 'base64'), 'profile_encryption_key');

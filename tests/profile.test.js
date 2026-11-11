@@ -63,39 +63,31 @@ test("toE164Phone devolve +55, vazio ou null", () => {
   assert.match(toE164Phone("(85) 99999-0000"), /^\+55\d{10,11}$/);
 });
 
-test("Minha conta: Perfil, Seus dados (aniversário, telefone, LGPD), Conta e Salvar no fim", () => {
-  const html = readFileSync(new URL("../login.html", import.meta.url), "utf8");
-  const account = html.slice(html.indexOf('id="auth-account"'), html.indexOf('class="auth-card-footer"'));
-  const order = ['aria-label="Perfil"', ">Seus dados<", 'id="auth-birth-date"', 'id="auth-phone"', 'id="auth-account-consent"', ">Conta<", 'href="#nova-senha"', 'id="auth-signout"', 'id="auth-delete"', 'id="auth-profile-save"'];
-  let last = -1;
-  for (const marker of order) {
-    const at = account.indexOf(marker);
-    assert.ok(at > last, `${marker} fora de ordem ou ausente`);
-    last = at;
-  }
-  assert.match(account, /Opcional\. Usamos só pra te lembrar da promoção de aniversariante do bar\./);
-  assert.match(account, /Opcional\. Usado só pra contato do bar sobre seus pedidos e promoções\./);
-  assert.match(account, /<summary>Como usamos seus dados<\/summary>/);
-  assert.equal((account.match(/type="submit"/g) || []).length, 1);
-  assert.doesNotMatch(account, /Atalhos|Meus favoritos|data-theme-toggle|auth-continue|Continuar para o site/);
-  assert.match(account, /id="auth-profile-save"[^>]*form="auth-profile-form"/);
-  assert.match(html, /id="theme-toggle"/);
-  const footer = html.slice(html.indexOf('class="auth-card-footer"'), html.indexOf("</section>", html.indexOf('class="auth-card-footer"')));
-  for (const [, modes] of footer.matchAll(/data-modes="([^"]+)"/g)) {
-    assert.ok(!modes.split(" ").includes("conta"), "rodapé não aparece em Minha conta");
+test("perfil na Conta: foto, Seus dados (aniversário, telefone, LGPD), Salvar e Senha e conta", () => {
+  const html = readFileSync(new URL("../conta.html", import.meta.url), "utf8");
+  const editor = html.slice(html.indexOf('id="account-details"'), html.indexOf("</header>", html.indexOf('id="account-details"')));
+  assert.match(editor, /Opcional\. Usamos só pra te lembrar da promoção de aniversariante do bar\./);
+  assert.match(editor, /Opcional\. Usado só pra contato do bar sobre seus pedidos e promoções\./);
+  assert.match(editor, /Autorizo o Bar da Cácia a usar esses dados só para minha conta e o contato do bar \(LGPD\)\./);
+  assert.equal((editor.match(/type="submit"/g) || []).length, 1);
+  assert.doesNotMatch(editor, /Atalhos|Meus favoritos|data-theme-toggle|auth-continue|Continuar para o site/);
+  const login = readFileSync(new URL("../login.html", import.meta.url), "utf8");
+  assert.match(login, /id="theme-toggle"/);
+  for (const [, modes] of login.matchAll(/data-modes="([^"]+)"/g)) {
+    assert.ok(!modes.split(" ").includes("conta"), "login.html não tem mais o modo Minha conta");
   }
 });
 
 test("modal de alterações não salvas é acessível", () => {
-  const html = readFileSync(new URL("../login.html", import.meta.url), "utf8");
-  const dialog = html.slice(html.indexOf('id="auth-unsaved"') - 8, html.indexOf("</dialog>", html.indexOf('id="auth-unsaved"')));
+  const html = readFileSync(new URL("../conta.html", import.meta.url), "utf8");
+  const dialog = html.slice(html.indexOf('id="conta-unsaved"') - 8, html.indexOf("</dialog>", html.indexOf('id="conta-unsaved"')));
   assert.match(dialog, /^<dialog/);
   assert.match(dialog, /aria-modal="true"/);
-  assert.match(dialog, /aria-labelledby="auth-unsaved-title"/);
-  assert.match(dialog, /id="auth-unsaved-title"[^>]*>Salvar as alterações\?</);
-  assert.match(dialog, /id="auth-unsaved-save"[^>]*>Sim</);
-  assert.match(dialog, /id="auth-unsaved-discard"[^>]*>Não</);
-  assert.match(dialog, /id="auth-unsaved-close"[^>]*aria-label="Continuar editando"/);
+  assert.match(dialog, /aria-labelledby="conta-unsaved-title"/);
+  assert.match(dialog, /id="conta-unsaved-title"[^>]*>Salvar as alterações\?</);
+  assert.match(dialog, /id="conta-unsaved-save"[^>]*>Sim</);
+  assert.match(dialog, /id="conta-unsaved-discard"[^>]*>Não</);
+  assert.match(dialog, /id="conta-unsaved-close"[^>]*aria-label="Continuar editando"/);
 });
 
 test("validateBirthDate aceita vazio e data válida", () => {

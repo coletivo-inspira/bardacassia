@@ -1,12 +1,13 @@
+import { createAccountEditor } from "./account-editor.js";
 import { authBackendReady, displayName, getCurrentUser, onAuthChange, publicAuthEnabled, signOut } from "./integrations/auth.js";
 import { loadSiteFeatures } from "./integrations/features.js";
-import { getMyPhone, getMyProfile, getMyRole } from "./integrations/profile.js";
+import { getMyRole } from "./integrations/profile.js";
 import { fetchMyRequests, requestMode, requestsConfigured } from "./integrations/requests.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
 import { getFeatures } from "./lib/feature-state.js";
 import { allCodes, loadFavoritesState } from "./lib/favorites.js";
 import { showFavorites, showManagerPanel, showPageFile, showStaffPanel, showThemeToggle } from "./lib/features.js";
-import { formatPhoneMask, providerAvatarUrl } from "./lib/profile.js";
+import { providerAvatarUrl } from "./lib/profile.js";
 import { REQUESTS_HASH, activeRequestCount } from "./lib/requests.js";
 import {
   hideExpiredEventNav,
@@ -41,33 +42,30 @@ const ROLE_LABELS = {
   admin: "Administrador",
 };
 
+/** conta.html#perfil opens the hero editor; the login page's old Minha conta links redirect here. */
+const PROFILE_HASH = "#perfil";
+/** login.html#nova-senha comes back with ?senha=salva once the new senha is stored. */
+const PASSWORD_SAVED_PARAM = "senha";
+
+let editor = null;
+let currentUser = null;
+/** Shown in the editor once the signed-in render runs (the boot-time signed-out render clears it). */
+let pendingEditorStatus = null;
+
+function isProfileHash() {
+  return location.hash.toLowerCase() === PROFILE_HASH;
+}
+
 function loginHref() {
-  return `login.html?next=${encodeURIComponent("conta.html")}`;
+  return `login.html?next=${encodeURIComponent(`conta.html${isProfileHash() ? PROFILE_HASH : ""}`)}`;
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
-function formatBirthDate(value) {
-  const raw = String(value || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return "";
-  const date = new Date(`${raw}T12:00:00`);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("pt-BR");
-}
-
-function formatConsent(profile) {
-  const at = profile?.data_consent_at;
-  if (!at) return "";
-  const when = new Date(at);
-  if (Number.isNaN(when.getTime())) return "";
-  const version = profile?.data_consent_version ? ` · versão ${profile.data_consent_version}` : "";
-  return `Autorizado em ${when.toLocaleDateString("pt-BR")}${version}`;
+function setPageStatus(message, tone = "info") {
+  const status = document.querySelector("#conta-status");
+  if (!status) return;
+  status.hidden = !message;
+  status.textContent = message || "";
+  status.dataset.tone = tone;
 }
 
 function setHeroAvatar(url, fallbackText) {
@@ -246,50 +244,47 @@ function rolePanelRows(role, features) {
   return rows;
 }
 
-function signedInMenuRows(role) {
+/** Modo claro first, then the customer's own lists; staff panels render in their own section. */
+function customerRows({ signedIn }) {
   const features = getFeatures();
-  const rows = songListRows(features);
-  if (publicAuthEnabled()) {
-    rows.push(menuRow({ href: "login.html#conta", icon: USER_ICON, title: "Minha conta", detail: "Perfil, dados e privacidade" }));
-  }
-  rows.push(...rolePanelRows(role, features));
-  rows.push(menuRow({ href: "o-bar.html", icon: BAR_ICON, title: "O bar", detail: "Valores, endereço e horário" }));
+  const rows = [];
   if (showThemeToggle(features)) rows.push(themeRow());
-  rows.push(menuRow({ action: "signout", icon: EXIT_ICON, title: "Sair", detail: "Desconectar deste aparelho", danger: true }));
+  if (!signedIn && publicAuthEnabled()) {
+    rows.push(menuRow({ href: loginHref(), icon: ENTER_ICON, title: "Entrar", detail: "Acesse sua conta no bar" }));
+  }
+  rows.push(...songListRows(features));
+  rows.push(menuRow({ href: "o-bar.html", icon: BAR_ICON, title: "O bar", detail: "Valores, endereço e horário" }));
+  if (signedIn) {
+    rows.push(menuRow({ action: "signout", icon: EXIT_ICON, title: "Sair", detail: "Desconectar deste aparelho", danger: true }));
+  }
   return rows;
 }
 
-function detailItems({ user, profile, phone, role }) {
-  const items = [];
-  const email = String(user?.email || "").trim();
-  if (email) items.push({ label: "E-mail", value: email });
-  const birth = formatBirthDate(profile?.birth_date);
-  items.push({ label: "Data de nascimento", value: birth || "Não informada" });
-  const phoneText = phone ? formatPhoneMask(phone) : "";
-  items.push({ label: "Telefone", value: phoneText || "Não informado" });
-  if (role && ROLE_LABELS[role]) {
-    items.push({ label: "Papel", value: ROLE_LABELS[role] });
+/** Management breadcrumbs link to conta.html#gestao. */
+const STAFF_HASH = "#gestao";
+
+function renderStaffPanel(role) {
+  const panel = document.querySelector("[data-account-staff]");
+  const list = document.querySelector("[data-account-staff-menu]");
+  if (!panel || !list) return;
+  const rows = role ? rolePanelRows(role, getFeatures()) : [];
+  const wasHidden = panel.hidden;
+  list.innerHTML = rows.join("");
+  panel.hidden = rows.length === 0;
+  // The panel only appears once the role loads, after the browser already tried to scroll to the hash.
+  if (wasHidden && !panel.hidden && location.hash.toLowerCase() === STAFF_HASH) {
+    panel.scrollIntoView({ block: "start" });
   }
-  const consent = formatConsent(profile);
-  items.push({ label: "LGPD", value: consent || "Sem autorização registrada" });
-  return items;
 }
 
-function renderHeroDetails(details) {
-  const panel = document.querySelector("[data-account-details]");
-  if (!panel) return;
-  if (!details?.length) {
-    panel.innerHTML = "";
-    return;
-  }
-  panel.innerHTML = `<dl class="account-hero-dl">${details.map((item) => `
-    <div class="account-hero-field">
-      <dt>${escapeHtml(item.label)}</dt>
-      <dd>${escapeHtml(item.value)}</dd>
-    </div>`).join("")}</dl>`;
+function renderRole(role) {
+  const line = document.querySelector("[data-account-role]");
+  if (!line) return;
+  line.hidden = !ROLE_LABELS[role];
+  line.querySelector("strong").textContent = ROLE_LABELS[role] || "";
 }
 
-function setHeroExpanded(expanded) {
+function setHeroExpanded(expanded, { syncHash = true } = {}) {
   const hero = document.querySelector(".account-hero");
   const toggle = document.querySelector("[data-account-hero-toggle]");
   const panel = document.querySelector("[data-account-details]");
@@ -297,52 +292,45 @@ function setHeroExpanded(expanded) {
   const open = Boolean(expanded);
   hero.classList.toggle("is-expanded", open);
   toggle.setAttribute("aria-expanded", String(open));
-  toggle.setAttribute("aria-label", open ? "Ocultar detalhes da conta" : "Mostrar detalhes da conta");
+  toggle.setAttribute("aria-label", open ? "Fechar perfil, dados e privacidade" : "Editar perfil, dados e privacidade");
   panel.hidden = !open;
+  if (!syncHash || open === isProfileHash()) return;
+  history.replaceState(history.state, "", `${location.pathname}${location.search}${open ? PROFILE_HASH : ""}`);
 }
 
 function bindHeroToggle(enabled) {
   const hero = document.querySelector(".account-hero");
   const toggle = document.querySelector("[data-account-hero-toggle]");
-  const panel = document.querySelector("[data-account-details]");
-  if (!hero || !toggle || !panel) return;
+  const hint = document.querySelector("[data-account-hero-hint]");
+  if (!hero || !toggle) return;
   toggle.disabled = !enabled;
   hero.classList.toggle("is-expandable", enabled);
-  toggle.setAttribute("aria-label", enabled ? "Mostrar ou ocultar detalhes da conta" : "Conta");
+  if (hint) hint.hidden = !enabled;
   if (!enabled) {
-    setHeroExpanded(false);
-    renderHeroDetails([]);
+    setHeroExpanded(false, { syncHash: false });
     return;
   }
   if (toggle.dataset.bound === "1") return;
   toggle.dataset.bound = "1";
   toggle.addEventListener("click", () => {
     if (toggle.disabled) return;
-    const next = toggle.getAttribute("aria-expanded") !== "true";
-    setHeroExpanded(next);
+    setHeroExpanded(toggle.getAttribute("aria-expanded") !== "true");
   });
 }
 
-async function fillHeroProfile(user) {
-  const role = await getMyRole().catch(() => null);
-  let profile = null;
-  let phone = null;
-  try {
-    profile = await getMyProfile();
-  } catch {
-    profile = null;
-  }
-  try {
-    phone = await getMyPhone();
-  } catch {
-    phone = null;
-  }
-  const url = String(profile?.avatar_url || providerAvatarUrl(user) || "").trim();
-  const name = displayName(user);
-  const initial = Array.from(name)[0]?.toLocaleUpperCase("pt-BR") || "";
-  if (url) setHeroAvatar(url, initial);
-  renderHeroDetails(detailItems({ user, profile, phone, role }));
-  return role;
+function heroInitial(user) {
+  return Array.from(displayName(user))[0]?.toLocaleUpperCase("pt-BR") || "";
+}
+
+function bindSignOut(list) {
+  list.querySelector('[data-action="signout"]')?.addEventListener("click", () => {
+    const run = async () => {
+      await signOut();
+      renderAccountPage(null);
+    };
+    if (editor) editor.confirmLeave(run);
+    else void run();
+  });
 }
 
 function renderAccountPage(user, { role = null } = {}) {
@@ -351,33 +339,27 @@ function renderAccountPage(user, { role = null } = {}) {
   const list = document.querySelector("[data-account-menu]");
   if (!list) return;
 
-  const features = getFeatures();
   if (user) {
-    const name = displayName(user);
-    if (title) title.textContent = name;
+    const sameUser = currentUser?.id === user.id;
+    currentUser = user;
+    if (title) title.textContent = displayName(user);
     if (subtitle) subtitle.textContent = user.email || "Conta conectada neste aparelho.";
-    const initial = Array.from(name)[0]?.toLocaleUpperCase("pt-BR") || "";
-    setHeroAvatar("", initial);
-    bindHeroToggle(true);
-    setHeroExpanded(false);
-    list.innerHTML = signedInMenuRows(role).join("");
-    list.querySelector('[data-action="signout"]')?.addEventListener("click", async () => {
-      await signOut();
-      renderAccountPage(null);
-    });
-    const quick = providerAvatarUrl(user);
-    if (quick) setHeroAvatar(quick, initial);
-    void fillHeroProfile(user).then((resolvedRole) => {
-      if (resolvedRole && resolvedRole !== role) {
-        list.innerHTML = signedInMenuRows(resolvedRole).join("");
-        list.querySelector('[data-action="signout"]')?.addEventListener("click", async () => {
-          await signOut();
-          renderAccountPage(null);
-        });
-        initializeTheme();
-      }
-    });
+    if (!sameUser) setHeroAvatar(providerAvatarUrl(user), heroInitial(user));
+    bindHeroToggle(Boolean(editor));
+    // Auth events re-render the page; only a new visit or #perfil decides whether the editor is open.
+    if (!sameUser) setHeroExpanded(Boolean(editor) && isProfileHash(), { syncHash: false });
+    list.innerHTML = customerRows({ signedIn: true }).join("");
+    bindSignOut(list);
+    renderStaffPanel(role);
+    renderRole(role);
+    if (pendingEditorStatus) {
+      editor?.setStatus(pendingEditorStatus, "success", { reveal: true });
+      pendingEditorStatus = null;
+    }
+    void editor?.load(user);
   } else {
+    currentUser = null;
+    editor?.clear();
     if (title) title.textContent = "Conta";
     if (subtitle) subtitle.textContent = "Entre para sincronizar favoritos e perfil entre aparelhos.";
     setHeroAvatar("", "");
@@ -388,14 +370,9 @@ function renderAccountPage(user, { role = null } = {}) {
       fallback.removeAttribute("hidden");
     }
     bindHeroToggle(false);
-    const rows = [];
-    if (publicAuthEnabled()) {
-      rows.push(menuRow({ href: loginHref(), icon: ENTER_ICON, title: "Entrar", detail: "Acesse sua conta no bar" }));
-    }
-    rows.push(...songListRows(features));
-    rows.push(menuRow({ href: "o-bar.html", icon: BAR_ICON, title: "O bar", detail: "Valores, endereço e horário" }));
-    if (showThemeToggle(features)) rows.push(themeRow());
-    list.innerHTML = rows.join("");
+    list.innerHTML = customerRows({ signedIn: false }).join("");
+    renderStaffPanel(null);
+    renderRole(null);
     const login = list.querySelector('a[href^="login.html"]');
     login?.addEventListener("click", () => { login.href = loginHref(); });
   }
@@ -403,8 +380,30 @@ function renderAccountPage(user, { role = null } = {}) {
   initializeTheme();
 }
 
+function setupEditor() {
+  editor = createAccountEditor({
+    onProfile: (profile) => {
+      if (currentUser) setHeroAvatar(String(profile?.avatar_url || providerAvatarUrl(currentUser) || "").trim(), heroInitial(currentUser));
+    },
+    onDeleted: () => {
+      renderAccountPage(null);
+      setPageStatus("Sua conta foi excluída.", "success");
+    },
+  });
+  window.addEventListener("hashchange", () => {
+    if (isProfileHash() && currentUser) setHeroExpanded(true, { syncHash: false });
+  });
+  const params = new URLSearchParams(location.search);
+  if (params.get(PASSWORD_SAVED_PARAM) === "salva") {
+    pendingEditorStatus = "Senha salva com sucesso.";
+    params.delete(PASSWORD_SAVED_PARAM);
+    history.replaceState(history.state, "", `${location.pathname}${params.size ? `?${params}` : ""}${location.hash}`);
+  }
+}
+
 async function bootAccountPage() {
   await loadSiteFeatures();
+  if (authBackendReady) setupEditor();
   renderAccountPage(null);
   void loadRequestsCount();
   if (!authBackendReady || !hasStoredAuthSession()) return;

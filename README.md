@@ -25,7 +25,7 @@
 - **Descoberta por cartões:** escolha artistas, passe ou selecione músicas e mantenha uma lista da noite salva neste navegador.
 - **Mais populares:** ranking agregado, quando o Supabase está configurado e as migrações estão aplicadas.
 - **Deezer:** capas e trechos de áudio quando disponíveis; o site continua funcional sem a API.
-- **Conta (opcional):** login por e-mail e senha, link por e-mail ou Google/Facebook. Em Minha conta: foto (Storage `avatars`), aniversário e consentimento LGPD. Senhas ficam só no Supabase Auth (hash bcrypt) e cada pessoa só acessa o próprio perfil.
+- **Conta (opcional):** login por e-mail e senha, link por e-mail ou Google/Facebook. Na Conta, o topo expande para editar foto (Storage `avatars`), aniversário, telefone e consentimento LGPD. Senhas ficam só no Supabase Auth (hash bcrypt) e cada pessoa só acessa o próprio perfil.
 - **Código ao DJ:** exibe o código para o usuário mostrar ao DJ.
 - **Pedidos pelo QR (opcional, Supabase):** o cliente toca em “Mostrar ao garçom” e um QR aparece na tela. O garçom lê com o celular, cobra e a música entra na fila em `garcom.html`, que também mostra as tocadas da noite. Como o aparelho do cliente não grava nada, ninguém consegue pedir de casa. O modo antigo, em que o cliente pede sozinho, continua disponível com `VITE_REQUEST_MODE=remoto` e um código da noite.
 - **Resultados para o dono:** pedidos por noite, clientes, espera média, mais pedidas e pedidos por garçom, na aba “Resultados” do painel. Acessos ao site via Google Analytics 4 ou Cloudflare Web Analytics (`VITE_ANALYTICS_ID`).
