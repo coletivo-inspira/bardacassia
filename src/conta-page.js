@@ -1,10 +1,13 @@
 import { authBackendReady, displayName, getCurrentUser, onAuthChange, publicAuthEnabled, signOut } from "./integrations/auth.js";
 import { loadSiteFeatures } from "./integrations/features.js";
 import { getMyPhone, getMyProfile, getMyRole } from "./integrations/profile.js";
+import { fetchMyRequests, requestMode, requestsConfigured } from "./integrations/requests.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
 import { getFeatures } from "./lib/feature-state.js";
+import { allCodes, loadFavoritesState } from "./lib/favorites.js";
 import { showFavorites, showManagerPanel, showPageFile, showStaffPanel, showThemeToggle } from "./lib/features.js";
 import { formatPhoneMask, providerAvatarUrl } from "./lib/profile.js";
+import { REQUESTS_HASH, activeRequestCount } from "./lib/requests.js";
 import {
   hideExpiredEventNav,
   initializeAccountMenu,
@@ -26,6 +29,10 @@ const MANAGER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 19
 const POSTER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>`;
 const EVENT_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M8 3.5v3M16 3.5v3M3.5 10h17"/></svg>`;
 const HOME_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3.5 10.5 12 3.8l8.5 6.7v9.2a.8.8 0 0 1-.8.8H15v-6H9v6H4.3a.8.8 0 0 1-.8-.8z"/></svg>`;
+const REQUESTS_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 18V5.5l11-2.2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>`;
+
+/** Active requests, fetched once per visit; null until known. */
+let requestsCount = null;
 
 const ROLE_LABELS = {
   cliente: "Cliente",
@@ -96,19 +103,75 @@ function setHeroAvatar(url, fallbackText) {
   }, { once: true });
 }
 
-function menuRow({ href, action, icon, title, detail, danger = false }) {
+/** `count` adds the amber badge the catalog buttons used to carry; `countKey` lets it be filled in later. */
+function menuRow({ href, action, icon, title, detail, danger = false, count, countKey }) {
   const chevron = `<span class="account-menu-chevron" aria-hidden="true"></span>`;
+  const badge = count !== undefined
+    ? `<span class="favorite-count account-menu-count"${countKey ? ` data-count="${countKey}"` : ""}${count ? "" : " hidden"}>${count ? count.toLocaleString("pt-BR") : ""}</span>`
+    : "";
   const body = `
     <span class="account-menu-icon" aria-hidden="true">${icon}</span>
     <span class="account-menu-text">
       <strong>${title}</strong>
       <span>${detail}</span>
     </span>
-    ${chevron}`;
+    ${badge}${chevron}`;
   if (href) {
     return `<li><a class="account-menu-row${danger ? " is-danger" : ""}" href="${href}">${body}</a></li>`;
   }
   return `<li><button class="account-menu-row${danger ? " is-danger" : ""}" type="button" data-action="${action}">${body}</button></li>`;
+}
+
+function favoritesCount() {
+  return allCodes(loadFavoritesState()).size;
+}
+
+/** The QR flow keeps nothing on the customer's phone, so only the remote mode has a Meus pedidos list. */
+function showMyRequests() {
+  return requestsConfigured() && requestMode() === "remoto";
+}
+
+/** Meus favoritos and Meus pedidos left the catalog for this menu; both work without logging in. */
+function songListRows(features) {
+  const rows = [];
+  if (showFavorites(features)) {
+    rows.push(menuRow({
+      href: "favoritos.html",
+      icon: HEART_ICON,
+      title: "Meus favoritos",
+      detail: "Músicas salvas neste aparelho",
+      count: favoritesCount(),
+    }));
+  }
+  if (showMyRequests()) {
+    rows.push(menuRow({
+      href: `index.html${REQUESTS_HASH}`,
+      icon: REQUESTS_ICON,
+      title: "Meus pedidos",
+      detail: "Suas músicas pedidas hoje e a fila",
+      count: requestsCount ?? 0,
+      countKey: "requests",
+    }));
+  }
+  return rows;
+}
+
+function paintRequestsCount() {
+  document.querySelectorAll('[data-count="requests"]').forEach((badge) => {
+    badge.textContent = requestsCount ? requestsCount.toLocaleString("pt-BR") : "";
+    badge.hidden = !requestsCount;
+  });
+}
+
+/** Without a stored session there is nothing to count, and asking would create an anonymous one. */
+async function loadRequestsCount() {
+  if (!showMyRequests() || !hasStoredAuthSession()) return;
+  try {
+    requestsCount = activeRequestCount(await fetchMyRequests());
+    paintRequestsCount();
+  } catch {
+    /* the row still opens Meus pedidos, which shows its own error */
+  }
 }
 
 function themeRow() {
@@ -185,10 +248,7 @@ function rolePanelRows(role, features) {
 
 function signedInMenuRows(role) {
   const features = getFeatures();
-  const rows = [];
-  if (showFavorites(features)) {
-    rows.push(menuRow({ href: "favoritos.html", icon: HEART_ICON, title: "Meus favoritos", detail: "Músicas salvas neste aparelho" }));
-  }
+  const rows = songListRows(features);
   if (publicAuthEnabled()) {
     rows.push(menuRow({ href: "login.html#conta", icon: USER_ICON, title: "Minha conta", detail: "Perfil, dados e privacidade" }));
   }
@@ -332,6 +392,7 @@ function renderAccountPage(user, { role = null } = {}) {
     if (publicAuthEnabled()) {
       rows.push(menuRow({ href: loginHref(), icon: ENTER_ICON, title: "Entrar", detail: "Acesse sua conta no bar" }));
     }
+    rows.push(...songListRows(features));
     rows.push(menuRow({ href: "o-bar.html", icon: BAR_ICON, title: "O bar", detail: "Valores, endereço e horário" }));
     if (showThemeToggle(features)) rows.push(themeRow());
     list.innerHTML = rows.join("");
@@ -345,6 +406,7 @@ function renderAccountPage(user, { role = null } = {}) {
 async function bootAccountPage() {
   await loadSiteFeatures();
   renderAccountPage(null);
+  void loadRequestsCount();
   if (!authBackendReady || !hasStoredAuthSession()) return;
   try {
     const user = await getCurrentUser();

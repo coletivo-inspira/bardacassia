@@ -66,6 +66,38 @@ test("island Conta control navigates to conta.html instead of a menu", () => {
   assert.doesNotMatch(site, /island-account-menu/);
 });
 
+test("desktop header account button is a plain link to conta.html, not a dropdown", () => {
+  const site = read("src/site.js");
+  assert.match(site, /function renderHeaderAccountLink/);
+  assert.match(site, /link\.className = "theme-toggle header-account";\s*link\.href = "conta\.html";/);
+  assert.doesNotMatch(site, /aria-haspopup|role="menu"|header-account-list|buildMenu/);
+  assert.doesNotMatch(read("src/styles.css"), /header-account-menu/);
+});
+
+test("Conta lists Meus favoritos and Meus pedidos with count badges, signed in or not", () => {
+  const js = read("src/conta-page.js");
+  assert.match(js, /title: "Meus favoritos"[\s\S]*?count: favoritesCount\(\)/);
+  assert.match(js, /href: `index\.html\$\{REQUESTS_HASH\}`[\s\S]*?title: "Meus pedidos"[\s\S]*?countKey: "requests"/);
+  assert.match(js, /const rows = songListRows\(features\);/);
+  assert.match(js, /rows\.push\(\.\.\.songListRows\(features\)\);/);
+  // QR mode keeps nothing on the phone, and counting without a session would create an anonymous one.
+  assert.match(js, /requestsConfigured\(\) && requestMode\(\) === "remoto"/);
+  assert.match(js, /if \(!showMyRequests\(\) \|\| !hasStoredAuthSession\(\)\) return;/);
+  assert.match(read("src/lib/requests.js"), /export const REQUESTS_HASH = "#meus-pedidos";/);
+});
+
+test("the catalog opens Meus pedidos from the #meus-pedidos deep link", () => {
+  const js = read("src/song-requests.js");
+  assert.match(js, /REQUESTS_HASH/);
+  assert.match(js, /if \(isRequestsHash\(\)\) openRequestsDialog\(\);/);
+  assert.match(js, /window\.addEventListener\("hashchange", openFromHash\);/);
+  assert.doesNotMatch(js, /#open-requests|#requests-count/);
+  const html = read("index.html");
+  assert.doesNotMatch(html, /night-list-access|id="open-requests"|id="requests-count"/);
+  assert.match(html, /<dialog id="requests-dialog"/);
+  assert.doesNotMatch(read("src/styles.css"), /night-list-access/);
+});
+
 test("vite build includes conta.html", () => {
   const vite = read("vite.config.js");
   assert.match(vite, /conta: resolve\(__dirname, "conta\.html"\)/);

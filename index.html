@@ -154,17 +154,11 @@
           </div>
 
           <div class="discovery-tools" aria-label="Descubra e salve músicas">
-            <a id="show-favorites" class="discovery-button" href="favoritos.html">
-              Favoritas <span id="favorites-count" class="favorite-count">0</span>
-            </a>
             <button id="spotify-connect" class="discovery-button spotify-button" type="button" hidden>
               Conectar ao Spotify
             </button>
           </div>
           <p id="spotify-status" class="integration-status" role="status" aria-live="polite" hidden></p>
-          <div class="night-list-access">
-            <button id="open-requests" class="discovery-button" type="button" hidden>Meus pedidos <span id="requests-count" class="favorite-count">0</span></button>
-          </div>
           <div id="round-banner" class="round-banner" hidden>
             <p id="round-banner-text" class="round-banner-text" aria-live="polite"></p>
             <button id="round-banner-queue" class="text-button" type="button">Ver fila</button>
@@ -227,6 +221,7 @@
           <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle class="instagram-dot" cx="17.6" cy="6.5" r=".8"/></svg>
           <span>Instagram</span>
         </a>
+        <div class="footer-orb" data-inspira-orb-mount></div>
         <p class="footer-copy">
           © <span data-current-year>2026</span>
           <a href="https://inspira.dev.br/" target="_blank" rel="noopener noreferrer">Coletivo Inspira</a>.
@@ -433,6 +428,7 @@
     <script
       src="https://brandbook.inspira.dev.br/assets/js/inspira-orb.js"
       data-href="https://inspira.dev.br/"
+      data-mount="[data-inspira-orb-mount]"
       defer
     ></script>
   </body>

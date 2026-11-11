@@ -33,15 +33,28 @@ for (const [page, hrefs] of Object.entries(ISLAND_PAGES)) {
     assert.match(island, /class="mobile-tab-label">Conta</);
   });
 
-  // The orb embed script styles a.inspira-orb as a sibling after the island.
-  test(`${page} places the island after the footer and before the orb script`, () => {
+  // `.site-footer:has(~ .glass-island)` pads the footer clear of the dock.
+  test(`${page} places the island after the footer`, () => {
     const { html } = islandOf(page);
     const footer = html.indexOf("</footer>");
     const island = html.indexOf('<nav class="mobile-tabbar glass-island"');
-    const orb = html.indexOf("inspira-orb.js");
-    assert.ok(footer < island && island < orb);
+    assert.ok(footer > 0 && footer < island);
   });
 }
+
+test("Match shrinks and grows back with the compact island", () => {
+  const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+  const compact = css.match(/body:has\(> \.glass-island\.is-compact\) \.discover-fab \{([^}]*)\}/)?.[1];
+  assert.ok(compact, "compact Match rule not found");
+  assert.match(compact, /height: 52px;/);
+  assert.match(css, /\.glass-island\.is-compact \{\s*--island-h: 52px;/);
+  assert.match(css, /body:has\(> \.glass-island\) \.discover-fab \{[^}]*height 220ms/);
+});
+
+test("the island starts at the left edge now that the orb left the dock", () => {
+  const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.match(css, /body:has\(> \.glass-island\):has\(\.discover-fab\) \.mobile-tabbar\.glass-island \{\s*left: var\(--dock-side\);/);
+});
 
 for (const page of ["login.html", "garcom.html", "gerente.html", "cartaz.html", "admin.html", "public/404.html"]) {
   test(`${page} has no island`, () => {

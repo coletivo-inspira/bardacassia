@@ -2,8 +2,8 @@ import { createSongRequest, fetchMyRequests, fetchPublicQueue, requestMode, requ
 import { clearQrRequest, initQrRequests, prepareQrRequest } from "./qr-request.js";
 import { cleanArtist, displayTitle } from "./lib/catalog.js";
 import {
-  normalizeNightCode, formatClock, readCustomer, requestErrorMessage, requestStatusLabel, roundSummary, saveCustomer, songLabel,
-  validateCustomer,
+  REQUESTS_HASH, normalizeNightCode, formatClock, readCustomer, requestErrorMessage, requestStatusLabel, roundSummary, saveCustomer,
+  songLabel, validateCustomer,
 } from "./lib/requests.js";
 
 const DIALOG_REFRESH_MS = 15000;
@@ -23,8 +23,6 @@ const els = {
   send: $("#send-request"),
   status: $("#request-status"),
   seeQueue: $("#request-see-queue"),
-  open: $("#open-requests"),
-  count: $("#requests-count"),
   banner: $("#round-banner"),
   bannerText: $("#round-banner-text"),
   bannerQueue: $("#round-banner-queue"),
@@ -67,8 +65,6 @@ function renderBanner() {
 }
 
 function renderMine() {
-  const active = myRequests.filter((request) => request.status === "aguardando_pagamento" || request.status === "na_fila");
-  els.count.textContent = String(active.length);
   els.mine.replaceChildren(...myRequests.map((request) => {
     const row = el("article", `night-list-item request-item request-${request.status}`);
     row.append(
@@ -133,6 +129,20 @@ function openRequestsDialog() {
   dialogTimer = setInterval(() => { if (!document.hidden) void refreshAll(); }, DIALOG_REFRESH_MS);
 }
 
+function isRequestsHash() {
+  return location.hash.toLowerCase() === REQUESTS_HASH;
+}
+
+function openFromHash() {
+  if (isRequestsHash()) openRequestsDialog();
+}
+
+/** Closing Meus pedidos drops #meus-pedidos so a reload or Voltar does not reopen it. */
+function clearRequestsHash() {
+  if (!isRequestsHash()) return;
+  history.replaceState(history.state, "", `${location.pathname}${location.search}`);
+}
+
 function showForm() {
   const saved = readCustomer();
   if (!els.name.value) els.name.value = saved.name;
@@ -194,7 +204,6 @@ export function initSongRequests() {
   if (!requestsConfigured()) return;
   // No modo QR o aparelho do cliente não grava nada: sem sessão anônima, sem pedidos pendentes.
   if (requestMode() === "qr") { initQrRequests(); return; }
-  els.open.hidden = false;
   els.start.addEventListener("click", showForm);
   els.send.addEventListener("click", sendRequest);
   // Enter dentro do diálogo enviaria o <form method="dialog"> e fecharia a janela.
@@ -211,13 +220,18 @@ export function initSongRequests() {
     els.panel.closest("dialog")?.close();
     openRequestsDialog();
   });
-  els.open.addEventListener("click", openRequestsDialog);
   els.bannerQueue.addEventListener("click", openRequestsDialog);
   els.close.addEventListener("click", () => els.dialog.close());
   els.dialog.addEventListener("click", (event) => { if (event.target === els.dialog) els.dialog.close(); });
-  els.dialog.addEventListener("close", () => { clearInterval(dialogTimer); dialogTimer = null; });
+  els.dialog.addEventListener("close", () => {
+    clearInterval(dialogTimer);
+    dialogTimer = null;
+    clearRequestsHash();
+  });
+  window.addEventListener("hashchange", openFromHash);
 
-  void refreshAll();
+  if (isRequestsHash()) openRequestsDialog();
+  else void refreshAll();
   bannerTimer = setInterval(() => { if (!document.hidden && !els.dialog.open) void refreshQueue(); }, BANNER_REFRESH_MS);
   document.addEventListener("visibilitychange", () => { if (!document.hidden && bannerTimer) void refreshQueue(); });
 }

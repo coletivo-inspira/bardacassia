@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  aheadLabel, filterStaffRequests, firstName, formatClock, formatPhone, nextOccurrence, readCustomer,
+  activeRequestCount, aheadLabel, filterStaffRequests, firstName, formatClock, formatPhone, nextOccurrence, readCustomer,
   requestErrorMessage, requestStatusLabel, roundSlotsLeft, roundSummary, saveCustomer, splitStaffRequests,
   validateCustomer,
 } from "../src/lib/requests.js";
@@ -121,4 +121,15 @@ test("randomNightCode evita letras confundíveis e normalizeNightCode limpa a di
   assert.match(code, /^[A-HJ-NP-Z2-9]{6}$/);
   assert.equal(normalizeNightCode(" ab-12 c "), "AB12C");
   assert.equal(requestErrorMessage({ hint: "codigo_noite_invalido" }).includes("Código da noite"), true);
+});
+
+test("activeRequestCount counts requests waiting for payment or in the queue", () => {
+  const requests = [
+    ...staffRequests,
+    { id: 4, status: "tocou" },
+    { id: 5, status: "cancelado" },
+  ];
+  assert.equal(activeRequestCount(requests), 3);
+  assert.equal(activeRequestCount([]), 0);
+  assert.equal(activeRequestCount(null), 0);
 });

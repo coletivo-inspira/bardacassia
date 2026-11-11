@@ -118,10 +118,10 @@ test("applyDefaultTheme applies remote default_theme only when bdc-theme-v1 is n
   assert.equal(domSaved.storage.get("bdc-theme-v1"), "dark");
 });
 
-test("account menu leaves theme toggling to initializeTheme", () => {
+test("account links leave theme toggling to initializeTheme", () => {
   const site = readFileSync(new URL("../src/site.js", import.meta.url), "utf8");
   assert.doesNotMatch(site, /toggleTheme\(/, "a second click handler on [data-theme-toggle] cancels the first");
-  assert.match(site, /data-action="theme" data-theme-toggle/);
+  assert.doesNotMatch(site, /<button[^>]*data-theme-toggle/, "the theme toggle lives on conta.html, not in the header");
 });
 
 for (const page of ["index.html", "evento.html", "o-bar.html", "favoritos.html", "conta.html"]) {
@@ -149,6 +149,8 @@ test("conta menu keeps the theme toggle after the header button is removed", () 
   const js = readFileSync(new URL("../src/conta-page.js", import.meta.url), "utf8");
   assert.match(js, /data-theme-toggle/);
   assert.match(js, /Claro ou escuro na tela/);
+  const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.match(css, /\.account-menu-text \.theme-toggle-label \{ display: block; \}/);
 });
 
 test("login.html keeps its own header theme toggle (it has no account menu)", () => {
@@ -156,19 +158,14 @@ test("login.html keeps its own header theme toggle (it has no account menu)", ()
   assert.match(html, /id="theme-toggle"/);
 });
 
-test("signed-out menu offers Entrar and the theme; signed-in adds favoritos and conta", () => {
+test("Conta offers Entrar, favoritos, conta, O bar, the theme and Sair that the header menu used to", () => {
+  const js = readFileSync(new URL("../src/conta-page.js", import.meta.url), "utf8");
+  assert.match(js, /title: "Entrar"/);
+  assert.match(js, /title: "Meus favoritos"/);
+  assert.match(js, /href: "login\.html#conta"[^}]*title: "Minha conta"/);
+  assert.match(js, /href: "o-bar\.html"[^}]*title: "O bar"/);
+  assert.match(js, /themeRow\(\)/);
+  assert.match(js, /action: "signout"[^}]*title: "Sair"/);
   const site = readFileSync(new URL("../src/site.js", import.meta.url), "utf8");
-  const signedOut = site.match(/const SIGNED_OUT_ITEMS = `([\s\S]*?)`;/)?.[1];
-  const signedIn = site.match(/const SIGNED_IN_ITEMS = `([\s\S]*?)`;/)?.[1];
-  assert.ok(signedOut && signedIn, "menu item templates not found");
-  assert.match(signedOut, /role="menuitem"[^>]*href="login\.html"[^>]*>\$\{ENTER_ICON\}<span>Entrar<\/span></);
-  assert.match(signedOut, /href="o-bar\.html">\$\{BAR_ICON\}<span>O bar<\/span></);
-  assert.match(signedOut, /\$\{THEME_MENU_ITEM\}/);
-  assert.doesNotMatch(signedOut, /signout/);
-  assert.match(signedIn, /href="favoritos\.html">\$\{HEART_ICON\}<span>Meus favoritos<\/span></);
-  assert.match(signedIn, /href="login\.html#conta">\$\{USER_ICON\}<span>Minha conta<\/span></);
-  assert.match(signedIn, /href="o-bar\.html">\$\{BAR_ICON\}<span>O bar<\/span></);
-  assert.match(signedIn, /\$\{THEME_MENU_ITEM\}/);
-  assert.match(signedIn, /data-action="signout"/);
-  assert.doesNotMatch(site, /is-in-account-menu|setHeaderThemeVisible/);
+  assert.doesNotMatch(site, /SIGNED_(IN|OUT)_ITEMS|is-in-account-menu|setHeaderThemeVisible/);
 });

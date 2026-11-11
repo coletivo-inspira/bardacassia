@@ -10,8 +10,14 @@ test("index.html sends old #favoritas links to favoritos.html before the app loa
   assert.ok(redirect > 0 && redirect < html.indexOf("</head>"));
   assert.match(html, /location\.replace\("favoritos\.html"\)/);
   assert.doesNotMatch(html, /id="favoritas-intro"|id="favorite-tabs"/);
-  assert.match(html, /id="show-favorites" class="discovery-button" href="favoritos\.html"/);
   assert.match(html, /id="filter-favorites" type="checkbox" \/> Somente favoritas/);
+});
+
+test("the catalog has no Favoritas button; Meus favoritos is reached from Conta", () => {
+  const html = read("index.html");
+  assert.doesNotMatch(html, /id="show-favorites"|id="favorites-count"/);
+  assert.doesNotMatch(read("src/main.js"), /#show-favorites|#favorites-count/);
+  assert.match(read("src/conta-page.js"), /href: "favoritos\.html"/);
 });
 
 test("favoritos.html has the tabs, the song list and its own script", () => {
