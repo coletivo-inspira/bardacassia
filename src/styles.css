@@ -365,33 +365,6 @@ input:focus-visible {
   font-size: clamp(1rem, 1.5vw, 1.15rem);
 }
 
-.hero-cta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.7rem;
-}
-
-.hero-cta .button {
-  min-height: 56px;
-  padding-inline: 1.3rem;
-}
-
-.hero-cta svg {
-  width: 21px;
-  height: 21px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.hero-cta .button-light svg {
-  width: 20px;
-  height: 20px;
-  stroke-width: 2.2;
-}
-
 .instagram-dot {
   fill: currentColor;
   stroke: none;
@@ -1865,8 +1838,6 @@ dialog::backdrop {
     font-size: 1rem;
   }
 
-  .hero-cta { display: grid; grid-template-columns: 1fr; gap: 0.6rem; }
-  .hero-cta .button { min-height: 54px; width: 100%; }
 
   .song-row {
     grid-template-columns: 52px minmax(0, 1fr);
@@ -2520,8 +2491,6 @@ body {
     font-size: 1rem;
   }
 
-  .hero-cta { display: grid; grid-template-columns: 1fr; gap: 0.6rem; }
-  .hero-cta .button { min-height: 54px; width: 100%; }
 
   .search-portal {
     scroll-margin-top: var(--header-stack);
@@ -4632,6 +4601,11 @@ dialog.discover-screen::backdrop { background: var(--bg); }
     color: var(--text);
     font: 800 .9rem/1 var(--font-body);
   }
+  /* The active avatar ring sits outside the photo, so the label needs a wider gap than the icon tabs;
+     the slot takes a little more width so the gap does not clip "Conta". */
+  .glass-island .island-account-trigger { gap: 0.55rem; padding-inline: 0.2rem; }
+  .glass-island.is-compact .island-account-trigger { gap: 0.45rem; }
+  .glass-island > .mobile-tab-account.is-active { flex-grow: 2.1; }
   .mobile-tab-account.is-active .island-account-trigger :is(.island-account-avatar, .island-account-initial) {
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--island-tint) 70%, transparent), 0 0 0 3.5px color-mix(in srgb, var(--coral) 55%, var(--text));
   }
@@ -5898,3 +5872,151 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   }
 }
 
+/* Catalog top bar: logo + search/Filtros on one row; shrinks with the island while scrolling down. */
+.site-header:has(.header-search) {
+  --bar-h: var(--header-h);
+  --bar-brand: 48px;
+  --bar-search-h: 44px;
+  --bar-icon: 20px;
+  --bar-filters-size: 0.9rem;
+  --bar-ease: 220ms cubic-bezier(.2, .8, .2, 1);
+}
+/* body + :has outranks the island-mode header rules that pin height and logo size. */
+body .site-header:has(.header-search) {
+  justify-content: flex-start;
+  height: var(--bar-h);
+  /* Grows by what the bar loses, so the sticky header never reflows the page under the scroll. */
+  margin-bottom: calc(var(--header-h) - var(--bar-h));
+  overflow: visible;
+  transition: height var(--bar-ease), margin-bottom var(--bar-ease);
+}
+.site-header.is-compact:has(.header-search):not(:has(#song-search:focus, .is-filters-open)) {
+  --bar-h: calc(var(--header-h) - 12px);
+  --bar-brand: 36px;
+  --bar-search-h: 38px;
+  --bar-icon: 17px;
+  --bar-filters-size: 0.8rem;
+}
+.site-header:has(.header-search) .brand { flex-shrink: 0; }
+body .site-header:has(.header-search) .brand img {
+  width: var(--bar-brand);
+  height: var(--bar-brand);
+  transition: width var(--bar-ease), height var(--bar-ease);
+}
+.site-header .header-search {
+  position: relative;
+  top: auto;
+  z-index: 2;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 560px;
+  margin: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: inset 0 0 0 1px var(--glass-rim);
+}
+.site-header .header-search.is-filters-open { border-radius: 999px; }
+.site-header .header-search .spotify-search-control {
+  min-height: 0;
+  height: var(--bar-search-h);
+  gap: 0.5rem;
+  padding: 0 0.95rem;
+  transition: height var(--bar-ease);
+}
+.site-header .header-search .search-icon svg {
+  width: var(--bar-icon);
+  height: var(--bar-icon);
+  transition: width var(--bar-ease), height var(--bar-ease);
+}
+.site-header .header-search .spotify-search-control input {
+  flex: 1;
+  width: 0;
+  min-height: 0;
+  height: 100%;
+  padding: 0;
+  font-size: 1rem;
+}
+.site-header .header-search .spotify-search-control button {
+  min-height: 0;
+  height: 100%;
+  padding: 0 0.15rem;
+  font-size: var(--bar-filters-size);
+  transition: font-size var(--bar-ease);
+}
+/* A dropdown under the bar: the header is a backdrop root, so the panel brings its own opaque surface. */
+.site-header .header-search .catalog-filters {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  padding: 1rem;
+  border: 0;
+  align-items: start;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--bg-elev) 96%, var(--bg));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 35%, transparent),
+    inset 0 0 0 1px var(--glass-rim),
+    0 18px 40px var(--glass-drop);
+  max-height: calc(100dvh - var(--header-stack) - 32px);
+}
+:root[data-theme="light"] .site-header .header-search .catalog-filters { background: var(--paper); }
+@media (min-width: 1024px) {
+  :root[data-theme="light"] .site-header .header-search { background: color-mix(in srgb, var(--paper) 70%, transparent); box-shadow: inset 0 0 0 1px var(--glass-rim); }
+  .site-header:has(.header-search) .desktop-nav { flex-wrap: nowrap; flex-shrink: 0; margin-left: auto; }
+}
+@media (max-width: 1023px) {
+  .site-header:has(.header-search) { --bar-brand: 44px; --bar-search-h: 48px; --bar-icon: 18px; }
+  .site-header.is-compact:has(.header-search):not(:has(#song-search:focus, .is-filters-open)) { --bar-brand: 34px; --bar-search-h: 40px; --bar-icon: 17px; }
+  body:has(> .glass-island) .site-header:has(.header-search) { justify-content: flex-start; gap: 0.5rem; }
+  body:has(> .glass-island) .site-header:has(.header-search) .brand {
+    min-height: 0;
+    transition: padding var(--bar-ease);
+  }
+  /* Matches the logo badge: the bar is transparent here, so the search is its own glass pill. */
+  body:has(> .glass-island) .site-header .header-search {
+    pointer-events: auto;
+    max-width: none;
+    background: linear-gradient(180deg, var(--glass-base), transparent 70%), var(--chrome-tint);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 45%, transparent),
+      inset 0 0 0 1px var(--glass-rim),
+      0 10px 26px var(--glass-drop),
+      0 2px 8px var(--glass-drop);
+  }
+  :root[data-theme="light"] body:has(> .glass-island) .site-header .header-search {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.28) 70%),
+      var(--island-tint);
+  }
+  .site-header .header-search .spotify-search-control { gap: 0.4rem; padding: 0 0.75rem 0 0.8rem; }
+  /* The input stays at 16px so iOS does not zoom on focus; only the hint shrinks to fit beside the logo. */
+  .site-header .header-search .spotify-search-control input { font-size: 16px; }
+  .site-header .header-search .spotify-search-control input::placeholder { font-size: 0.8125rem; }
+  .site-header .header-search .catalog-filters {
+    top: calc(100% + 8px);
+    max-height: calc(100dvh - var(--header-stack) - var(--island-h) - var(--island-gap) - 32px - env(safe-area-inset-bottom));
+  }
+  body:has(> .glass-island) .site-header:has(.header-search) .header-actions { display: none; }
+}
+@media (max-width: 719px) {
+  .site-header .header-search .catalog-filters { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :is(:root, :root[data-theme]) body .site-header .header-search {
+    background: var(--bg-soft);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body .site-header:has(.header-search),
+  body .site-header:has(.header-search) .brand img,
+  .site-header .header-search .spotify-search-control,
+  .site-header .header-search .search-icon svg,
+  .site-header .header-search .spotify-search-control button { transition: none; }
+}

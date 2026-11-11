@@ -1313,6 +1313,13 @@ function syncFilterControls() {
   });
   document.querySelector("#toggle-filters").textContent = filtersToggleLabel(count);
 }
+/** The search lives in the top bar, above the hero; bring its results up when the section is still below. */
+function revealSearchSection() {
+  const section = els.searchSection;
+  if (!section || section.getBoundingClientRect().top < window.innerHeight * 0.5) return;
+  const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  section.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+}
 function refreshFilteredSearch() {
   if (activeCategory?.type === "popular") activeCategory = null;
   els.popularView.hidden = true;
@@ -1320,6 +1327,7 @@ function refreshFilteredSearch() {
   setBrowseMode(false);
   els.activeFilter.textContent = "Resultados da busca";
   applyFilters();
+  revealSearchSection();
 }
 function applyFilters() {
   filtered = filteredCatalog(els.searchInput.value.trim());
@@ -1820,6 +1828,7 @@ const onSearchInput = debounce(() => {
     if (favoritesOnly) els.activeFilter.textContent = `Suas favoritas · “${q}”`;
     else if (!activeCategory) els.activeFilter.textContent = `Busca: “${q}”`;
     else els.activeFilter.textContent = `${activeCategory.label} · “${q}”`;
+    revealSearchSection();
   } else if (!activeCategory && !favoritesOnly && !selectedLanguage && !selectedArtist) {
     setBrowseMode(true);
     els.resultsCount.textContent = `${songs.length.toLocaleString("pt-BR")} músicas no catálogo`;
