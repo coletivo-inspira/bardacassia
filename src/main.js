@@ -1,3 +1,4 @@
+import { initializeSongDialogActions } from "./lib/song-dialog-actions.js";
 import { initializeRecommendationCarousel } from "./lib/recommendation-carousel.js";
 import { displayTitle, filterCatalog, filtersForArtistSelection, countActiveFilterChips, filtersToggleLabel, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
 import { fetchDeezerMeta, fetchRelatedArtists, fetchArtistPicture, metaFromCatalog, resolvePreview } from "./integrations/deezer.js";
@@ -1603,15 +1604,10 @@ function showSongToDJ(song) {
   void ensureSongCovers().then(paintDialogMeta);
   void renderDialogRelated(song);
 
-  if (typeof IntersectionObserver === "function") {
-    const observer = new IntersectionObserver(([entry]) => {
-      els.dialog.classList.toggle("copy-sticky-visible", !entry.isIntersecting);
-    }, { root: els.dialog });
-    observer.observe(els.copyCode);
-    els.dialog.addEventListener("close", () => observer.disconnect(), { once: true });
-  }
   if (typeof els.dialog.showModal === "function") els.dialog.showModal();
 }
+
+initializeSongDialogActions(els.dialog);
 
 els.copyCode.addEventListener("click", async () => {
   try {
