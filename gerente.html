@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#07111f" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="description" content="Painel do gerente do Bar da Cácia: fila da noite, pedidos e o movimento do período." />
+    <title>Painel do gerente — Bar da Cácia</title>
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Outfit:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="manager-page">
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+    <div class="ambient" aria-hidden="true">
+      <span class="orb orb-blue"></span>
+      <span class="orb orb-orange"></span>
+      <span class="orb orb-blue-far"></span>
+    </div>
+
+    <header class="mgr-header glass">
+      <a class="mgr-brand" href="index.html">
+        <img src="%BASE_URL%logo_bar_da_cacia.svg" alt="" width="40" height="40" />
+        <span>
+          <strong>Painel do gerente</strong>
+          <small id="mgr-subtitle">Bar da Cácia</small>
+        </span>
+      </a>
+      <div class="mgr-tools">
+        <p id="source-badge" class="source-badge">Carregando</p>
+        <div class="range-switch" role="group" aria-label="Período">
+          <button class="range-button" type="button" data-range="7d" aria-pressed="false">7 dias</button>
+          <button class="range-button" type="button" data-range="30d" aria-pressed="true">30 dias</button>
+          <button class="range-button" type="button" data-range="90d" aria-pressed="false">90 dias</button>
+        </div>
+        <a class="mgr-text-link" href="garcom.html">Fila do garçom</a>
+        <button id="mgr-logout" class="mgr-text-link" type="button" hidden>Sair</button>
+      </div>
+    </header>
+
+    <main id="conteudo" class="manager-main">
+      <p id="boot-status" class="boot-status" role="status">Carregando o painel…</p>
+
+      <section id="login-view" class="glass panel login-panel" hidden>
+        <h1>Entrar</h1>
+        <p class="panel-note">O painel ao vivo pede a conta de gerente (papel de dono).</p>
+        <form id="login-form">
+          <label for="staff-email">E-mail</label>
+          <input id="staff-email" type="email" autocomplete="username" required />
+          <label for="staff-password">Senha</label>
+          <input id="staff-password" type="password" autocomplete="current-password" required />
+          <button id="staff-login" class="mgr-button" type="submit">Entrar</button>
+          <p id="login-status" class="status-line" role="status" aria-live="polite"></p>
+        </form>
+        <p class="panel-note">Se o site pedir verificação, <a href="login.html?next=gerente.html">entre pela página de login</a> e volte para cá.</p>
+      </section>
+
+      <section id="denied-view" class="glass panel" hidden>
+        <h1>Painel do gerente</h1>
+        <p id="denied-copy" class="panel-note">Sua conta não abre este painel.</p>
+        <p class="panel-actions">
+          <a class="mgr-button" href="garcom.html">Ir para a fila</a>
+          <button id="denied-logout" class="mgr-button mgr-button-ghost" type="button">Sair</button>
+        </p>
+      </section>
+
+      <div id="board" hidden>
+        <div id="sample-banner" class="glass sample-banner" hidden>
+          <p>Exemplo neste navegador. O Supabase não está configurado, então estes números não vêm do bar.</p>
+          <div class="sample-switch" role="group" aria-label="Exemplo local">
+            <button id="variant-cheio" class="range-button" type="button" data-variant="cheio" aria-pressed="true">Com movimento</button>
+            <button id="variant-vazio" class="range-button" type="button" data-variant="vazio" aria-pressed="false">Sem pedidos</button>
+          </div>
+        </div>
+
+        <p id="board-status" class="status-line" role="status" aria-live="polite"></p>
+        <section class="kpi-grid" aria-label="Números do período" id="kpi-grid"></section>
+
+        <div class="board-grid">
+          <div class="board-main">
+            <section class="glass panel" aria-labelledby="now-title">
+              <h2 id="now-title">Agora na casa</h2>
+              <div id="now-grid" class="now-grid"></div>
+              <p id="now-message" class="now-message" hidden></p>
+            </section>
+            <div class="charts">
+              <section class="glass panel" aria-labelledby="nights-title">
+                <h2 id="nights-title">Últimas noites</h2>
+                <ol id="nights-list" class="bar-list"></ol>
+              </section>
+              <section class="glass panel" aria-labelledby="weekdays-title">
+                <h2 id="weekdays-title">Por dia da semana</h2>
+                <ol id="weekdays-list" class="bar-list"></ol>
+              </section>
+            </div>
+          </div>
+          <div class="board-side">
+            <section class="glass panel" aria-labelledby="funnel-title">
+              <h2 id="funnel-title">Como os pedidos andam</h2>
+              <ol id="funnel-list" class="bar-list"></ol>
+            </section>
+            <section class="glass panel" aria-labelledby="songs-title">
+              <div class="panel-head">
+                <h2 id="songs-title">Mais pedidas</h2>
+                <label class="visually-hidden" for="song-search">Filtrar música, artista ou código</label>
+                <input id="song-search" type="search" placeholder="Filtrar música ou código" autocomplete="off" enterkeyhint="search" />
+              </div>
+              <ol id="songs-list" class="song-list"></ol>
+            </section>
+            <section class="glass panel" aria-labelledby="staff-title">
+              <h2 id="staff-title">Por garçom</h2>
+              <ol id="staff-list" class="bar-list"></ol>
+            </section>
+            <section class="glass panel" aria-labelledby="queue-title">
+              <h2 id="queue-title">Fila desta noite</h2>
+              <h3 class="subhead">Na fila</h3>
+              <ol id="queue-list" class="queue-list"></ol>
+              <h3 class="subhead">A pagar</h3>
+              <ol id="pending-list" class="queue-list"></ol>
+              <h3 class="subhead">Já tocaram</h3>
+              <ol id="played-list" class="queue-list"></ol>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="/src/gerente.js"></script>
+  </body>
+</html>

@@ -44,7 +44,7 @@ for (const [page, hrefs] of Object.entries(ISLAND_PAGES)) {
   });
 }
 
-for (const page of ["login.html", "garcom.html", "cartaz.html", "public/404.html"]) {
+for (const page of ["login.html", "garcom.html", "gerente.html", "cartaz.html", "public/404.html"]) {
   test(`${page} has no island`, () => {
     const html = readFileSync(new URL(`../${page}`, import.meta.url), "utf8");
     assert.doesNotMatch(html, /glass-island/);
