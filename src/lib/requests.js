@@ -54,6 +54,15 @@ export function requestStatusLabel(request) {
   }
 }
 
+/** conta.html links to index.html with this hash to open Meus pedidos on the catalog. */
+export const REQUESTS_HASH = "#meus-pedidos";
+
+/** Pedidos ainda vivos: esperando pagamento ou já na fila. */
+export function activeRequestCount(requests = []) {
+  return (Array.isArray(requests) ? requests : [])
+    .filter((request) => request?.status === "aguardando_pagamento" || request?.status === "na_fila").length;
+}
+
 export function formatClock(value, { timeZone } = {}) {
   if (!value) return "";
   const date = value instanceof Date ? value : new Date(value);

@@ -1598,6 +1598,15 @@ input:focus-visible {
   color: var(--amber);
 }
 
+/* +INSPIRA orb (brand book embed, data-mount): sits in the footer flow just above the copyright line. */
+.footer-orb {
+  display: grid;
+  place-items: center;
+  min-height: 4rem;
+  margin-top: 0.5rem;
+}
+.footer-orb a.inspira-orb { margin: 0; }
+
 .site-footer .footer-copy {
   min-width: min(100%, 20rem);
   margin-top: 0.75rem;
@@ -3759,11 +3768,7 @@ dialog.discover-screen::backdrop { background: var(--bg); }
 .discover-sticky-actions .text-button { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
 @media (min-width: 720px) { .site-footer { padding-bottom: 6rem; } }
 
-.night-list-access { position: sticky; top: calc(var(--header-stack) + 12px); z-index: 30; display: flex; justify-content: flex-end; margin-top: 0.75rem; pointer-events: none; }
-.night-list-access .discovery-button { background: var(--bg-elev); box-shadow: 0 4px 14px rgba(0,0,0,.28); pointer-events: auto; }
-:root[data-theme="light"] .night-list-access .discovery-button { background: var(--paper); box-shadow: 0 4px 14px rgba(32, 35, 31, 0.12); }
 /* Pedidos de música */
-.night-list-access { gap: .5rem; flex-wrap: wrap; }
 .round-banner {
   display: flex;
   align-items: center;
@@ -3846,53 +3851,6 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   background: color-mix(in srgb, var(--amber) 22%, var(--bg-soft));
 }
 .header-account-slot { display: contents; }
-.header-account-menu { position: relative; }
-.header-account-menu [role="menu"] {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 50;
-  display: grid;
-  min-width: 200px;
-  padding: .4rem;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--bg-soft);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, .35);
-}
-.header-account-menu [role="menu"][hidden] { display: none; }
-.header-account-menu [role="menuitem"] {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  padding: .5rem .75rem;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  font-size: .9rem;
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-}
-.header-account-menu [role="menuitem"]:hover,
-.header-account-menu [role="menuitem"]:focus-visible { background: color-mix(in srgb, var(--amber) 14%, transparent); }
-.header-account-menu [data-action="theme"] {
-  gap: .55rem;
-}
-.header-account-menu [data-action="theme"] svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.header-account-menu [data-action="theme"] .theme-toggle-label { display: inline; }
-.header-account-menu .account-menu-login { font-weight: 700; }
-.header-account-email { padding: .35rem .75rem .5rem; color: var(--muted); font-size: .78rem; overflow-wrap: anywhere; border-bottom: 1px solid var(--line); margin-bottom: .25rem; }
 
 .auth-page { --auth-primary: var(--amber); --auth-on-primary: var(--ink); --auth-link: var(--sky); }
 :root[data-theme="light"] .auth-page { --auth-on-primary: var(--paper); --auth-link: var(--sky); }
@@ -4411,11 +4369,6 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   .auth-avatar-crop-image { will-change: auto; }
 }
 
-/* +INSPIRA orb (brand book embed): keep the centered footer text clear of it when scrolled to the bottom. */
-@media (max-width: 719px) {
-  .site-footer { padding-bottom: 2.25rem; }
-}
-
 /* Floating Liquid Glass tab island (phones and tablets, like Instagram's iOS bar). */
 :root {
   --island-gap: 12px;
@@ -4425,8 +4378,7 @@ dialog.discover-screen::backdrop { background: var(--bg); }
 @media (max-width: 1023px) {
   body:has(> .glass-island) { padding-bottom: calc(var(--island-gap) + var(--island-h) + 16px + env(safe-area-inset-bottom)); }
   body:has(> .glass-island) .site-header .desktop-nav,
-  body:has(> .glass-island) .site-header .header-account,
-  body:has(> .glass-island) .site-header .header-account-menu { display: none; }
+  body:has(> .glass-island) .site-header .header-account { display: none; }
 
   /* Logo-only floating badge; theme toggle stays as a small glass chip on the right. */
   body:has(> .glass-island) .site-header {
@@ -4498,12 +4450,11 @@ dialog.discover-screen::backdrop { background: var(--bg); }
       var(--island-tint);
   }
 
-  /* One bottom dock row: orb | island | Match, shared baseline. */
+  /* One bottom dock row: island | Match, shared baseline. The +INSPIRA orb lives in the footer. */
   body:has(> .glass-island) {
     --dock-bottom: calc(var(--island-gap) + env(safe-area-inset-bottom));
     --dock-side: max(10px, env(safe-area-inset-left));
     --dock-side-right: max(10px, env(safe-area-inset-right));
-    --dock-orb: 56px;
     --dock-match-w: 108px;
   }
   body:has(> .glass-island) .discover-fab {
@@ -4513,14 +4464,24 @@ dialog.discover-screen::backdrop { background: var(--bg); }
     height: var(--island-h);
     padding: 0 0.95rem 0 0.8rem;
     font-size: 0.9rem;
+    transition:
+      transform 160ms ease,
+      box-shadow 160ms ease,
+      height 220ms cubic-bezier(.2, .8, .2, 1),
+      min-height 220ms cubic-bezier(.2, .8, .2, 1),
+      padding 220ms cubic-bezier(.2, .8, .2, 1),
+      font-size 220ms cubic-bezier(.2, .8, .2, 1);
   }
-  :root .glass-island ~ a.inspira-orb {
-    left: var(--dock-side) !important;
-    right: auto !important;
-    bottom: calc(var(--dock-bottom) + (var(--island-h) - var(--dock-orb)) / 2) !important;
-    width: var(--dock-orb) !important;
-    height: var(--dock-orb) !important;
+  body:has(> .glass-island) .discover-fab svg { transition: width 220ms ease, height 220ms ease; }
+  /* Match shrinks and grows back together with the island (watchIslandCompact toggles .is-compact). */
+  body:has(> .glass-island.is-compact) .discover-fab {
+    min-height: 52px;
+    height: 52px;
+    gap: 0.4rem;
+    padding: 0 0.8rem 0 0.65rem;
+    font-size: 0.82rem;
   }
+  body:has(> .glass-island.is-compact) .discover-fab svg { width: 20px; height: 20px; }
   .site-footer:has(~ .glass-island) { padding-bottom: 3.5rem; }
 
   .mobile-tabbar.glass-island {
@@ -4532,8 +4493,8 @@ dialog.discover-screen::backdrop { background: var(--bg); }
     right: auto;
     bottom: var(--dock-bottom);
     width: min(
-      360px,
-      calc(100% - var(--dock-orb) - 1.6rem - env(safe-area-inset-left) - env(safe-area-inset-right))
+      420px,
+      calc(100% - var(--dock-side) - var(--dock-side-right))
     );
     height: var(--island-h);
     margin-inline: 0;
@@ -4675,9 +4636,9 @@ dialog.discover-screen::backdrop { background: var(--bg); }
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--island-tint) 70%, transparent), 0 0 0 3.5px color-mix(in srgb, var(--coral) 55%, var(--text));
   }
 
-  /* Sit the island in the gap between orb and Match instead of true viewport center. */
+  /* With the orb gone from the corner, the island fills the row up to Match. */
   body:has(> .glass-island):has(.discover-fab) .mobile-tabbar.glass-island {
-    left: calc(var(--dock-side) + var(--dock-orb) + 0.45rem);
+    left: var(--dock-side);
     right: calc(var(--dock-side-right) + var(--dock-match-w) + 0.45rem);
     width: auto;
     max-width: none;
@@ -4685,12 +4646,6 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   }
   .glass-island.is-compact {
     --island-h: 52px;
-  }
-  body:has(> .glass-island):has(.discover-fab) .glass-island.is-compact {
-    left: calc(var(--dock-side) + var(--dock-orb) + 0.45rem);
-    right: calc(var(--dock-side-right) + var(--dock-match-w) + 0.45rem);
-    width: auto;
-    transform: none;
   }
   .glass-island.is-compact .mobile-tab svg { width: 22px; height: 22px; }
   .glass-island.is-compact :is(.island-account-avatar, .island-account-initial) { width: 26px; height: 26px; }
@@ -4741,9 +4696,6 @@ dialog.discover-screen::backdrop { background: var(--bg); }
 .recommendation-text strong { font-size: .9rem; line-height: 1.3; }
 .recommendation-text > span { color: var(--muted); font-size: .8rem; line-height: 1.3; }
 #dj-dialog .song-recommendation:hover { border-color: var(--amber); }
-.header-account-menu [role="menuitem"] { gap: .55rem; }
-.header-account-menu [role="menuitem"] svg { flex-shrink: 0; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-
 #dj-dialog .dialog-related h3 { color: color-mix(in srgb, var(--ink) 68%, var(--paper)); }
 
 /* Shared Liquid Glass chrome: the fixed header and floating search echo the island. */
@@ -5128,6 +5080,8 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   font-size: 0.95rem;
   font-weight: 700;
 }
+/* The phone header hides .theme-toggle-label on icon chips; the Conta theme row needs its title. */
+.account-menu-text .theme-toggle-label { display: block; }
 .account-menu-text > span {
   color: var(--muted);
   font-size: 0.8rem;
@@ -5140,6 +5094,8 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   border-bottom: 2px solid color-mix(in srgb, var(--muted) 80%, transparent);
   transform: rotate(-45deg);
 }
+.account-menu-row:has(> .account-menu-count:not([hidden])) { grid-template-columns: auto 1fr auto auto; }
+.account-menu-count { font-weight: 700; }
 :root[data-theme="light"] .account-hero,
 :root[data-theme="light"] .account-menu-panel {
   background:

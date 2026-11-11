@@ -132,7 +132,6 @@ const els = {
   activeFilter: document.querySelector("#active-filter"),
   dialog: document.querySelector("#dj-dialog"),
   previewAudio: document.querySelector("#preview-audio"),
-  favoritesCount: document.querySelector("#favorites-count"),
   searchSection: document.querySelector("#buscar"),
   spotifyButton: document.querySelector("#spotify-connect"),
   spotifyStatus: document.querySelector("#spotify-status"),
@@ -1031,7 +1030,6 @@ function persistFavorites() {
 }
 
 function updateFavoriteControls() {
-  els.favoritesCount.textContent = favoriteCodes.size.toLocaleString("pt-BR");
   updateMobileTabs();
 }
 
@@ -1873,8 +1871,6 @@ function applyCatalogFeatures() {
     els.siteNotice.hidden = !notice;
   }
   if (els.discoverFab) els.discoverFab.hidden = !discovery;
-  const favLink = document.querySelector("#show-favorites");
-  if (favLink) favLink.hidden = !favorites;
   const favFilter = document.querySelector("#filter-favorites")?.closest("label");
   if (favFilter) favFilter.hidden = !favorites;
   if (!favorites) favoritesOnly = false;

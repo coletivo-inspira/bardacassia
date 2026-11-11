@@ -1,37 +1,15 @@
 import "./styles.css";
-import { authBackendReady, displayName, getCurrentUser, onAuthChange, publicAuthEnabled, signOut } from "./integrations/auth.js";
+import { authBackendReady, displayName, getCurrentUser, onAuthChange } from "./integrations/auth.js";
 import { loadSiteFeatures } from "./integrations/features.js";
-import { getMyProfile, getMyRole } from "./integrations/profile.js";
+import { getMyProfile } from "./integrations/profile.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
 import { providerAvatarUrl } from "./lib/profile.js";
 import { getFeatures } from "./lib/feature-state.js";
-import { showFavorites, showNavHref, showPageFile, showThemeToggle } from "./lib/features.js";
-import { initializeTheme } from "./lib/theme.js";
+import { showNavHref, showPageFile, showThemeToggle } from "./lib/features.js";
 
 export { applyTheme, initializeTheme, toggleTheme } from "./lib/theme.js";
 
-const THEME_ICON_SUN = `<svg class="theme-icon-sun" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`;
-const THEME_ICON_MOON = `<svg class="theme-icon-moon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.2 15.1A8.4 8.4 0 0 1 8.9 3.8 8.5 8.5 0 1 0 20.2 15.1Z"/></svg>`;
 const USER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.2c1.3-3.6 4.2-5.4 7.5-5.4s6.2 1.8 7.5 5.4"/></svg>`;
-const HEART_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 20S4 15 4 9a4 4 0 0 1 8-2 4 4 0 0 1 8 2c0 6-8 11-8 11Z"/></svg>`;
-const EXIT_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 4H4v16h5m5-12 4 4-4 4M8 12h10"/></svg>`;
-const ENTER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15 4h5v16h-5M9 8l4 4-4 4M4 12h9"/></svg>`;
-const BAR_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4.5 4.5h15L12 12.8z"/><path d="M12 12.8v6.7M8 19.5h8M15.5 8.6l2.3-4.1"/></svg>`;
-const ADMIN_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>`;
-const THEME_MENU_ITEM = `
-      <button role="menuitem" type="button" data-action="theme" data-theme-toggle>
-        ${THEME_ICON_SUN}${THEME_ICON_MOON}
-        <span class="theme-toggle-label"></span>
-      </button>`;
-
-function currentPagePath() {
-  const page = location.pathname.split("/").pop() || "index.html";
-  return page === "login.html" ? "index.html" : `${page}${location.hash}`;
-}
-
-function loginHref() {
-  return `login.html?next=${encodeURIComponent(currentPagePath())}`;
-}
 
 function islandAccountSlot() {
   return document.querySelector(".glass-island [data-island-account]");
@@ -76,83 +54,20 @@ async function loadAccountAvatars(buttons, user) {
   }
 }
 
-let menusAbort = null;
-
-/** Desktop header keeps a compact dropdown; the island Conta tab opens conta.html. */
-function buildMenu({ id, wrapperClass, triggerClass, trigger, label, items, signal }) {
-  const wrapper = document.createElement("div");
-  wrapper.className = `header-account-menu ${wrapperClass}`.trim();
-  wrapper.innerHTML = `
-    <button class="${triggerClass}" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="${id}">
-      ${trigger}
-    </button>
-    <div id="${id}" role="menu" hidden>${items}
-    </div>`;
-  const button = wrapper.querySelector("button[aria-haspopup]");
-  const menu = wrapper.querySelector("[role=menu]");
-  button.setAttribute("aria-label", label);
-  const setOpen = (open) => {
-    menu.hidden = !open;
-    button.setAttribute("aria-expanded", String(open));
-    if (open) menu.querySelector("[role=menuitem]")?.focus();
-  };
-  button.addEventListener("click", () => setOpen(menu.hidden));
-  wrapper.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !menu.hidden) { setOpen(false); button.focus(); }
-  });
-  document.addEventListener("click", (event) => { if (!wrapper.contains(event.target)) setOpen(false); }, { signal });
-  return { wrapper, button };
-}
-
-const SIGNED_OUT_ITEMS = `
-      <a role="menuitem" class="account-menu-login" href="login.html" data-action="login">${ENTER_ICON}<span>Entrar</span></a>
-      <a role="menuitem" href="conta.html">${USER_ICON}<span>Conta</span></a>
-      <a role="menuitem" href="o-bar.html">${BAR_ICON}<span>O bar</span></a>${THEME_MENU_ITEM}`;
-
-const SIGNED_IN_ITEMS = `
-      <div class="header-account-email"></div>
-      <a role="menuitem" href="conta.html">${USER_ICON}<span>Conta</span></a>
-      <a role="menuitem" href="favoritos.html">${HEART_ICON}<span>Meus favoritos</span></a>
-      <a role="menuitem" href="login.html#conta">${USER_ICON}<span>Minha conta</span></a>
-      <a role="menuitem" href="o-bar.html">${BAR_ICON}<span>O bar</span></a>${THEME_MENU_ITEM}
-      <button role="menuitem" type="button" data-action="signout">${EXIT_ICON}<span>Sair</span></button>`;
-
-function accountMenuItems(user, { admin = false } = {}) {
-  const features = getFeatures();
-  const theme = showThemeToggle(features) ? THEME_MENU_ITEM : "";
-  const adminLink = admin
-    ? `\n      <a role="menuitem" href="admin.html">${ADMIN_ICON}<span>Painel admin</span></a>`
-    : "";
-  const conta = `\n      <a role="menuitem" href="conta.html">${USER_ICON}<span>Conta</span></a>`;
-  const oBar = `\n      <a role="menuitem" href="o-bar.html">${BAR_ICON}<span>O bar</span></a>`;
-  if (!user) {
-    if (publicAuthEnabled() && showThemeToggle(features)) {
-      return { items: SIGNED_OUT_ITEMS, label: "Entrar ou trocar o tema" };
-    }
-    const login = publicAuthEnabled()
-      ? `\n      <a role="menuitem" class="account-menu-login" href="login.html" data-action="login">${ENTER_ICON}<span>Entrar</span></a>`
-      : "";
-    return { items: `${login}${conta}${oBar}${theme}`, label: publicAuthEnabled() ? "Entrar ou trocar o tema" : "Conta" };
-  }
-  if (showFavorites(features) && publicAuthEnabled() && showThemeToggle(features)) {
-    const signout = `\n      <button role="menuitem" type="button" data-action="signout">`;
-    return {
-      items: SIGNED_IN_ITEMS.replace(signout, `${adminLink}${signout}`),
-      label: `Conta de ${displayName(user)}`,
-    };
-  }
-  const favorites = showFavorites(features)
-    ? `\n      <a role="menuitem" href="favoritos.html">${HEART_ICON}<span>Meus favoritos</span></a>`
-    : "";
-  const account = publicAuthEnabled()
-    ? `\n      <a role="menuitem" href="login.html#conta">${USER_ICON}<span>Minha conta</span></a>`
-    : "";
-  return {
-    items: `
-      <div class="header-account-email"></div>${conta}${favorites}${account}${oBar}${adminLink}${theme}
-      <button role="menuitem" type="button" data-action="signout">${EXIT_ICON}<span>Sair</span></button>`,
-    label: `Conta de ${displayName(user)}`,
-  };
+/** Like the island Conta tab, the desktop header button goes straight to conta.html (Entrar, tema e Sair live there). */
+function renderHeaderAccountLink(user) {
+  const headerSlot = document.querySelector("#header-account");
+  if (!headerSlot) return null;
+  const name = user ? displayName(user) : "";
+  const link = document.createElement("a");
+  link.className = "theme-toggle header-account";
+  link.href = "conta.html";
+  link.setAttribute("aria-label", user ? `Conta de ${name}` : "Conta");
+  if (pageSlug() === "conta") link.setAttribute("aria-current", "page");
+  link.innerHTML = `${USER_ICON}<span class="theme-toggle-label"></span>`;
+  link.querySelector(".theme-toggle-label").textContent = user ? name.split(/\s+/)[0] : "Conta";
+  headerSlot.replaceChildren(link);
+  return link;
 }
 
 function renderIslandAccountLink(user) {
@@ -177,62 +92,15 @@ function renderIslandAccountLink(user) {
   return link;
 }
 
-function renderAccountMenus(user, { admin = false } = {}) {
-  menusAbort?.abort();
-  menusAbort = new AbortController();
-  const { signal } = menusAbort;
-  const name = user ? displayName(user) : "";
-  const built = accountMenuItems(user, { admin });
-  if (!user && !built.items.trim()) {
-    document.querySelector("#header-account")?.replaceChildren();
-    islandAccountSlot()?.replaceChildren();
-    return;
-  }
-  const { items, label } = built;
-  const avatarButtons = [];
-
-  const headerSlot = document.querySelector("#header-account");
-  if (headerSlot) {
-    const header = buildMenu({
-      id: "header-account-list",
-      wrapperClass: "",
-      triggerClass: "theme-toggle header-account",
-      trigger: `${USER_ICON}<span class="theme-toggle-label"></span>`,
-      label,
-      items,
-      signal,
-    });
-    header.button.querySelector(".theme-toggle-label").textContent = user
-      ? name.split(/\s+/)[0]
-      : (publicAuthEnabled() ? "Entrar" : "Tema");
-    headerSlot.replaceChildren(header.wrapper);
-    const email = header.wrapper.querySelector(".header-account-email");
-    if (email) email.textContent = user?.email || name;
-    const login = header.wrapper.querySelector("[data-action=login]");
-    if (login) {
-      login.href = loginHref();
-      // Hash routes change after load, so refresh ?next= right before leaving for login.
-      login.addEventListener("click", () => { login.href = loginHref(); });
-    }
-    header.wrapper.querySelector("[data-action=signout]")?.addEventListener("click", async () => {
-      await signOut();
-      renderAccountMenus(null, { admin: false });
-    });
-    avatarButtons.push(header.button);
-  }
-
-  const islandLink = renderIslandAccountLink(user);
-  if (islandLink) avatarButtons.push(islandLink);
+function renderAccountLinks(user) {
+  const avatarButtons = [renderHeaderAccountLink(user), renderIslandAccountLink(user)].filter(Boolean);
   // Re-measure the Conta pill after the island trigger is swapped in.
   const island = document.querySelector(".glass-island");
   if (island?.classList.contains("has-active")) {
     const active = island.querySelector(":scope > [data-mobile-tab].is-active");
     syncIslandCapsule(island, active);
   }
-
   if (user) void loadAccountAvatars(avatarButtons, user);
-  // Theme items are [data-theme-toggle]; initializeTheme gives each its only click listener.
-  initializeTheme();
 }
 
 const BLOCKED_PAGES = {
@@ -287,28 +155,22 @@ export async function initializeAccountMenu() {
   await loadSiteFeatures();
   applyFeatureChrome();
   let user = null;
-  let admin = false;
   if (authBackendReady && hasStoredAuthSession()) {
     try {
       user = await getCurrentUser();
-      if (user) admin = (await getMyRole()) === "admin";
     } catch {
       user = null;
     }
   }
-  renderAccountMenus(user, { admin });
+  renderAccountLinks(user);
   if (!authBackendReady || !user) return;
   try {
     await onAuthChange(async (event) => {
-      if (event === "SIGNED_OUT") renderAccountMenus(null, { admin: false });
-      else if (event === "SIGNED_IN" || event === "USER_UPDATED") {
-        const next = await getCurrentUser();
-        const role = next ? await getMyRole() : null;
-        renderAccountMenus(next, { admin: role === "admin" });
-      }
+      if (event === "SIGNED_OUT") renderAccountLinks(null);
+      else if (event === "SIGNED_IN" || event === "USER_UPDATED") renderAccountLinks(await getCurrentUser());
     });
   } catch {
-    /* the signed-out menu keeps Entrar working when Supabase is unreachable */
+    /* the signed-out Conta link keeps working when Supabase is unreachable */
   }
 }
 
