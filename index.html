@@ -100,34 +100,34 @@
             </div>
           </div>
 
-          <div class="spotify-search">
-            <label class="visually-hidden" for="song-search">Buscar música, artista, código ou trecho da letra</label>
-            <div class="spotify-search-chrome">
-              <div class="spotify-search-control">
-                <span class="search-icon" aria-hidden="true">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                    <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2.2" />
-                    <path d="M16.5 16.5 21 21" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
-                  </svg>
-                </span>
-                <input
-                  id="song-search"
-                  type="search"
-                  placeholder="Qual música você quer cantar?"
-                  aria-describedby="search-guidance"
-                  autocomplete="off"
-                  enterkeyhint="search"
-                />
-                <button id="toggle-filters" class="clear-button" type="button" aria-expanded="false" aria-controls="catalog-filters">Filtros</button>
-                <button id="clear-search" class="clear-button" type="button" hidden>Limpar</button>
-              </div>
-              <div id="catalog-filters" class="catalog-filters" hidden>
-                <label>Idioma<select id="filter-language"><option value="">Todos os idiomas</option></select></label>
-                <label>Artista<input id="filter-artist-search" type="search" placeholder="Buscar artista" aria-label="Buscar nome do artista no filtro" /><select id="filter-artist" aria-label="Selecionar artista"><option value="">Todos os artistas</option></select></label>
-                <label class="favorite-filter"><input id="filter-favorites" type="checkbox" /> Somente favoritas</label>
-                <button id="clear-filters" class="text-button" type="button">Limpar filtros</button>
-              </div>
+          <label class="visually-hidden" for="song-search">Buscar música, artista, código ou trecho da letra</label>
+          <div class="spotify-search-chrome">
+            <div class="spotify-search-control">
+              <span class="search-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2.2" />
+                  <path d="M16.5 16.5 21 21" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                </svg>
+              </span>
+              <input
+                id="song-search"
+                type="search"
+                placeholder="Qual música você quer cantar?"
+                aria-describedby="search-guidance"
+                autocomplete="off"
+                enterkeyhint="search"
+              />
+              <button id="toggle-filters" class="clear-button" type="button" aria-expanded="false" aria-controls="catalog-filters">Filtros</button>
+              <button id="clear-search" class="clear-button" type="button" hidden>Limpar</button>
             </div>
+            <div id="catalog-filters" class="catalog-filters" hidden>
+              <label>Idioma<select id="filter-language"><option value="">Todos os idiomas</option></select></label>
+              <label>Artista<input id="filter-artist-search" type="search" placeholder="Buscar artista" aria-label="Buscar nome do artista no filtro" /><select id="filter-artist" aria-label="Selecionar artista"><option value="">Todos os artistas</option></select></label>
+              <label class="favorite-filter"><input id="filter-favorites" type="checkbox" /> Somente favoritas</label>
+              <button id="clear-filters" class="text-button" type="button">Limpar filtros</button>
+            </div>
+          </div>
+          <div class="spotify-search">
             <div id="active-filter-chips" class="active-filter-chips" aria-label="Filtros ativos"></div>
             <p id="search-guidance" class="search-guidance">Digite o nome da música, do artista, o código ou um pedaço da letra. Não precisa de acentos.</p>
             <div id="search-suggestions" class="search-suggestions" aria-label="Sugestões de busca"></div>
@@ -245,7 +245,12 @@
         </div>
         <section id="dialog-related" class="dialog-related" aria-labelledby="dialog-related-title" hidden>
           <h3 id="dialog-related-title">Quem canta isso também canta</h3>
-          <div id="dialog-related-list" class="related-list"></div>
+          <div id="dialog-related-list" class="song-recommendations" tabindex="0" aria-label="Músicas recomendadas"></div>
+          <div class="recommendation-controls" hidden>
+            <button type="button" data-recommendation="previous" aria-label="Recomendação anterior"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></svg></button>
+            <button type="button" data-recommendation="pause" aria-pressed="false">Pausar</button>
+            <button type="button" data-recommendation="next" aria-label="Próxima recomendação"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></svg></button>
+          </div>
         </section>
         <span class="code-label">CÓDIGO DA MÚSICA</span>
         <output id="dialog-code" class="song-code"></output>

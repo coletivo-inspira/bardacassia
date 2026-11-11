@@ -4431,3 +4431,28 @@ dialog.discover-screen::backdrop { background: var(--bg); }
   .island-account-initial { transition: none; }
   .glass-island .island-account-menu [role="menu"] { animation: none; }
 }
+
+/* The sticky search belongs to the whole catalog, not its introductory copy. */
+.spotify-search-chrome { flex-shrink: 0; }
+.catalog-filters { max-height: calc(100dvh - var(--header-h) - 88px); overflow-y: auto; overscroll-behavior: contain; }
+.search-portal-inner { min-width: 0; }
+
+#dj-dialog .dialog-related { min-width: 0; max-width: 100%; }
+.song-recommendations { position: relative; display: flex; gap: .65rem; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: thin; scrollbar-color: var(--muted) transparent; padding: .2rem .2rem .6rem; }
+#dj-dialog .song-recommendation { flex: 0 0 min(260px, 88%); display: flex; align-items: center; gap: .7rem; min-width: 0; padding: .65rem; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-soft); color: var(--text); text-align: left; font: inherit; cursor: pointer; scroll-snap-align: start; }
+.recommendation-cover { flex: 0 0 48px; width: 48px; height: 48px; overflow: hidden; border-radius: 8px; }
+.recommendation-cover img, .recommendation-cover .cover-fallback { width: 100%; height: 100%; object-fit: cover; }
+.recommendation-text { min-width: 0; display: grid; gap: .2rem; }
+.recommendation-text strong, .recommendation-text > span { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+.recommendation-text strong { font-size: .9rem; line-height: 1.3; }
+.recommendation-text > span { color: var(--muted); font-size: .8rem; line-height: 1.3; }
+.recommendation-controls { display: flex; justify-content: flex-end; gap: .35rem; margin-top: .2rem; }
+.recommendation-controls[hidden] { display: none; }
+#dj-dialog .recommendation-controls button { min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-soft); color: var(--text); font: inherit; font-size: .8rem; cursor: pointer; }
+.recommendation-controls svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#dj-dialog .song-recommendation:hover { border-color: var(--amber); }
+.song-recommendations:focus-visible, .song-recommendation:focus-visible, .recommendation-controls button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.header-account-menu [role="menuitem"] { gap: .55rem; }
+.header-account-menu [role="menuitem"] svg { flex-shrink: 0; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+#dj-dialog .dialog-related h3 { color: #5c5c5c; }
