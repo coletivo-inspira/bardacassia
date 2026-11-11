@@ -16,21 +16,20 @@ function islandOf(page) {
 }
 
 for (const [page, hrefs] of Object.entries(ISLAND_PAGES)) {
-  test(`${page} has the floating island with Início, Buscar, O bar and Conta`, () => {
+  test(`${page} has the floating island with Início, Buscar and Conta`, () => {
     const { island } = islandOf(page);
     assert.ok(island, "glass island not found");
     const tabs = [...island.matchAll(/data-mobile-tab="([^"]+)"/g)].map((match) => match[1]);
-    assert.deepEqual(tabs, ["inicio", "buscar", "o-bar", "conta"]);
+    assert.deepEqual(tabs, ["inicio", "buscar", "conta"]);
     assert.match(island, new RegExp(`href="${hrefs.inicio}" data-mobile-tab="inicio" aria-label="Início"`));
     assert.match(island, new RegExp(`href="${hrefs.buscar}" data-mobile-tab="buscar" aria-label="Buscar"`));
-    assert.match(island, /href="o-bar\.html" data-mobile-tab="o-bar" aria-label="O bar"/);
+    assert.doesNotMatch(island, /data-mobile-tab="o-bar"/);
     // Conta opens the dedicated account page instead of a dropdown menu.
     assert.match(island, /<a class="mobile-tab island-account-trigger" href="conta\.html" aria-label="Conta"/);
     assert.doesNotMatch(island, /aria-haspopup="menu"/);
     assert.match(island, /class="glass-island-capsule" aria-hidden="true"/);
     assert.match(island, /class="mobile-tab-label">Início</);
     assert.match(island, /class="mobile-tab-label">Buscar</);
-    assert.match(island, /class="mobile-tab-label">O bar</);
     assert.match(island, /class="mobile-tab-label">Conta</);
   });
 
@@ -51,9 +50,9 @@ for (const page of ["login.html", "garcom.html", "gerente.html", "cartaz.html", 
   });
 }
 
-test("favoritos.html and conta.html mark Conta in the island without claiming a text tab", () => {
+test("favoritos.html, conta.html and o-bar.html mark Conta in the island without claiming a text tab", () => {
   const site = readFileSync(new URL("../src/site.js", import.meta.url), "utf8");
-  assert.match(site, /const ISLAND_PAGE_TABS = \{[^}]*favoritos: "conta"[^}]*conta: "conta"[^}]*\}/);
+  assert.match(site, /const ISLAND_PAGE_TABS = \{[^}]*"o-bar": "conta"[^}]*favoritos: "conta"[^}]*conta: "conta"[^}]*\}/);
 });
 
 test("active island tabs reveal their label in CSS", () => {

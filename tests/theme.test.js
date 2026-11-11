@@ -112,8 +112,18 @@ for (const page of ["index.html", "evento.html", "o-bar.html", "favoritos.html",
     assert.ok(header, "site header not found");
     assert.match(header, /id="theme-toggle"[^>]*data-theme-toggle/);
     assert.match(header, /class="theme-toggle-label">Modo noturno</);
-    assert.match(header, /class="header-instagram theme-toggle"/);
+    assert.doesNotMatch(header, /instagram\.com\/bardacaciaoficial/);
     assert.match(header, /<div id="header-account" class="header-account-slot"><\/div>/);
+  });
+
+  test(`${page} keeps Instagram in the footer, not the header`, () => {
+    const html = readFileSync(new URL(`../${page}`, import.meta.url), "utf8");
+    const footer = html.match(/<footer class="site-footer">([\s\S]*?)<\/footer>/)?.[1];
+    assert.ok(footer, "site footer not found");
+    assert.match(footer, /class="site-instagram footer-instagram theme-toggle"/);
+    assert.match(footer, /href="https:\/\/www\.instagram\.com\/bardacaciaoficial\/"/);
+    assert.match(footer, /aria-label="Visitar o Instagram oficial do Bar da Cácia"/);
+    assert.match(footer, /target="_blank"/);
   });
 }
 
@@ -128,10 +138,12 @@ test("signed-out menu offers Entrar and the theme; signed-in adds favoritos and 
   const signedIn = site.match(/const SIGNED_IN_ITEMS = `([\s\S]*?)`;/)?.[1];
   assert.ok(signedOut && signedIn, "menu item templates not found");
   assert.match(signedOut, /role="menuitem"[^>]*href="login\.html"[^>]*>\$\{ENTER_ICON\}<span>Entrar<\/span></);
+  assert.match(signedOut, /href="o-bar\.html">\$\{BAR_ICON\}<span>O bar<\/span></);
   assert.match(signedOut, /\$\{THEME_MENU_ITEM\}/);
   assert.doesNotMatch(signedOut, /signout/);
   assert.match(signedIn, /href="favoritos\.html">\$\{HEART_ICON\}<span>Meus favoritos<\/span></);
   assert.match(signedIn, /href="login\.html#conta">\$\{USER_ICON\}<span>Minha conta<\/span></);
+  assert.match(signedIn, /href="o-bar\.html">\$\{BAR_ICON\}<span>O bar<\/span></);
   assert.match(signedIn, /\$\{THEME_MENU_ITEM\}/);
   assert.match(signedIn, /data-action="signout"/);
   assert.doesNotMatch(site, /is-in-account-menu|setHeaderThemeVisible/);

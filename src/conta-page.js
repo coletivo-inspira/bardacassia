@@ -19,6 +19,7 @@ const HEART_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 20S
 const USER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.2c1.3-3.6 4.2-5.4 7.5-5.4s6.2 1.8 7.5 5.4"/></svg>`;
 const EXIT_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 4H4v16h5m5-12 4 4-4 4M8 12h10"/></svg>`;
 const ENTER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15 4h5v16h-5M9 8l4 4-4 4M4 12h9"/></svg>`;
+const BAR_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4.5 4.5h15L12 12.8z"/><path d="M12 12.8v6.7M8 19.5h8M15.5 8.6l2.3-4.1"/></svg>`;
 
 function loginHref() {
   return `login.html?next=${encodeURIComponent("conta.html")}`;
@@ -105,6 +106,7 @@ function renderAccountPage(user) {
     if (publicAuthEnabled()) {
       rows.push(menuRow({ href: "login.html#conta", icon: USER_ICON, title: "Minha conta", detail: "Perfil, dados e privacidade" }));
     }
+    rows.push(menuRow({ href: "o-bar.html", icon: BAR_ICON, title: "O bar", detail: "Valores, endereço e horário" }));
     if (showThemeToggle(features)) rows.push(themeRow());
     rows.push(menuRow({ action: "signout", icon: EXIT_ICON, title: "Sair", detail: "Desconectar deste aparelho", danger: true }));
     list.innerHTML = rows.join("");
@@ -134,6 +136,7 @@ function renderAccountPage(user) {
     if (publicAuthEnabled()) {
       rows.push(menuRow({ href: loginHref(), icon: ENTER_ICON, title: "Entrar", detail: "Acesse sua conta no bar" }));
     }
+    rows.push(menuRow({ href: "o-bar.html", icon: BAR_ICON, title: "O bar", detail: "Valores, endereço e horário" }));
     if (showThemeToggle(features)) rows.push(themeRow());
     list.innerHTML = rows.join("");
     const login = list.querySelector('a[href^="login.html"]');

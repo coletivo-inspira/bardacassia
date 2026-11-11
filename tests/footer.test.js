@@ -10,6 +10,7 @@ for (const page of FOOTER_PAGES) {
     const footer = html.match(/<footer class="site-footer">([\s\S]*?)<\/footer>/)?.[1];
     assert.ok(footer, "site footer not found");
     assert.doesNotMatch(footer, /footer-nav/);
+    assert.match(footer, /class="site-instagram footer-instagram theme-toggle"/);
     assert.match(footer, /©\s*<span data-current-year>\d{4}<\/span>/);
     assert.match(footer, /<a href="https:\/\/inspira\.dev\.br\/"[^>]*>Coletivo Inspira<\/a>\.\s*Todos os direitos reservados\./);
   });
