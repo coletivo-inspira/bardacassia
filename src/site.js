@@ -219,8 +219,19 @@ export function setIslandTab(name, { current = true } = {}) {
   requestAnimationFrame(() => syncIslandCapsule(island, active));
 }
 
+/** The catalog top bar (logo + search) shares the island's compact state so the chrome moves as one. */
+function compactCompanions() {
+  const bar = document.querySelector(".header-search")?.closest(".site-header");
+  return bar ? [bar] : [];
+}
+
 function watchIslandCompact(island) {
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const companions = compactCompanions();
+  const setCompact = (compact) => {
+    island.classList.toggle("is-compact", compact);
+    companions.forEach((el) => el.classList.toggle("is-compact", compact));
+  };
   let lastY = Math.max(0, window.scrollY);
   let idle = 0;
   let holdUntil = 0;
@@ -229,7 +240,7 @@ function watchIslandCompact(island) {
     syncIslandCapsule(island, active);
   };
   const expand = () => {
-    island.classList.remove("is-compact");
+    setCompact(false);
     requestAnimationFrame(remasure);
   };
   // A tab tap smooth-scrolls to its section; that scroll should not shrink the island under the finger.
@@ -250,7 +261,7 @@ function watchIslandCompact(island) {
     lastY = y;
     const nextCompact = delta > 0 && y > 48 && !reducedMotion.matches;
     if (island.classList.contains("is-compact") === nextCompact) return;
-    island.classList.toggle("is-compact", nextCompact);
+    setCompact(nextCompact);
     requestAnimationFrame(remasure);
   }, { passive: true });
 }
