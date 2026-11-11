@@ -5,23 +5,43 @@
     <!-- The sha256 hash matches the inline theme script below; update it whenever that script changes. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'sha256-iMFbpV45oV/4dFfphWv2il23OZMpif8M2Qnjm7bec0k=' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'"
+      content="default-src 'self'; script-src 'self' 'sha256-7BMys5x5IStsYAWhCIuVJGVhrM+jn1gZuwKObG1VJDM=' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#141414" />
+    <meta name="theme-color" content="#1a2218" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="robots" content="noindex" />
     <script>
       (() => {
+        const hex = /^#[0-9a-fA-F]{6}$/;
+        const ids = ["bg", "bg-elev", "bg-soft", "text", "muted", "amber", "sky", "coral", "swipe-like"];
+        const root = document.documentElement;
+        const fallback = { dark: "#1a2218", light: "#f7f1e1" };
         try {
+          const raw = JSON.parse(localStorage.getItem("bdc-palette-v1") || "null");
+          const decl = (theme) => {
+            const source = raw && raw[theme];
+            if (!source || typeof source !== "object") return "";
+            return ids.filter((id) => hex.test(String(source[id] || ""))).map((id) => "--" + id + ":" + source[id] + " !important").join(";");
+          };
+          const dark = decl("dark");
+          const light = decl("light");
+          if (dark || light) {
+            const style = document.createElement("style");
+            style.id = "bdc-palette";
+            style.textContent = (dark ? ":root{" + dark + "}" : "") + (light ? ':root[data-theme="light"]{' + light + "}" : "");
+            document.head.appendChild(style);
+          }
           const saved = localStorage.getItem("bdc-theme-v1");
           const theme = saved === "light" || saved === "dark"
             ? saved
             : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-          document.documentElement.dataset.theme = theme;
-          document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#141414" : "#f7f3e9";
+          root.dataset.theme = theme;
+          const bg = getComputedStyle(root).getPropertyValue("--bg").trim();
+          const meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.content = hex.test(bg) ? bg : fallback[theme];
         } catch {
-          document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          root.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
         }
       })();
     </script>

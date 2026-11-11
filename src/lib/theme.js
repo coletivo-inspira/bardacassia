@@ -1,6 +1,18 @@
+import { isHexColor, LOGO_PALETTE } from "./palette.js";
+
 export const THEME_KEY = "bdc-theme-v1";
 
 const TOGGLE_SELECTOR = "#theme-toggle, [data-theme-toggle]";
+
+function themeColor(theme) {
+  try {
+    const value = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+    if (isHexColor(value)) return value;
+  } catch {
+    /* o teste sem getComputedStyle cai na cor da logo */
+  }
+  return theme === "light" ? LOGO_PALETTE.light.bg : LOGO_PALETTE.dark.bg;
+}
 
 function themeControls() {
   return document.querySelectorAll(TOGGLE_SELECTOR);
@@ -19,7 +31,7 @@ export function applyTheme(theme, save = false) {
     }
   });
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = theme === "dark" ? "#141414" : "#f7f3e9";
+  if (meta) meta.content = themeColor(theme);
   if (save) {
     try {
       localStorage.setItem(THEME_KEY, theme);

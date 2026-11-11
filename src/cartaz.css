@@ -1,14 +1,12 @@
-:root {
-  --ink: #141414;
-  --amber: #dec949;
-  --gold: #8a6a12;
-  font-family: "Outfit", system-ui, sans-serif;
-  color: var(--ink);
-}
+@import "./styles.css";
 
 *, *::before, *::after { box-sizing: border-box; }
 
-body { margin: 0; background: #e9e6dc; }
+body.poster-page {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
 
 .poster-controls {
   display: flex;
@@ -16,20 +14,20 @@ body { margin: 0; background: #e9e6dc; }
   align-items: center;
   gap: .5rem .75rem;
   padding: .75rem 1rem;
-  background: var(--ink);
-  color: #fff;
+  background: var(--bg-elev);
+  color: var(--text);
 }
 .poster-controls label { font-weight: 600; font-size: .9rem; }
 .poster-controls select, .poster-controls button {
   min-height: 44px;
   padding: .4rem .8rem;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, .3);
-  background: #222;
-  color: #fff;
-  font: 600 1rem "Outfit", system-ui, sans-serif;
+  border: 1px solid color-mix(in srgb, var(--text) 30%, transparent);
+  background: var(--bg-soft);
+  color: var(--text);
+  font: 600 1rem var(--font-body);
 }
-.poster-controls button { background: var(--amber); color: var(--ink); border-color: transparent; cursor: pointer; }
+.poster-controls button { background: var(--amber); color: var(--bg); border-color: transparent; cursor: pointer; }
 
 .poster {
   display: flex;
@@ -41,7 +39,8 @@ body { margin: 0; background: #e9e6dc; }
   height: 210mm;
   margin: 1.5rem auto;
   padding: 12mm;
-  background: #fff;
+  background: var(--paper);
+  color: var(--ink);
   border: 3mm solid var(--amber);
   text-align: center;
   box-shadow: 0 10px 30px rgba(0, 0, 0, .15);
@@ -50,7 +49,7 @@ body { margin: 0; background: #e9e6dc; }
 
 .poster-logo { width: 24mm; height: 24mm; }
 .poster[data-size="a4"] .poster-logo { width: 34mm; height: 34mm; }
-.poster h1 { margin: 0; font-family: "Bricolage Grotesque", Georgia, serif; font-size: 16mm; font-weight: 800; line-height: 1; }
+.poster h1 { margin: 0; font-family: var(--font-display); font-size: 16mm; font-weight: 800; line-height: 1; }
 .poster[data-size="a4"] h1 { font-size: 24mm; }
 .poster-lead { margin: 0; font-size: 6mm; font-weight: 600; }
 .poster[data-size="a4"] .poster-lead { font-size: 9mm; }
@@ -59,11 +58,11 @@ body { margin: 0; background: #e9e6dc; }
 .poster-qr svg { width: 100%; height: 100%; display: block; }
 .poster-steps { margin: 0; padding-left: 7mm; text-align: left; font-size: 4.2mm; line-height: 1.45; }
 .poster[data-size="a4"] .poster-steps { font-size: 6mm; }
-.poster-url { margin: 0; color: var(--gold); font-weight: 700; font-size: 4mm; overflow-wrap: anywhere; }
+.poster-url { margin: 0; color: color-mix(in srgb, var(--amber) 55%, var(--ink)); font-weight: 700; font-size: 4mm; overflow-wrap: anywhere; }
 .poster[data-size="a4"] .poster-url { font-size: 5.5mm; }
 
 @media print {
-  body { background: #fff; }
+  body.poster-page { background: var(--paper); }
   .poster-controls { display: none; }
   .poster { margin: 0; box-shadow: none; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }

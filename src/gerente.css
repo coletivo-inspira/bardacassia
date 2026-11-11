@@ -1,23 +1,4 @@
-:root {
-  --bg: #07111f;
-  --text: #f4f7fb;
-  --muted: #d5e2f4;
-  --blue: #5aa2ff;
-  --orange: #ff8a3d;
-  --ink: #1a0d04;
-  --glass-highlight: rgba(255, 255, 255, 0.55);
-  --glass-rim: rgba(255, 255, 255, 0.2);
-  --glass-drop: rgba(3, 10, 24, 0.32);
-  --font-display: "Bricolage Grotesque", Georgia, serif;
-  --font-body: "Outfit", system-ui, sans-serif;
-  color-scheme: dark;
-  color: var(--text);
-  background: var(--bg);
-  font-family: var(--font-body);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-}
+@import "./styles.css";
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -26,9 +7,9 @@ body.manager-page {
   min-width: 320px;
   min-height: 100dvh;
   background:
-    radial-gradient(900px 520px at 8% -10%, rgba(61, 139, 255, 0.38), transparent 60%),
-    radial-gradient(760px 480px at 100% 0%, rgba(255, 138, 61, 0.32), transparent 58%),
-    radial-gradient(680px 420px at 70% 110%, rgba(61, 139, 255, 0.2), transparent 55%),
+    radial-gradient(900px 520px at 8% -10%, color-mix(in srgb, var(--sky) 38%, transparent), transparent 60%),
+    radial-gradient(760px 480px at 100% 0%, color-mix(in srgb, var(--coral) 32%, transparent), transparent 58%),
+    radial-gradient(680px 420px at 70% 110%, color-mix(in srgb, var(--amber) 20%, transparent), transparent 55%),
     var(--bg);
 }
 
@@ -53,7 +34,7 @@ body.manager-page {
   z-index: 20;
   padding: 0.8rem 1rem;
   border-radius: 10px;
-  background: #fff;
+  background: var(--paper);
   color: var(--ink);
 }
 
@@ -66,7 +47,7 @@ button, input { font: inherit; }
 button, a, input { touch-action: manipulation; }
 
 button:focus-visible, a:focus-visible, input:focus-visible {
-  outline: 2px solid #ffc08a;
+  outline: 2px solid var(--amber);
   outline-offset: 3px;
 }
 
@@ -92,7 +73,7 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   min-height: 220px;
   left: -8vw;
   top: 8vh;
-  background: radial-gradient(circle, rgba(90, 162, 255, 0.7), rgba(90, 162, 255, 0) 68%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--sky) 70%, transparent), transparent 68%);
 }
 
 .orb-orange {
@@ -102,7 +83,7 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   min-height: 200px;
   right: -6vw;
   top: -6vh;
-  background: radial-gradient(circle, rgba(255, 138, 61, 0.62), rgba(255, 138, 61, 0) 70%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--coral) 62%, transparent), transparent 70%);
 }
 
 .orb-blue-far {
@@ -112,15 +93,15 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   min-height: 160px;
   right: 18vw;
   bottom: -8vh;
-  background: radial-gradient(circle, rgba(120, 180, 255, 0.4), rgba(120, 180, 255, 0) 70%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--sky) 40%, transparent), transparent 70%);
 }
 
 .glass {
   position: relative;
   isolation: isolate;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04) 32%, rgba(255, 255, 255, 0.03)),
-    rgba(12, 28, 52, 0.52);
+    linear-gradient(180deg, color-mix(in srgb, var(--text) 16%, transparent), color-mix(in srgb, var(--text) 4%, transparent) 32%, color-mix(in srgb, var(--text) 3%, transparent)),
+    color-mix(in srgb, var(--bg-elev) 52%, transparent);
   border: 1px solid var(--glass-rim);
   border-radius: 22px;
   box-shadow: inset 0 1px 0 var(--glass-highlight), inset 0 0 0 1px rgba(255, 255, 255, 0.05), 0 18px 40px var(--glass-drop);
@@ -134,7 +115,7 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   inset: 0;
   z-index: -1;
   border-radius: inherit;
-  background: radial-gradient(90% 55% at 12% 0%, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 58%);
+  background: radial-gradient(90% 55% at 12% 0%, color-mix(in srgb, var(--text) 28%, transparent), transparent 58%);
   pointer-events: none;
 }
 
@@ -183,8 +164,8 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   margin: 0;
   padding: 0.35rem 0.7rem;
   border-radius: 999px;
-  background: rgba(90, 162, 255, 0.18);
-  color: #e7f1ff;
+  background: color-mix(in srgb, var(--sky) 18%, transparent);
+  color: var(--text);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -192,8 +173,8 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 }
 
 .source-badge[data-source="local"] {
-  background: rgba(255, 138, 61, 0.2);
-  color: #ffe7d4;
+  background: color-mix(in srgb, var(--coral) 20%, transparent);
+  color: var(--text);
 }
 
 .range-switch, .sample-switch {
@@ -201,7 +182,7 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   gap: 0.2rem;
   padding: 0.2rem;
   border-radius: 999px;
-  background: rgba(5, 12, 24, 0.35);
+  background: color-mix(in srgb, var(--bg-elev) 35%, transparent);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
@@ -220,8 +201,8 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 }
 
 .range-button[aria-pressed="true"] {
-  background: linear-gradient(180deg, #ffc08a, var(--orange));
-  color: var(--ink);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--amber) 70%, var(--paper)), var(--amber));
+  color: var(--bg);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
@@ -234,7 +215,7 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   text-decoration: none;
 }
 
-.mgr-text-link:hover { color: #ffc08a; }
+.mgr-text-link:hover { color: var(--amber); }
 
 .manager-main {
   width: min(1180px, calc(100% - 1.5rem));
@@ -245,7 +226,7 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 .boot-status, .status-line {
   min-height: 1.25rem;
   margin: 0 0 0.75rem;
-  color: #ffe7d4;
+  color: var(--amber);
   font-weight: 600;
 }
 
@@ -274,7 +255,7 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 .panel h2 { font-size: 1.05rem; }
 
 .panel-note { margin: 0 0 0.8rem; color: var(--muted); line-height: 1.45; }
-.panel-note a { color: #ffc08a; }
+.panel-note a { color: var(--amber); }
 
 .panel-head {
   display: flex;
@@ -295,14 +276,14 @@ input[type="email"], input[type="password"], input[type="search"] {
   width: 100%;
   min-height: 48px;
   padding: 0.65rem 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
   border-radius: 14px;
-  background: rgba(5, 12, 24, 0.45);
+  background: color-mix(in srgb, var(--bg-elev) 45%, transparent);
   color: var(--text);
   font: 500 16px/1.3 var(--font-body);
 }
 
-input::placeholder { color: #c5d4ea; }
+input::placeholder { color: var(--muted); }
 
 .mgr-button {
   display: inline-flex;
@@ -310,8 +291,8 @@ input::placeholder { color: #c5d4ea; }
   justify-content: center;
   margin-top: 0.35rem;
   padding: 0.7rem 1.1rem;
-  background: linear-gradient(180deg, #ffc08a, var(--orange));
-  color: var(--ink);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--amber) 70%, var(--paper)), var(--amber));
+  color: var(--bg);
   text-decoration: none;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 8px 18px rgba(255, 138, 61, 0.22);
 }
@@ -333,7 +314,7 @@ input::placeholder { color: #c5d4ea; }
 }
 
 .kpi {
-  --accent: var(--orange);
+  --accent: var(--coral);
   display: grid;
   align-content: space-between;
   gap: 0.45rem;
@@ -341,7 +322,7 @@ input::placeholder { color: #c5d4ea; }
   padding: 0.9rem 0.9rem 1.15rem;
 }
 
-.kpi:nth-child(even) { --accent: var(--blue); }
+.kpi:nth-child(even) { --accent: var(--sky); }
 
 .kpi::after {
   content: "";
@@ -388,7 +369,7 @@ input::placeholder { color: #c5d4ea; }
 .now-card {
   padding: 0.75rem;
   border-radius: 16px;
-  background: rgba(5, 12, 24, 0.28);
+  background: color-mix(in srgb, var(--bg-elev) 28%, transparent);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
@@ -412,8 +393,8 @@ input::placeholder { color: #c5d4ea; }
   line-height: 1.3;
 }
 
-.now-card[data-open="true"] strong { color: #b7f0cf; }
-.now-card[data-open="false"] strong { color: #ffb4a8; }
+.now-card[data-open="true"] strong { color: var(--swipe-like); }
+.now-card[data-open="false"] strong { color: var(--coral); }
 
 .now-message {
   margin: 0.75rem 0 0;
@@ -453,7 +434,7 @@ input::placeholder { color: #c5d4ea; }
   height: 10px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
@@ -461,7 +442,7 @@ input::placeholder { color: #c5d4ea; }
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--blue), var(--orange));
+  background: linear-gradient(90deg, var(--sky), var(--amber));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
@@ -472,18 +453,23 @@ input::placeholder { color: #c5d4ea; }
 .song-row, .queue-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: none;
   gap: 0.65rem;
   align-items: center;
   padding: 0.55rem 0.15rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0;
+  background: transparent;
+  animation: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
 }
+.manager-page .song-meta { font-size: 0.8rem !important; opacity: 1; }
 
 .song-code, .queue-code {
   min-width: 3.4rem;
   padding: 0.28rem 0.4rem;
   border-radius: 999px;
-  background: rgba(255, 138, 61, 0.18);
-  color: #ffe7d4;
+  background: color-mix(in srgb, var(--amber) 18%, transparent);
+  color: var(--text);
   font-weight: 800;
   letter-spacing: 0.03em;
   text-align: center;
@@ -523,7 +509,7 @@ input::placeholder { color: #c5d4ea; }
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass { background: rgba(10, 22, 42, 0.94); }
+  .glass { background: color-mix(in srgb, var(--bg-elev) 94%, transparent); }
 }
 
 @media (prefers-reduced-motion: no-preference) {

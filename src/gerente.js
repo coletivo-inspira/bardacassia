@@ -1,4 +1,5 @@
 import "./gerente.css";
+import { loadSiteFeatures } from "./integrations/features.js";
 import {
   getStaffSession, ownerMetrics, requestsConfigured, staffGetNightCode, staffGetSettings, staffListPlayed,
   staffListRequests, staffSignIn, staffSignOut, staffWhoami,
@@ -285,6 +286,7 @@ async function enterPanel() {
 }
 
 function init() {
+  void loadSiteFeatures();
   els.ranges.forEach((button) => button.addEventListener("click", () => {
     rangeId = button.dataset.range;
     setPressed(els.ranges, rangeId, "range");

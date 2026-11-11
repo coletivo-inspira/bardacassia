@@ -1,6 +1,6 @@
 import "./garcom.css";
 import { authBackendReady, buildAuthProviders, getCurrentUser, signIn, signOut } from "./integrations/auth.js";
-import { listProfiles, loadSiteFeatures, saveSiteFeatures, setProfileRole } from "./integrations/features.js";
+import { listProfiles, loadSiteFeatures, peekSitePayload, saveSiteFeatures, saveSitePalette, setProfileRole } from "./integrations/features.js";
 import { getFeatures } from "./lib/feature-state.js";
 import {
   FEATURE_SWITCHES,
@@ -8,6 +8,7 @@ import {
   requestModeOf,
   storedAuthProviders,
 } from "./lib/features.js";
+import { LOGO_PALETTE, PALETTE_THEMES, PALETTE_TOKENS, applyPalette, mergePalette } from "./lib/palette.js";
 import { getMyRole } from "./integrations/profile.js";
 import { authErrorMessage } from "./lib/auth-validation.js";
 
@@ -35,6 +36,10 @@ const els = {
   providersSection: $("#providers-section"),
   providers: $("#provider-switches"),
   form: $("#features-form"),
+  paletteForm: $("#palette-form"),
+  paletteFields: $("#palette-fields"),
+  paletteStatus: $("#palette-status"),
+  paletteReset: $("#palette-reset"),
   roles: $("#role-list"),
   rolesEmpty: $("#role-empty"),
   roleStatus: $("#role-status"),
@@ -181,9 +186,52 @@ async function loadRoles() {
   renderRoles(rows);
 }
 
+function readPaletteForm() {
+  const next = { dark: {}, light: {} };
+  document.querySelectorAll("[data-palette-token]").forEach((input) => {
+    next[input.dataset.theme][input.dataset.paletteToken] = input.value;
+  });
+  return next;
+}
+
+function renderPalette(palette) {
+  const merged = mergePalette(palette);
+  els.paletteFields.replaceChildren(...PALETTE_THEMES.map((theme) => {
+    const card = document.createElement("div");
+    card.className = "staff-card palette-card";
+    const title = document.createElement("h3");
+    title.className = "palette-theme";
+    title.textContent = theme.label;
+    card.append(title);
+    for (const token of PALETTE_TOKENS) {
+      const row = document.createElement("label");
+      row.className = "palette-row";
+      const name = document.createElement("span");
+      name.textContent = token.label;
+      const input = document.createElement("input");
+      input.type = "color";
+      input.value = merged[theme.id][token.id];
+      input.dataset.theme = theme.id;
+      input.dataset.paletteToken = token.id;
+      input.setAttribute("aria-label", `${token.label}, ${theme.label}`);
+      const swatch = document.createElement("span");
+      swatch.className = "palette-swatch";
+      swatch.style.background = input.value;
+      input.addEventListener("input", () => {
+        swatch.style.background = input.value;
+        applyPalette(readPaletteForm(), { persist: false });
+      });
+      row.append(name, input, swatch);
+      card.append(row);
+    }
+    return card;
+  }));
+}
+
 async function openPanel() {
   draft = { ...getFeatures() };
   renderSwitches();
+  renderPalette(peekSitePayload()?.palette);
   show("panel");
   await loadRoles();
 }
@@ -225,6 +273,26 @@ function bind() {
   $("#denied-logout").addEventListener("click", async () => {
     await signOut();
     show("login");
+  });
+  els.paletteReset.addEventListener("click", () => {
+    renderPalette(LOGO_PALETTE);
+    applyPalette(LOGO_PALETTE, { persist: false });
+    els.paletteStatus.textContent = "Formulário nas cores da logo. Salve para gravar.";
+  });
+  els.paletteForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = els.paletteForm.querySelector('button[type="submit"]');
+    button.disabled = true;
+    els.paletteStatus.textContent = "Salvando cores…";
+    try {
+      await saveSitePalette(readPaletteForm());
+      renderPalette(peekSitePayload()?.palette);
+      els.paletteStatus.textContent = "Cores salvas. Quem abrir o site agora já vê a mudança.";
+    } catch (error) {
+      els.paletteStatus.textContent = roleMessage(error);
+    } finally {
+      button.disabled = false;
+    }
   });
   els.form.addEventListener("submit", async (event) => {
     event.preventDefault();

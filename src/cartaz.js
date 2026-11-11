@@ -22,7 +22,19 @@ async function render() {
   els.poster.dataset.size = els.size.value;
   els.pageStyle.textContent = `@page { size: ${els.size.value.toUpperCase()} portrait; margin: 0; }`;
   // SVG gerado localmente pela biblioteca: nítido em qualquer tamanho de impressão.
-  els.qr.innerHTML = await QRCode.toString(url, { type: "svg", errorCorrectionLevel: "Q", margin: 1, color: { dark: "#141414", light: "#ffffff" } });
+  const styles = getComputedStyle(document.documentElement);
+  const ink = styles.getPropertyValue("--ink").trim();
+  const paper = styles.getPropertyValue("--paper").trim();
+  const hex = /^#[0-9a-fA-F]{6}$/;
+  els.qr.innerHTML = await QRCode.toString(url, {
+    type: "svg",
+    errorCorrectionLevel: "Q",
+    margin: 1,
+    color: {
+      dark: hex.test(ink) ? ink : "#1a2218",
+      light: hex.test(paper) ? paper : "#f7f1e1",
+    },
+  });
   els.url.textContent = url.replace(/^https?:\/\//, "").replace(/\?.*$/, "");
 }
 

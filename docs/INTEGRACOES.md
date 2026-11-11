@@ -275,6 +275,8 @@ where user_id = (select id from auth.users where email = 'dono@exemplo.com');
 
 A leitura é `get_site_features` (anônimo e autenticado). Gravar e mudar papéis exige `profiles.role = 'admin'`. O login público pode ser desligado; a tela de `admin.html` continua aceitando e-mail e senha, para o painel não se trancar. Cliente, garçom e dono sem essa promoção não entram.
 
+A migração `011_site_palette.sql` acrescenta `palette` em `site_features`. Em `admin.html`, a seção Cores grava com `set_site_palette` e não mexe nos interruptores, no modo do pedido nem nos papéis. Objeto vazio volta às cores da logo no CSS. A leitura continua sendo `get_site_features`.
+
 A migração copia `staff`: `dono` vira `admin` no perfil e `garcom` continua `garcom`, sem rebaixar quem já é admin. A fila segue aceitando a linha antiga em `staff` ou o papel `garcom` / `dono` / `admin`. Resultados aceita `staff.role = 'dono'` ou perfil `dono` / `admin`.
 
 Se ainda não houver dono em `staff`, o primeiro admin continua por SQL no editor, no mesmo estilo do dono:
@@ -299,7 +301,7 @@ O cartaz aponta para o site com `?origem=mesa` (ou balcão, banheiro, instagram)
 
 ### Configuração
 
-1. Aplique as migrações `001` a `010` pelo workflow `supabase.yml` (session pooler IPv4) ou pelo SQL Editor. Se alguma foi aplicada à mão, use `supabase migration repair` no remoto antes do próximo push. A `010` cria o papel no perfil e os interruptores do painel admin.
+1. Aplique as migrações `001` a `011` pelo workflow `supabase.yml` (session pooler IPv4) ou pelo SQL Editor. Se alguma foi aplicada à mão, use `supabase migration repair` no remoto antes do próximo push. A `010` cria o papel no perfil e os interruptores do painel admin. A `011` guarda as cores que o admin edita em `admin.html`.
 2. Mantenha os Anonymous Sign-Ins ativos. Visitantes pedem com a sessão anônima; quem está logado pede com a própria conta.
 3. Crie um usuário para cada garçom em Authentication > Users > Add user, com e-mail e senha e a opção de confirmar automaticamente.
 4. Autorize esse usuário no painel:
