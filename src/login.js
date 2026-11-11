@@ -4,8 +4,6 @@ import {
   authBackendReady,
   captchaSiteKey,
   currentAuthProviders,
-  deleteAccount,
-  displayName,
   getCurrentUser,
   onAuthChange,
   publicAuthEnabled,
@@ -13,14 +11,12 @@ import {
   signIn,
   signInWithEmailLink,
   signInWithProvider,
-  signOut,
   signUp,
   updatePassword,
 } from "./integrations/auth.js";
-import { getMyPhone, getMyProfile, hasCurrentConsent, setMyPhone, updateMyProfile, uploadMyAvatar } from "./integrations/profile.js";
+import { updateMyProfile } from "./integrations/profile.js";
 import { getPersistSession } from "./integrations/supabase.js";
 import {
-  accountReturnUrl,
   authErrorMessage,
   passwordStrength,
   safeNextPath,
@@ -29,20 +25,6 @@ import {
   validateLoginPassword,
   validateNewPassword,
 } from "./lib/auth-validation.js";
-import {
-  AVATAR_MAX_INPUT_BYTES,
-  clampAvatarViewport,
-  compressAvatarFile,
-  cropRectFromViewport,
-  formatPhoneMask,
-  minCoverScale,
-  phoneDigits,
-  profileInitials,
-  toE164Phone,
-  validateBirthDate,
-  validatePhone,
-} from "./lib/profile.js";
-
 initializeTheme();
 hideExpiredEventNav();
 
@@ -52,8 +34,12 @@ const MODES = {
   link: { title: "Entrar com link", submit: "Enviar link", subtitle: "Enviaremos um link de acesso para o seu e-mail." },
   redefinir: { title: "Redefinir senha", submit: "Enviar link", subtitle: "Informe seu e-mail e enviaremos um link para criar uma nova senha." },
   "nova-senha": { title: "Nova senha", submit: "Salvar senha", passwordAutocomplete: "new-password", subtitle: "Crie a senha que você vai usar para entrar." },
-  conta: { title: "Minha conta" },
 };
+const SIGNED_OUT_MODES = new Set(["entrar", "cadastrar", "link", "redefinir"]);
+/** Perfil, dados e privacidade live in the Conta hero; `#conta` and signed-in visits go there. */
+const ACCOUNT_PAGE = "conta.html";
+const ACCOUNT_EDITOR_PAGE = "conta.html#perfil";
+const PASSWORD_SAVED_PAGE = "conta.html?senha=salva#perfil";
 const CAPTCHA_MODES = new Set(["entrar", "cadastrar", "link", "redefinir"]);
 const STRENGTH_LABELS = ["Muito fraca", "Fraca", "Razoável", "Boa", "Forte"];
 
@@ -71,44 +57,6 @@ const fields = {
 const persistInput = $("#auth-persist");
 const consentInput = $("#auth-consent");
 const consentError = $("#auth-consent-error");
-const accountConsentInput = $("#auth-account-consent");
-const birthDateInput = $("#auth-birth-date");
-const birthDateError = $("#auth-birth-date-error");
-const phoneInput = $("#auth-phone");
-const phoneError = $("#auth-phone-error");
-const profileForm = $("#auth-profile-form");
-const avatarImage = $("#auth-account-avatar");
-const avatarInitials = $("#auth-account-initials");
-const avatarInput = $("#auth-avatar-input");
-const avatarStatus = $("#auth-avatar-status");
-const avatarCropDialog = $("#auth-avatar-crop");
-const avatarCropFrame = $("#auth-avatar-crop-frame");
-const avatarCropImage = $("#auth-avatar-crop-image");
-const avatarCropZoom = $("#auth-avatar-crop-zoom");
-const avatarCropCancel = $("#auth-avatar-crop-cancel");
-const avatarCropConfirm = $("#auth-avatar-crop-confirm");
-const lgpdStatus = $("#auth-lgpd-status");
-const saveButton = $("#auth-profile-save");
-const unsavedDialog = $("#auth-unsaved");
-
-const avatarCropState = {
-  file: null,
-  objectUrl: "",
-  imageWidth: 0,
-  imageHeight: 0,
-  viewportSize: 280,
-  scale: 1,
-  offsetX: 0,
-  offsetY: 0,
-  dragging: false,
-  pointerId: null,
-  startX: 0,
-  startY: 0,
-  originX: 0,
-  originY: 0,
-  returnFocus: null,
-};
-
 const params = new URLSearchParams(location.search);
 const nextPath = safeNextPath(params.get("next"));
 const returnedFromProvider = params.has("code");
@@ -116,13 +64,6 @@ const urlError = params.get("error_description") || new URLSearchParams(location
 
 let mode = "entrar";
 let currentUser = null;
-let currentProfile = null;
-let currentPhone = "";
-let savedAccountSnapshot = null;
-let leavingAccount = false;
-let historyGuardArmed = false;
-let pendingLeave = null;
-let unsavedReturnFocus = null;
 let busy = false;
 let captchaToken = "";
 let captchaWidget = null;
@@ -188,10 +129,21 @@ function renderStrength() {
     : "Mínimo de 8 caracteres, com letras e números.";
 }
 
+function leaveForAccount(page) {
+  location.replace(new URL(page, location.href).href);
+}
+
 function setMode(next, { keepStatus = false } = {}) {
+  if (next === "conta") {
+    leaveForAccount(ACCOUNT_EDITOR_PAGE);
+    return;
+  }
+  if (currentUser && SIGNED_OUT_MODES.has(next)) {
+    if (params.has("next")) goNext();
+    else leaveForAccount(ACCOUNT_PAGE);
+    return;
+  }
   if (!MODES[next]) next = "entrar";
-  if (currentUser && ["entrar", "cadastrar", "link", "redefinir"].includes(next)) next = "conta";
-  if (!currentUser && next === "conta") next = "entrar";
   mode = next;
   const config = MODES[mode];
   card.dataset.mode = mode;
@@ -202,7 +154,6 @@ function setMode(next, { keepStatus = false } = {}) {
   subtitle.hidden = !config.subtitle;
   subtitle.textContent = config.subtitle || "";
   submit.textContent = config.submit || "";
-  form.hidden = mode === "conta";
   if (config.passwordAutocomplete) fields.password.input.autocomplete = config.passwordAutocomplete;
   fields.password.input.placeholder = mode === "entrar" ? "Senha" : "Nova senha";
 
@@ -211,7 +162,6 @@ function setMode(next, { keepStatus = false } = {}) {
   });
   $("#auth-social").hidden = !currentAuthProviders().length || !["entrar", "cadastrar"].includes(mode);
   $("#auth-captcha").hidden = !(captchaSiteKey && CAPTCHA_MODES.has(mode));
-  if (mode === "conta") void renderAccount();
   initializeTheme();
 
   touched.clear();
@@ -221,381 +171,6 @@ function setMode(next, { keepStatus = false } = {}) {
   if (`#${mode}` !== location.hash && !(mode === "entrar" && !location.hash)) {
     history.replaceState(null, "", `${location.pathname}${location.search}#${mode}`);
   }
-}
-
-function renderAvatar(profile) {
-  const name = displayName(currentUser);
-  const url = profile?.avatar_url || "";
-  avatarInitials.textContent = profileInitials(name, currentUser?.email);
-  if (url) {
-    avatarImage.hidden = false;
-    avatarImage.src = url;
-    avatarImage.alt = `Foto de ${name}`;
-  } else {
-    avatarImage.hidden = true;
-    avatarImage.removeAttribute("src");
-    avatarImage.alt = "";
-  }
-}
-
-function revokeAvatarCropUrl() {
-  if (avatarCropState.objectUrl) {
-    URL.revokeObjectURL(avatarCropState.objectUrl);
-    avatarCropState.objectUrl = "";
-  }
-}
-
-function paintAvatarCrop() {
-  if (!avatarCropImage) return;
-  const { scale, offsetX, offsetY } = clampAvatarViewport(avatarCropState);
-  avatarCropState.scale = scale;
-  avatarCropState.offsetX = offsetX;
-  avatarCropState.offsetY = offsetY;
-  avatarCropImage.style.width = `${avatarCropState.imageWidth}px`;
-  avatarCropImage.style.height = `${avatarCropState.imageHeight}px`;
-  avatarCropImage.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-  if (avatarCropZoom) {
-    const minScale = minCoverScale(avatarCropState.imageWidth, avatarCropState.imageHeight, avatarCropState.viewportSize);
-    const ratio = Math.round((scale / minScale) * 100);
-    if (Number(avatarCropZoom.value) !== ratio) avatarCropZoom.value = String(Math.min(300, Math.max(100, ratio)));
-  }
-}
-
-function closeAvatarCrop() {
-  if (!avatarCropDialog?.open) {
-    revokeAvatarCropUrl();
-    avatarCropState.file = null;
-    return;
-  }
-  avatarCropDialog.close();
-}
-
-function resetAvatarCropSession() {
-  avatarCropFrame?.classList.remove("is-dragging");
-  avatarCropState.dragging = false;
-  avatarCropState.pointerId = null;
-  avatarCropState.file = null;
-  if (avatarCropImage) {
-    avatarCropImage.removeAttribute("src");
-    avatarCropImage.alt = "";
-  }
-  revokeAvatarCropUrl();
-  const focusTarget = avatarCropState.returnFocus;
-  avatarCropState.returnFocus = null;
-  if (focusTarget?.isConnected) focusTarget.focus({ preventScroll: true });
-}
-
-async function openAvatarCrop(file) {
-  if (!avatarCropDialog || !avatarCropImage || !avatarCropFrame) {
-    throw new Error("Não foi possível abrir o enquadramento da foto.");
-  }
-  if (!String(file.type || "").startsWith("image/")) {
-    throw new Error("Envie uma imagem JPG, PNG ou WebP.");
-  }
-  if (file.size > AVATAR_MAX_INPUT_BYTES) throw new Error("A imagem precisa ter no máximo 8 MB.");
-
-  revokeAvatarCropUrl();
-  avatarCropState.file = file;
-  avatarCropState.returnFocus = document.activeElement;
-  avatarCropState.objectUrl = URL.createObjectURL(file);
-
-  await new Promise((resolve, reject) => {
-    const onLoad = () => {
-      avatarCropImage.removeEventListener("error", onError);
-      resolve();
-    };
-    const onError = () => {
-      avatarCropImage.removeEventListener("load", onLoad);
-      reject(new Error("Não foi possível ler a imagem selecionada."));
-    };
-    avatarCropImage.addEventListener("load", onLoad, { once: true });
-    avatarCropImage.addEventListener("error", onError, { once: true });
-    avatarCropImage.src = avatarCropState.objectUrl;
-    avatarCropImage.alt = "Pré-visualização da foto de perfil";
-  });
-
-  avatarCropState.imageWidth = avatarCropImage.naturalWidth || 1;
-  avatarCropState.imageHeight = avatarCropImage.naturalHeight || 1;
-  avatarCropState.viewportSize = avatarCropFrame.clientWidth || 280;
-  const minScale = minCoverScale(avatarCropState.imageWidth, avatarCropState.imageHeight, avatarCropState.viewportSize);
-  avatarCropState.scale = minScale;
-  avatarCropState.offsetX = (avatarCropState.viewportSize - avatarCropState.imageWidth * minScale) / 2;
-  avatarCropState.offsetY = (avatarCropState.viewportSize - avatarCropState.imageHeight * minScale) / 2;
-  paintAvatarCrop();
-
-  if (typeof avatarCropDialog.showModal === "function") avatarCropDialog.showModal();
-  else avatarCropDialog.setAttribute("open", "");
-  avatarCropConfirm?.focus({ preventScroll: true });
-}
-
-function currentAvatarCropRect() {
-  return cropRectFromViewport({
-    imageWidth: avatarCropState.imageWidth,
-    imageHeight: avatarCropState.imageHeight,
-    viewportSize: avatarCropState.viewportSize,
-    scale: avatarCropState.scale,
-    offsetX: avatarCropState.offsetX,
-    offsetY: avatarCropState.offsetY,
-  });
-}
-
-function setLgpdStatus(message, tone = "info") {
-  lgpdStatus.textContent = message;
-  lgpdStatus.dataset.tone = tone;
-}
-
-function renderLgpd(profile) {
-  if (hasCurrentConsent(profile)) {
-    const when = profile.data_consent_at ? new Date(profile.data_consent_at) : null;
-    setLgpdStatus(when && !Number.isNaN(when.getTime()) ? `Autorizado em ${when.toLocaleDateString("pt-BR")}.` : "");
-    accountConsentInput.checked = true;
-  } else {
-    setLgpdStatus("");
-    accountConsentInput.checked = false;
-  }
-}
-
-function setPhoneError(message) {
-  phoneError.textContent = message;
-  phoneInput.setAttribute("aria-invalid", String(Boolean(message)));
-}
-
-function phoneErrorMessage(error) {
-  const text = `${error?.code || ""} ${error?.message || ""}`;
-  if (/22023|invalid phone/i.test(text)) return "Telefone inválido. Confira o DDD e o número.";
-  if (/failed to fetch|network|load failed/i.test(text)) return authErrorMessage(error);
-  return "Não foi possível salvar o telefone agora. Tente novamente.";
-}
-
-/** Re-mask while keeping the caret after the same number of digits. */
-function maskPhoneInput(event) {
-  const raw = phoneInput.value;
-  const caret = phoneInput.selectionStart ?? raw.length;
-  let digits = phoneDigits(raw);
-  let digitsBeforeCaret = phoneDigits(raw.slice(0, caret)).length;
-  const previousDigits = phoneDigits(phoneInput.dataset.previous || "");
-  if (event?.inputType === "deleteContentBackward" && digits === previousDigits && digitsBeforeCaret > 0) {
-    digits = digits.slice(0, digitsBeforeCaret - 1) + digits.slice(digitsBeforeCaret);
-    digitsBeforeCaret -= 1;
-  }
-  const masked = formatPhoneMask(digits);
-  phoneInput.value = masked;
-  phoneInput.dataset.previous = masked;
-  if (document.activeElement !== phoneInput) return;
-  let position = 0;
-  for (let seen = 0; position < masked.length && seen < digitsBeforeCaret; position += 1) {
-    if (/\d/.test(masked[position])) seen += 1;
-  }
-  phoneInput.setSelectionRange(position, position);
-}
-
-function setPhoneValue(e164) {
-  phoneInput.value = formatPhoneMask(e164 || "");
-  phoneInput.dataset.previous = phoneInput.value;
-}
-
-async function renderAccount() {
-  $("#auth-account-name").textContent = displayName(currentUser);
-  $("#auth-account-email").textContent = currentUser?.email || "—";
-  birthDateError.textContent = "";
-  setPhoneError("");
-  avatarStatus.textContent = "";
-  savedAccountSnapshot = null;
-  const [profileResult, phoneResult] = await Promise.allSettled([getMyProfile(), getMyPhone()]);
-  currentProfile = profileResult.status === "fulfilled" ? profileResult.value : null;
-  currentPhone = phoneResult.status === "fulfilled" ? phoneResult.value || "" : "";
-  birthDateInput.value = currentProfile?.birth_date || "";
-  setPhoneValue(currentPhone);
-  renderAvatar(currentProfile);
-  renderLgpd(currentProfile);
-  if (profileResult.status === "rejected") {
-    setLgpdStatus("Não foi possível carregar o perfil agora. Você ainda pode usar o catálogo.", "error");
-  } else if (phoneResult.status === "rejected") {
-    setPhoneError("Não foi possível carregar o telefone salvo agora.");
-  }
-  markAccountClean();
-}
-
-function accountSnapshot() {
-  return JSON.stringify([birthDateInput.value, phoneDigits(phoneInput.value), accountConsentInput.checked]);
-}
-
-function markAccountClean() {
-  savedAccountSnapshot = accountSnapshot();
-}
-
-function hasUnsavedChanges() {
-  return mode === "conta" && !leavingAccount && savedAccountSnapshot !== null && accountSnapshot() !== savedAccountSnapshot;
-}
-
-/** An extra same-URL history entry lets the browser back button land on `popstate` instead of unloading. */
-function armHistoryGuard() {
-  if (historyGuardArmed || !hasUnsavedChanges()) return;
-  history.pushState({ bdcUnsaved: true }, "", location.href);
-  historyGuardArmed = true;
-}
-
-/** Validates and saves Seus dados; returns whether everything was stored. */
-async function saveAccount() {
-  if (busy) return false;
-  const birthError = validateBirthDate(birthDateInput.value);
-  birthDateError.textContent = birthError;
-  const phoneMessage = validatePhone(phoneInput.value);
-  setPhoneError(phoneMessage);
-  if (birthError || phoneMessage) {
-    (birthError ? birthDateInput : phoneInput).focus();
-    return false;
-  }
-  if (!accountConsentInput.checked && !hasCurrentConsent(currentProfile)) {
-    setLgpdStatus("Marque a autorização para salvar seus dados.", "error");
-    accountConsentInput.focus();
-    return false;
-  }
-  const phone = toE164Phone(phoneInput.value);
-  let profileSaved = false;
-  busy = true;
-  saveButton.setAttribute("aria-busy", "true");
-  setStatus("");
-  try {
-    currentProfile = await updateMyProfile({
-      birthDate: birthDateInput.value,
-      grantConsent: accountConsentInput.checked,
-    });
-    profileSaved = true;
-    renderAvatar(currentProfile);
-    renderLgpd(currentProfile);
-    if (phone !== currentPhone) {
-      await setMyPhone(phone);
-      currentPhone = phone;
-      setPhoneValue(currentPhone);
-    }
-    markAccountClean();
-    return true;
-  } catch (error) {
-    if (!profileSaved) {
-      setStatus(authErrorMessage(error), "error");
-    } else {
-      const message = phoneErrorMessage(error);
-      setPhoneError(message);
-      setStatus(`Aniversário salvo, mas o telefone não. ${message}`, "error");
-    }
-    status.scrollIntoView({ block: "center", behavior: "smooth" });
-    return false;
-  } finally {
-    busy = false;
-    saveButton.removeAttribute("aria-busy");
-  }
-}
-
-function leaveAccount(action) {
-  if (action.type === "hash") {
-    historyGuardArmed = false;
-    location.hash = action.hash;
-    return;
-  }
-  if (action.type === "signout") {
-    void signOutAndReset();
-    return;
-  }
-  leavingAccount = true;
-  if (action.type === "back") history.back();
-  else if (action.type === "replace") location.replace(action.href);
-  else location.assign(action.href);
-}
-
-function openUnsavedDialog(action) {
-  pendingLeave = action;
-  unsavedReturnFocus = document.activeElement;
-  if (typeof unsavedDialog.showModal === "function") unsavedDialog.showModal();
-  else unsavedDialog.setAttribute("open", "");
-  $("#auth-unsaved-save").focus();
-}
-
-function closeUnsavedDialog() {
-  if (unsavedDialog.open) unsavedDialog.close();
-  else unsavedDialog.removeAttribute("open");
-  const action = pendingLeave;
-  pendingLeave = null;
-  return action;
-}
-
-function stayOnAccount() {
-  const action = closeUnsavedDialog();
-  if (action?.type === "back") armHistoryGuard();
-  if (unsavedReturnFocus?.isConnected) unsavedReturnFocus.focus({ preventScroll: true });
-  unsavedReturnFocus = null;
-}
-
-function bindUnsavedGuard() {
-  profileForm.addEventListener("input", armHistoryGuard);
-  profileForm.addEventListener("change", armHistoryGuard);
-
-  document.addEventListener("click", (event) => {
-    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    const link = event.target.closest?.("a[href]");
-    if (!link || link.closest("#auth-unsaved") || link.target === "_blank" || link.hasAttribute("download")) return;
-    if (!hasUnsavedChanges()) return;
-    const url = new URL(link.href, location.href);
-    const samePage = url.origin === location.origin && url.pathname === location.pathname && url.search === location.search;
-    if (samePage && url.hash === location.hash) return;
-    event.preventDefault();
-    openUnsavedDialog(samePage && url.hash ? { type: "hash", hash: url.hash } : { type: "href", href: url.href });
-  }, true);
-
-  window.addEventListener("popstate", () => {
-    if (!historyGuardArmed) return;
-    historyGuardArmed = false;
-    if (hasUnsavedChanges()) openUnsavedDialog({ type: "back" });
-    else history.back();
-  });
-
-  window.addEventListener("pageshow", (event) => {
-    if (!event.persisted) return;
-    leavingAccount = false;
-    historyGuardArmed = false;
-    if (mode === "conta") void renderAccount();
-  });
-
-  window.addEventListener("beforeunload", (event) => {
-    if (!hasUnsavedChanges()) return;
-    event.preventDefault();
-    event.returnValue = "";
-  });
-
-  $("#auth-unsaved-close").addEventListener("click", stayOnAccount);
-  unsavedDialog.addEventListener("cancel", (event) => {
-    event.preventDefault();
-    stayOnAccount();
-  });
-  unsavedDialog.addEventListener("click", (event) => {
-    if (event.target === unsavedDialog) stayOnAccount();
-  });
-  unsavedDialog.addEventListener("keydown", (event) => {
-    if (event.key !== "Tab") return;
-    const items = [...unsavedDialog.querySelectorAll("button:not([disabled])")];
-    const first = items[0];
-    const last = items[items.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  });
-  $("#auth-unsaved-discard").addEventListener("click", () => {
-    const action = closeUnsavedDialog();
-    savedAccountSnapshot = null;
-    if (action) leaveAccount(action);
-  });
-  $("#auth-unsaved-save").addEventListener("click", async () => {
-    const action = closeUnsavedDialog();
-    if (await saveAccount()) {
-      if (action) leaveAccount(action);
-    } else if (action?.type === "back") {
-      armHistoryGuard();
-    }
-  });
 }
 
 async function setupCaptcha() {
@@ -624,13 +199,6 @@ function resetCaptcha() {
   if (!captchaSiteKey || !window.turnstile || typeof captchaWidget !== "string" || captchaWidget === "loading") return;
   captchaToken = "";
   window.turnstile.reset(captchaWidget);
-}
-
-async function signOutAndReset() {
-  await signOut();
-  currentUser = null;
-  setMode("entrar", { keepStatus: true });
-  setStatus("Você saiu da sua conta.", "success");
 }
 
 function goNext() {
@@ -662,7 +230,7 @@ async function handleSubmit(event) {
     if (mode === "cadastrar") {
       const result = await signUp({ email, password, persist, captchaToken, displayName: fields.displayName.input.value, next: nextPath });
       if (!result.needsConfirmation) {
-        try { await updateMyProfile({ grantConsent: true }); } catch { /* perfil pode ser preenchido depois em Minha conta */ }
+        try { await updateMyProfile({ grantConsent: true }); } catch { /* o perfil pode ser preenchido depois na Conta */ }
         goNext();
         return;
       }
@@ -689,9 +257,7 @@ async function handleSubmit(event) {
       await updatePassword(password);
       fields.password.input.value = "";
       fields.passwordConfirm.input.value = "";
-      currentUser = await getCurrentUser();
-      setMode("conta", { keepStatus: true });
-      setStatus("Senha salva com sucesso.", "success");
+      leaveForAccount(PASSWORD_SAVED_PAGE);
     }
   } catch (error) {
     setStatus(authErrorMessage(error), "error");
@@ -719,117 +285,6 @@ function bindEvents() {
     touched.add("consent");
     renderValidation();
   });
-  birthDateInput?.addEventListener("change", () => {
-    birthDateError.textContent = validateBirthDate(birthDateInput.value);
-  });
-  phoneInput?.addEventListener("input", (event) => {
-    maskPhoneInput(event);
-    if (phoneInput.getAttribute("aria-invalid") === "true") setPhoneError(validatePhone(phoneInput.value));
-  });
-  phoneInput?.addEventListener("blur", () => {
-    setPhoneError(validatePhone(phoneInput.value));
-  });
-  accountConsentInput?.addEventListener("change", () => {
-    if (lgpdStatus.dataset.tone === "error") setLgpdStatus("");
-  });
-  profileForm?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (!(await saveAccount())) return;
-    leaveAccount({
-      type: "replace",
-      href: accountReturnUrl({ next: params.get("next"), referrer: document.referrer, current: location.href }),
-    });
-  });
-  bindUnsavedGuard();
-  avatarInput?.addEventListener("change", async () => {
-    const file = avatarInput.files?.[0];
-    avatarInput.value = "";
-    if (!file || busy) return;
-    avatarStatus.textContent = "";
-    try {
-      await openAvatarCrop(file);
-    } catch (error) {
-      resetAvatarCropSession();
-      avatarStatus.textContent = authErrorMessage(error);
-    }
-  });
-
-  avatarCropCancel?.addEventListener("click", () => closeAvatarCrop());
-  avatarCropDialog?.addEventListener("cancel", (event) => {
-    event.preventDefault();
-    closeAvatarCrop();
-  });
-  avatarCropDialog?.addEventListener("close", () => {
-    resetAvatarCropSession();
-  });
-  avatarCropDialog?.addEventListener("click", (event) => {
-    if (event.target === avatarCropDialog) closeAvatarCrop();
-  });
-
-  avatarCropZoom?.addEventListener("input", () => {
-    if (!avatarCropState.file) return;
-    const minScale = minCoverScale(avatarCropState.imageWidth, avatarCropState.imageHeight, avatarCropState.viewportSize);
-    const nextScale = minScale * (Number(avatarCropZoom.value) / 100);
-    const centerX = avatarCropState.viewportSize / 2;
-    const centerY = avatarCropState.viewportSize / 2;
-    const focalX = (centerX - avatarCropState.offsetX) / avatarCropState.scale;
-    const focalY = (centerY - avatarCropState.offsetY) / avatarCropState.scale;
-    avatarCropState.scale = nextScale;
-    avatarCropState.offsetX = centerX - focalX * nextScale;
-    avatarCropState.offsetY = centerY - focalY * nextScale;
-    paintAvatarCrop();
-  });
-
-  avatarCropFrame?.addEventListener("pointerdown", (event) => {
-    if (!avatarCropState.file || event.button !== 0) return;
-    avatarCropState.dragging = true;
-    avatarCropState.pointerId = event.pointerId;
-    avatarCropState.startX = event.clientX;
-    avatarCropState.startY = event.clientY;
-    avatarCropState.originX = avatarCropState.offsetX;
-    avatarCropState.originY = avatarCropState.offsetY;
-    avatarCropFrame.classList.add("is-dragging");
-    avatarCropFrame.setPointerCapture?.(event.pointerId);
-    event.preventDefault();
-  });
-  avatarCropFrame?.addEventListener("pointermove", (event) => {
-    if (!avatarCropState.dragging || event.pointerId !== avatarCropState.pointerId) return;
-    avatarCropState.offsetX = avatarCropState.originX + (event.clientX - avatarCropState.startX);
-    avatarCropState.offsetY = avatarCropState.originY + (event.clientY - avatarCropState.startY);
-    paintAvatarCrop();
-  });
-  const endAvatarDrag = (event) => {
-    if (!avatarCropState.dragging || (event && event.pointerId !== avatarCropState.pointerId)) return;
-    avatarCropState.dragging = false;
-    avatarCropState.pointerId = null;
-    avatarCropFrame?.classList.remove("is-dragging");
-  };
-  avatarCropFrame?.addEventListener("pointerup", endAvatarDrag);
-  avatarCropFrame?.addEventListener("pointercancel", endAvatarDrag);
-
-  avatarCropConfirm?.addEventListener("click", async () => {
-    const file = avatarCropState.file;
-    if (!file || busy) return;
-    busy = true;
-    avatarCropConfirm.disabled = true;
-    avatarCropCancel && (avatarCropCancel.disabled = true);
-    avatarStatus.textContent = "Enviando foto…";
-    try {
-      const crop = currentAvatarCropRect();
-      const blob = await compressAvatarFile(file, { crop });
-      closeAvatarCrop();
-      currentProfile = await uploadMyAvatar(blob, { compressed: true });
-      renderAvatar(currentProfile);
-      avatarStatus.textContent = "Foto atualizada.";
-    } catch (error) {
-      avatarStatus.textContent = authErrorMessage(error);
-    } finally {
-      busy = false;
-      if (avatarCropConfirm) avatarCropConfirm.disabled = false;
-      if (avatarCropCancel) avatarCropCancel.disabled = false;
-    }
-  });
-
   const toggle = $("#auth-toggle-password");
   toggle.addEventListener("click", () => {
     const show = fields.password.input.type === "password";
@@ -859,27 +314,6 @@ function bindEvents() {
         button.disabled = false;
       }
     });
-  });
-
-  $("#auth-signout").addEventListener("click", () => {
-    if (hasUnsavedChanges()) openUnsavedDialog({ type: "signout" });
-    else void signOutAndReset();
-  });
-
-  const deleteButton = $("#auth-delete");
-  deleteButton.addEventListener("click", async () => {
-    if (!confirm("Excluir sua conta apaga seu perfil de forma permanente. Deseja continuar?")) return;
-    deleteButton.disabled = true;
-    try {
-      await deleteAccount();
-      currentUser = null;
-      setMode("entrar", { keepStatus: true });
-      setStatus("Sua conta foi excluída.", "success");
-    } catch (error) {
-      setStatus(authErrorMessage(error), "error");
-    } finally {
-      deleteButton.disabled = false;
-    }
   });
 
   window.addEventListener("hashchange", () => setMode(location.hash.slice(1)));
@@ -933,10 +367,9 @@ async function start() {
       setMode("nova-senha");
     } else if (event === "SIGNED_OUT") {
       currentUser = null;
-      if (mode === "conta" || mode === "nova-senha") setMode("entrar", { keepStatus: true });
+      if (mode === "nova-senha") setMode("entrar", { keepStatus: true });
     } else if (event === "USER_UPDATED" || event === "SIGNED_IN") {
       currentUser = await getCurrentUser();
-      if (mode === "conta") renderAccount();
     }
   });
 }

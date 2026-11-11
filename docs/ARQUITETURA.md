@@ -41,8 +41,8 @@ Sem as variáveis `VITE_SUPABASE_*`, o site continua útil: busca, descoberta, f
 | --- | --- | --- |
 | `index.html` | `src/main.js` | Busca (com o filtro “Somente favoritas”), descoberta, ranking, QR/pedido |
 | `favoritos.html` | `src/favorites-page.js` | Meus favoritos: abas, mover entre abas, código ao DJ (`index.html#favoritas` redireciona para cá) |
-| `conta.html` | `src/conta-page.js` | Menu da conta no mobile (favoritos, perfil, tema, sair); o tab Conta da island abre esta página |
-| `login.html` | `src/login.js` | Entrar, cadastrar, link, redefinir, Minha conta (perfil/LGPD) |
+| `conta.html` | `src/conta-page.js` + `src/account-editor.js` | Conta: o topo expande para editar perfil, dados e privacidade (`#perfil`); menu com tema, favoritos, pedidos, O bar e Sair; painel “Gestão do bar” (`#gestao`) por papel. O tab Conta da island e o botão do cabeçalho abrem esta página |
+| `login.html` | `src/login.js` | Entrar, cadastrar, link, redefinir e nova senha (`#conta` redireciona para `conta.html#perfil`) |
 | `garcom.html` | `src/garcom.js` + `src/garcom.css` | Fila, pagamento, rodada, código da noite, Resultados (dono ou admin) |
 | `gerente.html` | `src/gerente.js` + `src/gerente.css` | Painel executivo de movimento e fila da noite (controlado por `manager_panel`) |
 | `admin.html` | `src/admin.js` + `src/admin.css` | Console glass em 5 abas (`#visao`, `#config`, `#aparencia`, `#acessos`, `#banco-logs`), parâmetros sem deploy, equipe, tabelas e auditoria (`profiles.role = admin`) |
@@ -170,7 +170,7 @@ Se `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` ou `SUPABASE_PROJECT_REF` fal
 3. **Actions → Deploy Supabase** verde (migrações `001`–`010` + functions; a `009` cria a chave Vault `profile_encryption_key` se faltar; a `010` liga o painel de funcionalidades).
 4. Confirmar no SQL Editor que a chave existe: `select name from vault.secrets where name = 'profile_encryption_key';`
 5. **Deploy Vite site to Pages** (ou push em `main`) para embutir `VITE_*` e rodar `sync-catalog`.
-6. Smoke: login → Minha conta (foto, aniversário, telefone) → favoritar em dois aparelhos → ranking → QR no `garcom.html`.
+6. Smoke: login → Conta, topo expandido (foto, aniversário, telefone) → favoritar em dois aparelhos → ranking → QR no `garcom.html`.
 7. Inserir linhas em `public.staff` (e `role = 'dono'` quando couber).
 
 ## Relação com os outros docs

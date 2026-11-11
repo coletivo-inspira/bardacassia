@@ -158,11 +158,11 @@ test("login.html keeps its own header theme toggle (it has no account menu)", ()
   assert.match(html, /id="theme-toggle"/);
 });
 
-test("Conta offers Entrar, favoritos, conta, O bar, the theme and Sair that the header menu used to", () => {
+test("Conta offers Entrar, favoritos, perfil, O bar, the theme and Sair that the header menu used to", () => {
   const js = readFileSync(new URL("../src/conta-page.js", import.meta.url), "utf8");
   assert.match(js, /title: "Entrar"/);
   assert.match(js, /title: "Meus favoritos"/);
-  assert.match(js, /href: "login\.html#conta"[^}]*title: "Minha conta"/);
+  assert.match(js, /createAccountEditor/);
   assert.match(js, /href: "o-bar\.html"[^}]*title: "O bar"/);
   assert.match(js, /themeRow\(\)/);
   assert.match(js, /action: "signout"[^}]*title: "Sair"/);
