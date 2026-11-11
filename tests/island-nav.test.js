@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const ISLAND_PAGES = {
-  "index.html": { inicio: "#inicio", buscar: "#buscar" },
-  "evento.html": { inicio: "index.html#inicio", buscar: "index.html#buscar" },
-  "o-bar.html": { inicio: "index.html#inicio", buscar: "index.html#buscar" },
-  "favoritos.html": { inicio: "index.html#inicio", buscar: "index.html#buscar" },
-  "conta.html": { inicio: "index.html#inicio", buscar: "index.html#buscar" },
+  "index.html": { inicio: "#inicio" },
+  "evento.html": { inicio: "index.html#inicio" },
+  "o-bar.html": { inicio: "index.html#inicio" },
+  "favoritos.html": { inicio: "index.html#inicio" },
+  "conta.html": { inicio: "index.html#inicio" },
 };
 
 function islandOf(page) {
@@ -16,20 +16,19 @@ function islandOf(page) {
 }
 
 for (const [page, hrefs] of Object.entries(ISLAND_PAGES)) {
-  test(`${page} has the floating island with Início, Buscar and Conta`, () => {
+  test(`${page} has the floating island with Início and Conta (search lives in the top bar)`, () => {
     const { island } = islandOf(page);
     assert.ok(island, "glass island not found");
     const tabs = [...island.matchAll(/data-mobile-tab="([^"]+)"/g)].map((match) => match[1]);
-    assert.deepEqual(tabs, ["inicio", "buscar", "conta"]);
+    assert.deepEqual(tabs, ["inicio", "conta"]);
     assert.match(island, new RegExp(`href="${hrefs.inicio}" data-mobile-tab="inicio" aria-label="Início"`));
-    assert.match(island, new RegExp(`href="${hrefs.buscar}" data-mobile-tab="buscar" aria-label="Buscar"`));
+    assert.doesNotMatch(island, /#buscar|aria-label="Buscar"/);
     assert.doesNotMatch(island, /data-mobile-tab="o-bar"/);
     // Conta opens the dedicated account page instead of a dropdown menu.
     assert.match(island, /<a class="mobile-tab island-account-trigger" href="conta\.html" aria-label="Conta"/);
     assert.doesNotMatch(island, /aria-haspopup="menu"/);
     assert.match(island, /class="glass-island-capsule" aria-hidden="true"/);
     assert.match(island, /class="mobile-tab-label">Início</);
-    assert.match(island, /class="mobile-tab-label">Buscar</);
     assert.match(island, /class="mobile-tab-label">Conta</);
   });
 
@@ -71,4 +70,10 @@ test("favoritos.html, conta.html and o-bar.html mark Conta in the island without
 test("active island tabs reveal their label in CSS", () => {
   const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
   assert.match(css, /\.glass-island :is\(\.mobile-tab\.is-active, \.mobile-tab-account\.is-active \.mobile-tab\) \.mobile-tab-label/);
+});
+
+test("the catalog page always marks Início in the island", () => {
+  const main = readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
+  assert.match(main, /function updateMobileTabs\(\) \{\n  setIslandTab\("inicio"\);\n\}/);
+  assert.doesNotMatch(main, /setIslandTab\([^)]*"buscar"/);
 });

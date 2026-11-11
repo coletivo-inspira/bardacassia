@@ -469,13 +469,6 @@ input:focus-visible {
   padding: 0 1.25rem;
 }
 
-.search-heading {
-  margin: 0 0 1.1rem;
-  font-family: var(--font-display);
-  font-size: clamp(1.8rem, 4vw, 2.4rem);
-  letter-spacing: -0.03em;
-}
-
 .spotify-search-chrome {
   position: sticky;
   top: calc(var(--header-stack) + 8px);
@@ -2315,21 +2308,6 @@ body {
   overscroll-behavior-y: contain;
 }
 
-.search-title-row {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.search-subtitle {
-  margin: -0.6rem 0 1.15rem;
-  max-width: 42ch;
-  color: var(--muted);
-  font-size: 0.92rem;
-  line-height: 1.45;
-}
-
 .mobile-tabbar {
   display: none;
 }
@@ -2493,28 +2471,12 @@ body {
 
 
   .search-portal {
-    scroll-margin-top: var(--header-stack);
     padding: 1.25rem 0 2.75rem;
     background: var(--bg);
   }
 
   .search-portal-inner {
     padding: 0 1rem;
-  }
-
-  .search-title-row {
-    align-items: start;
-  }
-
-  .search-heading {
-    margin: 0 0 0.8rem;
-    font-size: clamp(2rem, 10vw, 2.55rem);
-    line-height: 1;
-  }
-
-  .search-subtitle {
-    margin: -0.25rem 0 1rem;
-    font-size: 0.9rem;
   }
 
   .spotify-search {
@@ -2566,7 +2528,7 @@ body {
   }
 
   .results-count {
-    margin: 0.55rem 0.35rem 0;
+    margin: 0.55rem 0 0;
     min-height: 1.2em;
     color: var(--muted);
     font-size: 0.82rem;
@@ -3325,8 +3287,9 @@ body {
   display: block;
   object-fit: cover;
 }
-.search-guidance { margin: .7rem 0; font-size: .85rem; line-height: 1.5; color: var(--muted); }
 .search-suggestions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .75rem 0; }
+.search-suggestions:empty { display: none; }
+.search-portal-inner > .browse-title { margin-top: 0; }
 .search-suggestions > p { width: 100%; margin: 0 0 .2rem; color: var(--muted); font-size: .85rem; }
 .search-suggestion { max-width: 100%; min-height: 44px; padding: .6rem .85rem; border-radius: 12px; border: 1px solid var(--line); color: var(--text); background: var(--bg-soft); text-align: left; font: inherit; font-size: .85rem; cursor: pointer; }
 .search-suggestion:hover { border-color: var(--amber); }
@@ -4444,7 +4407,8 @@ dialog.discover-screen::backdrop { background: var(--bg); }
     min-width: 0;
     transition: flex-grow 320ms cubic-bezier(.3, 1.15, .5, 1);
   }
-  .glass-island > [data-mobile-tab].is-active { flex: 1.85 1 0; }
+  /* Two tabs (Início, Conta) beside Match: a light emphasis keeps the halves balanced. */
+  .glass-island > [data-mobile-tab].is-active { flex: 1.25 1 0; }
 
   .glass-island-capsule {
     position: absolute;
@@ -4547,11 +4511,9 @@ dialog.discover-screen::backdrop { background: var(--bg); }
     color: var(--text);
     font: 800 .9rem/1 var(--font-body);
   }
-  /* The active avatar ring sits outside the photo, so the label needs a wider gap than the icon tabs;
-     the slot takes a little more width so the gap does not clip "Conta". */
+  /* The active avatar ring sits outside the photo, so the label needs a wider gap than the icon tabs. */
   .glass-island .island-account-trigger { gap: 0.55rem; padding-inline: 0.2rem; }
   .glass-island.is-compact .island-account-trigger { gap: 0.45rem; }
-  .glass-island > .mobile-tab-account.is-active { flex-grow: 2.1; }
   .mobile-tab-account.is-active .island-account-trigger :is(.island-account-avatar, .island-account-initial) {
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--island-tint) 70%, transparent), 0 0 0 3.5px color-mix(in srgb, var(--coral) 55%, var(--text));
   }

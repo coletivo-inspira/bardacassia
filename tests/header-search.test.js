@@ -19,12 +19,22 @@ test("catalog top bar puts the search and Filtros beside the logo", () => {
   assert.match(header, /<label class="visually-hidden" for="song-search">/);
 });
 
-test("the #buscar section keeps guidance and results but no second search box", () => {
+test("the #buscar section opens with the catalog, count and artist hint", () => {
   const section = html.match(/<section class="search-portal" id="buscar"[\s\S]*?<\/section>\n\n    <\/main>/)?.[0] || "";
   assert.ok(section, "search section not found");
   assert.doesNotMatch(section, /spotify-search-chrome|id="song-search"/);
-  assert.match(section, /id="search-guidance"/);
-  assert.match(section, /id="songs-list"/);
+  assert.doesNotMatch(section, /Buscar música|No catálogo do karaokê|Digite o nome da música|search-guidance/);
+  assert.match(section, /aria-labelledby="catalog-title"/);
+  const order = ['id="catalog-title"', 'id="results-count"', 'class="search-help"', 'id="category-grid"', 'id="songs-list"'].map((needle) => section.indexOf(needle));
+  assert.ok(order.every((at, i) => at >= 0 && (i === 0 || at > order[i - 1])), `section order ${order}`);
+  assert.doesNotMatch(html, /aria-describedby="search-guidance"/);
+});
+
+test("idle search shows no example chips; typed queries still get suggestions", () => {
+  const main = read("src/main.js");
+  assert.doesNotMatch(main, /Experimente buscar/);
+  assert.match(main, /if \(!songs\.length \|\| !q\) return;/);
+  assert.match(main, /els\.catalogTitle\.hidden = !browse;/);
 });
 
 test("hero no longer has the Escolher música button or its CSS", () => {
