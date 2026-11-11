@@ -11,6 +11,8 @@ test("conta.html is a dedicated account page with landmarks and menu shell", () 
   assert.match(html, /aria-labelledby="account-title"/);
   assert.match(html, /<nav class="account-menu-panel" aria-label="Opções da conta">/);
   assert.match(html, /data-account-menu/);
+  assert.match(html, /href="o-bar\.html"/);
+  assert.match(html, /<strong>O bar<\/strong>/);
   assert.match(html, /<script type="module" src="\/src\/conta-page\.js"><\/script>/);
   assert.match(html, /class="mobile-tabbar glass-island"/);
 });
@@ -19,6 +21,8 @@ test("conta-page.js wires existing account actions without inventing auth", () =
   const js = read("src/conta-page.js");
   assert.match(js, /favoritos\.html/);
   assert.match(js, /login\.html#conta/);
+  assert.match(js, /o-bar\.html/);
+  assert.match(js, /title: "O bar"/);
   assert.match(js, /data-theme-toggle/);
   assert.match(js, /signOut/);
   assert.match(js, /initializeAccountMenu/);

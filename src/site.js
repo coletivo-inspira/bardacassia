@@ -13,6 +13,7 @@ const USER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" c
 const HEART_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 20S4 15 4 9a4 4 0 0 1 8-2 4 4 0 0 1 8 2c0 6-8 11-8 11Z"/></svg>`;
 const EXIT_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 4H4v16h5m5-12 4 4-4 4M8 12h10"/></svg>`;
 const ENTER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15 4h5v16h-5M9 8l4 4-4 4M4 12h9"/></svg>`;
+const BAR_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4.5 4.5h15L12 12.8z"/><path d="M12 12.8v6.7M8 19.5h8M15.5 8.6l2.3-4.1"/></svg>`;
 const THEME_MENU_ITEM = `
       <button role="menuitem" type="button" data-action="theme" data-theme-toggle>
         ${THEME_ICON_SUN}${THEME_ICON_MOON}
@@ -101,13 +102,15 @@ function buildMenu({ id, wrapperClass, triggerClass, trigger, label, items, sign
 
 const SIGNED_OUT_ITEMS = `
       <a role="menuitem" class="account-menu-login" href="login.html" data-action="login">${ENTER_ICON}<span>Entrar</span></a>
-      <a role="menuitem" href="conta.html">${USER_ICON}<span>Conta</span></a>${THEME_MENU_ITEM}`;
+      <a role="menuitem" href="conta.html">${USER_ICON}<span>Conta</span></a>
+      <a role="menuitem" href="o-bar.html">${BAR_ICON}<span>O bar</span></a>${THEME_MENU_ITEM}`;
 
 const SIGNED_IN_ITEMS = `
       <div class="header-account-email"></div>
       <a role="menuitem" href="conta.html">${USER_ICON}<span>Conta</span></a>
       <a role="menuitem" href="favoritos.html">${HEART_ICON}<span>Meus favoritos</span></a>
-      <a role="menuitem" href="login.html#conta">${USER_ICON}<span>Minha conta</span></a>${THEME_MENU_ITEM}
+      <a role="menuitem" href="login.html#conta">${USER_ICON}<span>Minha conta</span></a>
+      <a role="menuitem" href="o-bar.html">${BAR_ICON}<span>O bar</span></a>${THEME_MENU_ITEM}
       <button role="menuitem" type="button" data-action="signout">${EXIT_ICON}<span>Sair</span></button>`;
 
 function renderIslandAccountLink(user) {
@@ -203,7 +206,7 @@ export async function initializeAccountMenu() {
   }
 }
 
-const ISLAND_PAGE_TABS = { "o-bar": "o-bar", evento: "inicio", favoritos: "conta", conta: "conta" };
+const ISLAND_PAGE_TABS = { "o-bar": "conta", evento: "inicio", favoritos: "conta", conta: "conta" };
 const ISLAND_SCROLL_THRESHOLD = 12;
 const ISLAND_IDLE_MS = 650;
 const ISLAND_TAP_HOLD_MS = 1000;
