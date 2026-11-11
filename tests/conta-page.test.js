@@ -17,6 +17,18 @@ test("conta.html is a dedicated account page with landmarks and menu shell", () 
   assert.match(html, /class="mobile-tabbar glass-island"/);
 });
 
+test("conta hero is expandable with accessible toggle and details panel", () => {
+  const html = read("conta.html");
+  assert.match(html, /data-account-hero-toggle/);
+  assert.match(html, /aria-expanded="false"/);
+  assert.match(html, /aria-controls="account-details"/);
+  assert.match(html, /id="account-details"[^>]*data-account-details/);
+  assert.match(html, /account-hero-chevron/);
+  const header = html.match(/<header class="site-header">([\s\S]*?)<\/header>/)?.[1];
+  assert.ok(header);
+  assert.doesNotMatch(header, /id="theme-toggle"/);
+});
+
 test("conta-page.js wires existing account actions without inventing auth", () => {
   const js = read("src/conta-page.js");
   assert.match(js, /favoritos\.html/);
@@ -27,6 +39,24 @@ test("conta-page.js wires existing account actions without inventing auth", () =
   assert.match(js, /signOut/);
   assert.match(js, /initializeAccountMenu/);
   assert.doesNotMatch(js, /createUser|signUp\(|password/);
+});
+
+test("conta-page.js builds role menus from existing routes and real profile fields", () => {
+  const js = read("src/conta-page.js");
+  assert.match(js, /getMyRole/);
+  assert.match(js, /getMyPhone/);
+  assert.match(js, /getMyProfile/);
+  assert.match(js, /birth_date/);
+  assert.match(js, /admin\.html/);
+  assert.match(js, /gerente\.html/);
+  assert.match(js, /garcom\.html/);
+  assert.match(js, /cartaz\.html/);
+  assert.match(js, /Painel do administrador/);
+  assert.match(js, /Painel do gerente/);
+  assert.match(js, /Painel do garçom/);
+  assert.match(js, /role === "admin"/);
+  assert.match(js, /role === "garcom"/);
+  assert.doesNotMatch(js, /painel-de-ativos|ativos\.html|ltp/i);
 });
 
 test("island Conta control navigates to conta.html instead of a menu", () => {

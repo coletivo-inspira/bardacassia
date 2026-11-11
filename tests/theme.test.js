@@ -109,12 +109,11 @@ test("account menu leaves theme toggling to initializeTheme", () => {
 });
 
 for (const page of ["index.html", "evento.html", "o-bar.html", "favoritos.html", "conta.html"]) {
-  test(`${page} header shows the night-mode button beside the account menu`, () => {
+  test(`${page} header keeps account menu and no standalone theme toggle`, () => {
     const html = readFileSync(new URL(`../${page}`, import.meta.url), "utf8");
     const header = html.match(/<header class="site-header">([\s\S]*?)<\/header>/)?.[1];
     assert.ok(header, "site header not found");
-    assert.match(header, /id="theme-toggle"[^>]*data-theme-toggle/);
-    assert.match(header, /class="theme-toggle-label">Modo noturno</);
+    assert.doesNotMatch(header, /id="theme-toggle"/);
     assert.doesNotMatch(header, /instagram\.com\/bardacaciaoficial/);
     assert.match(header, /<div id="header-account" class="header-account-slot"><\/div>/);
   });
@@ -129,6 +128,12 @@ for (const page of ["index.html", "evento.html", "o-bar.html", "favoritos.html",
     assert.match(footer, /target="_blank"/);
   });
 }
+
+test("conta menu keeps the theme toggle after the header button is removed", () => {
+  const js = readFileSync(new URL("../src/conta-page.js", import.meta.url), "utf8");
+  assert.match(js, /data-theme-toggle/);
+  assert.match(js, /Claro ou escuro na tela/);
+});
 
 test("login.html keeps its own header theme toggle (it has no account menu)", () => {
   const html = readFileSync(new URL("../login.html", import.meta.url), "utf8");

@@ -55,7 +55,6 @@
     <header class="site-header">
       <a class="brand" href="index.html" aria-label="Bar da Cácia — início">
         <img src="%BASE_URL%logo_bar_da_cacia.svg" alt="" width="48" height="48" />
-        <span class="brand-text">BAR DA <strong>CÁCIA</strong></span>
       </a>
       <nav class="desktop-nav" aria-label="Navegação principal">
         <a class="nav-home" href="index.html">Início</a>
@@ -64,12 +63,6 @@
         <a href="index.html#buscar">Buscar</a>
       </nav>
       <div class="header-actions">
-        <button id="theme-toggle" class="theme-toggle" type="button" data-theme-toggle aria-label="Ativar modo noturno">
-          <svg class="theme-icon-sun" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-          <svg class="theme-icon-moon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.2 15.1A8.4 8.4 0 0 1 8.9 3.8 8.5 8.5 0 1 0 20.2 15.1Z"/></svg>
-          <span class="theme-toggle-label">Modo noturno</span>
-        </button>
-
         <div id="header-account" class="header-account-slot"></div>
       </div>
     </header>
@@ -78,16 +71,30 @@
       <section class="account-shell" aria-labelledby="account-title">
         <header class="account-hero">
           <div class="account-hero-glass" aria-hidden="true"></div>
-          <div class="account-avatar-wrap" data-account-avatar>
-            <span class="account-avatar-fallback" data-avatar-fallback aria-hidden="true">
-              <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.2c1.3-3.6 4.2-5.4 7.5-5.4s6.2 1.8 7.5 5.4"/></svg>
-            </span>
+          <div class="account-hero-main">
+            <div class="account-avatar-wrap" data-account-avatar>
+              <span class="account-avatar-fallback" data-avatar-fallback aria-hidden="true">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.2c1.3-3.6 4.2-5.4 7.5-5.4s6.2 1.8 7.5 5.4"/></svg>
+              </span>
+            </div>
+            <div class="account-hero-copy">
+              <p class="eyebrow">Sua conta</p>
+              <h1 id="account-title">Conta</h1>
+              <p class="account-subtitle" data-account-subtitle>Entre para sincronizar favoritos e perfil entre aparelhos.</p>
+            </div>
+            <button
+              type="button"
+              class="account-hero-toggle"
+              data-account-hero-toggle
+              aria-expanded="false"
+              aria-controls="account-details"
+              aria-label="Mostrar detalhes da conta"
+              disabled
+            >
+              <span class="account-menu-chevron account-hero-chevron" aria-hidden="true"></span>
+            </button>
           </div>
-          <div class="account-hero-copy">
-            <p class="eyebrow">Sua conta</p>
-            <h1 id="account-title">Conta</h1>
-            <p class="account-subtitle" data-account-subtitle>Entre para sincronizar favoritos e perfil entre aparelhos.</p>
-          </div>
+          <div id="account-details" class="account-hero-details" data-account-details hidden></div>
         </header>
 
         <nav class="account-menu-panel" aria-label="Opções da conta">
