@@ -1,6 +1,9 @@
 import "./cartaz.css";
 import QRCode from "qrcode";
 import { posterUrl } from "./lib/origin.js";
+import { loadSiteFeatures } from "./integrations/features.js";
+import { getFeatures } from "./lib/feature-state.js";
+import { showPageFile } from "./lib/features.js";
 
 const SITE_URL = String(import.meta.env.VITE_SITE_URL || "").trim();
 
@@ -23,8 +26,32 @@ async function render() {
   els.url.textContent = url.replace(/^https?:\/\//, "").replace(/\?.*$/, "");
 }
 
-document.head.append(els.pageStyle);
-els.size.addEventListener("change", render);
-els.origin.addEventListener("change", render);
-els.print.addEventListener("click", () => window.print());
-void render();
+function showPageOff() {
+  document.querySelector("#poster-controls")?.setAttribute("hidden", "");
+  const main = document.querySelector("main");
+  if (!main) return;
+  main.replaceChildren();
+  const note = document.createElement("p");
+  note.textContent = "Esta página está desligada no momento.";
+  const back = document.createElement("p");
+  const link = document.createElement("a");
+  link.href = "index.html";
+  link.textContent = "Voltar ao catálogo";
+  back.append(link);
+  main.append(note, back);
+}
+
+async function boot() {
+  await loadSiteFeatures();
+  if (!showPageFile(getFeatures(), "cartaz.html")) {
+    showPageOff();
+    return;
+  }
+  document.head.append(els.pageStyle);
+  els.size.addEventListener("change", render);
+  els.origin.addEventListener("change", render);
+  els.print.addEventListener("click", () => window.print());
+  await render();
+}
+
+void boot();

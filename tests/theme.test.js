@@ -106,11 +106,12 @@ test("account menu leaves theme toggling to initializeTheme", () => {
 });
 
 for (const page of ["index.html", "evento.html", "o-bar.html", "favoritos.html", "conta.html"]) {
-  test(`${page} header has no theme toggle; the account menus carry it`, () => {
+  test(`${page} header shows the night-mode button beside the account menu`, () => {
     const html = readFileSync(new URL(`../${page}`, import.meta.url), "utf8");
     const header = html.match(/<header class="site-header">([\s\S]*?)<\/header>/)?.[1];
     assert.ok(header, "site header not found");
-    assert.doesNotMatch(header, /id="theme-toggle"/);
+    assert.match(header, /id="theme-toggle"[^>]*data-theme-toggle/);
+    assert.match(header, /class="theme-toggle-label">Modo noturno</);
     assert.doesNotMatch(header, /instagram\.com\/bardacaciaoficial/);
     assert.match(header, /<div id="header-account" class="header-account-slot"><\/div>/);
   });

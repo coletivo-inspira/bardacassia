@@ -2,12 +2,16 @@
  * Spotify Authorization Code + PKCE. Somente no navegador; sem client secret.
  * A conexão é opcional e requer VITE_SPOTIFY_CLIENT_ID + redirect URI cadastrada.
  */
+import { getFeatures } from "../lib/feature-state.js";
+import { showSpotify } from "../lib/features.js";
+
 const CLIENT_ID = String(import.meta.env.VITE_SPOTIFY_CLIENT_ID || "").trim();
-const SPOTIFY_ENABLED = String(import.meta.env.VITE_ENABLE_SPOTIFY || "true") !== "false";
 const PKCE_KEY = "bdc-spotify-pkce";
 const SCOPE = "user-top-read";
 
-export const spotifyConfigured = Boolean(CLIENT_ID) && SPOTIFY_ENABLED;
+export function spotifyConfigured() {
+  return showSpotify(getFeatures(), CLIENT_ID);
+}
 
 function redirectUri() {
   return `${location.origin}${location.pathname}`;
@@ -20,7 +24,7 @@ function base64url(bytes) {
 }
 
 export async function connectSpotify() {
-  if (!spotifyConfigured) throw new Error("Spotify não configurado neste site.");
+  if (!spotifyConfigured()) throw new Error("Spotify não configurado neste site.");
   if (!crypto?.subtle || !crypto?.getRandomValues) {
     throw new Error("Conexão segura indisponível neste navegador.");
   }

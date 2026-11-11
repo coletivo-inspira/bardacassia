@@ -254,7 +254,7 @@ function loadLocal() {
 }
 
 async function refresh() {
-  if (!requestsConfigured) {
+  if (!requestsConfigured()) {
     loadLocal();
     return;
   }
@@ -276,7 +276,7 @@ function watchLive() {
 
 async function enterPanel() {
   me = await staffWhoami();
-  if (me?.role !== "dono") {
+  if (me?.role !== "dono" && me?.role !== "admin") {
     showDenied(me);
     return;
   }
@@ -288,7 +288,7 @@ function init() {
   els.ranges.forEach((button) => button.addEventListener("click", () => {
     rangeId = button.dataset.range;
     setPressed(els.ranges, rangeId, "range");
-    if (!requestsConfigured) loadLocal();
+    if (!requestsConfigured()) loadLocal();
     else void refresh();
   }));
   for (const button of [els.variantCheio, els.variantVazio]) {
@@ -322,7 +322,7 @@ function init() {
     if (!document.hidden && timer) void refresh();
   });
 
-  if (!requestsConfigured) {
+  if (!requestsConfigured()) {
     loadLocal();
     return;
   }

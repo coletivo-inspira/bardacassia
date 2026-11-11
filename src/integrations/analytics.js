@@ -1,4 +1,6 @@
 import { readOrigin } from "../lib/origin.js";
+import { getFeatures } from "../lib/feature-state.js";
+import { shouldLoadAnalytics } from "../lib/features.js";
 
 // "G-XXXX" usa o Google Analytics 4 (com eventos); outro valor é tratado como token do
 // Cloudflare Web Analytics, que conta acessos sem cookies mas não recebe eventos.
@@ -27,7 +29,7 @@ function sessionOrigin() {
 }
 
 export function initAnalytics() {
-  if (started || !ANALYTICS_ID) return;
+  if (started || !shouldLoadAnalytics(getFeatures(), ANALYTICS_ID)) return;
   started = true;
   origin = sessionOrigin();
   if (ANALYTICS_ID.startsWith("G-")) {

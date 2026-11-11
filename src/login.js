@@ -1,12 +1,14 @@
-import { hideExpiredEventNav, initializeTheme } from "./site.js";
+import { applyFeatureChrome, hideExpiredEventNav, initializeTheme } from "./site.js";
+import { loadSiteFeatures } from "./integrations/features.js";
 import {
-  authConfigured,
-  authProviders,
+  authBackendReady,
   captchaSiteKey,
+  currentAuthProviders,
   deleteAccount,
   displayName,
   getCurrentUser,
   onAuthChange,
+  publicAuthEnabled,
   requestPasswordReset,
   signIn,
   signInWithEmailLink,
@@ -171,7 +173,7 @@ function renderValidation({ showAll = false } = {}) {
     consentError.textContent = "";
   }
   const needsCaptcha = captchaSiteKey && CAPTCHA_MODES.has(mode);
-  submit.disabled = busy || !authConfigured || !valid || Boolean(needsCaptcha && !captchaToken);
+  submit.disabled = busy || !loginUiEnabled() || !valid || Boolean(needsCaptcha && !captchaToken);
   return valid;
 }
 
@@ -207,7 +209,7 @@ function setMode(next, { keepStatus = false } = {}) {
   document.querySelectorAll("#auth-card [data-modes]").forEach((element) => {
     element.hidden = !element.dataset.modes.split(" ").includes(mode);
   });
-  $("#auth-social").hidden = !authProviders.length || !["entrar", "cadastrar"].includes(mode);
+  $("#auth-social").hidden = !currentAuthProviders().length || !["entrar", "cadastrar"].includes(mode);
   $("#auth-captcha").hidden = !(captchaSiteKey && CAPTCHA_MODES.has(mode));
   if (mode === "conta") void renderAccount();
   initializeTheme();
@@ -847,7 +849,7 @@ function bindEvents() {
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") setTooltip(false); });
 
   document.querySelectorAll("[data-provider]").forEach((button) => {
-    button.hidden = !authProviders.includes(button.dataset.provider);
+    button.hidden = !currentAuthProviders().includes(button.dataset.provider);
     button.addEventListener("click", async () => {
       button.disabled = true;
       try {
@@ -883,12 +885,21 @@ function bindEvents() {
   window.addEventListener("hashchange", () => setMode(location.hash.slice(1)));
 }
 
+function loginUiEnabled() {
+  if (!authBackendReady) return false;
+  if (publicAuthEnabled()) return true;
+  const next = safeNextPath(new URLSearchParams(location.search).get("next") || "", "");
+  return next.startsWith("admin.html");
+}
+
 async function start() {
+  await loadSiteFeatures();
+  applyFeatureChrome();
   persistInput.checked = getPersistSession();
   bindEvents();
   setMode(location.hash.slice(1) || "entrar");
 
-  if (!authConfigured) {
+  if (!loginUiEnabled()) {
     $("#auth-unavailable").hidden = false;
     form.querySelectorAll("input, button").forEach((element) => { element.disabled = true; });
     return;

@@ -1,4 +1,4 @@
-import { authConfigured, getCurrentUser } from "./auth.js";
+import { authBackendReady, getCurrentUser } from "./auth.js";
 import { getSupabase } from "./supabase.js";
 import {
   AVATAR_MAX_OUTPUT_BYTES,
@@ -8,13 +8,13 @@ import {
 } from "../lib/profile.js";
 
 async function client() {
-  if (!authConfigured) throw new Error("Login não configurado.");
+  if (!authBackendReady) throw new Error("Login não configurado.");
   return getSupabase();
 }
 
 /** @returns {Promise<{ display_name: string, birth_date: string|null, avatar_url: string|null, data_consent_at: string|null, data_consent_version: string|null }|null>} */
 export async function getMyProfile() {
-  if (!authConfigured) return null;
+  if (!authBackendReady) return null;
   const user = await getCurrentUser();
   if (!user) return null;
   const supabase = await client();
@@ -86,9 +86,20 @@ export async function uploadMyAvatar(file, { compressed = false, maxSize, qualit
   return updateMyProfile({ avatarUrl: url });
 }
 
+/** Papel do perfil da sessão atual (`cliente`, `garcom`, `dono`, `admin`), ou null. */
+export async function getMyRole() {
+  if (!authBackendReady) return null;
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  if (error || !data?.role) return null;
+  return data.role;
+}
+
 /** Phone stored encrypted in `private.profile_secrets` via the `get_my_phone` RPC; E.164 or null. */
 export async function getMyPhone() {
-  if (!authConfigured) return null;
+  if (!authBackendReady) return null;
   const supabase = await client();
   const { data, error } = await supabase.rpc("get_my_phone");
   if (error) throw error;

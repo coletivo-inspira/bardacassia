@@ -1,13 +1,16 @@
 import { ensureSession } from "./auth.js";
 import { getSupabase, supabaseConfigured } from "./supabase.js";
+import { getFeatures } from "../lib/feature-state.js";
+import { showPopularity } from "../lib/features.js";
 
-const RANKING_ENABLED = String(import.meta.env.VITE_ENABLE_POPULARITY || "true") !== "false";
 const QUEUE_KEY = "bdc-popularity-queue-v1";
 const CACHE_KEY = "bdc-popularity-cache-v1";
 const CACHE_TTL = 5 * 60 * 1000;
 const MAX_QUEUE = 500;
 
-export const popularityConfigured = supabaseConfigured && RANKING_ENABLED;
+function popularityConfigured() {
+  return supabaseConfigured && showPopularity(getFeatures());
+}
 let retryPromise;
 let stalePopularity = false;
 let favoriteSyncActive = false;
@@ -19,7 +22,7 @@ export function setFavoriteSyncActive(active) {
 }
 
 function writesEnabled(kind) {
-  return popularityConfigured || (kind === "favorite" && favoriteSyncActive);
+  return popularityConfigured() || (kind === "favorite" && favoriteSyncActive);
 }
 
 export function popularityNeedsUpdate() { return stalePopularity; }
@@ -59,10 +62,10 @@ export function recordSongOpen(code) { enqueue("open", code); }
 export function setSongFavorite(code, active) { enqueue("favorite", code, Boolean(active)); }
 
 export async function fetchPopularSongs() {
-  if (!RANKING_ENABLED) return [];
+  if (!showPopularity(getFeatures())) return [];
   const cache = readJson(CACHE_KEY, null);
   if (cache?.expires > Date.now()) { stalePopularity = false; return cache.items; }
-  if (!popularityConfigured) { stalePopularity = Boolean(cache?.items?.length); return cache?.items || []; }
+  if (!popularityConfigured()) { stalePopularity = Boolean(cache?.items?.length); return cache?.items || []; }
   try {
     const items = await rpc("get_popular_songs", { p_limit: 40 });
     stalePopularity = false;
@@ -75,7 +78,7 @@ export async function fetchPopularSongs() {
 }
 
 export async function flushQueue() {
-  if (!(popularityConfigured || favoriteSyncActive) || retryPromise) return retryPromise;
+  if (!(popularityConfigured() || favoriteSyncActive) || retryPromise) return retryPromise;
   retryPromise = (async () => {
     let queue = readJson(QUEUE_KEY, []).filter((entry) => writesEnabled(entry.kind));
     while (queue.length) {

@@ -43,7 +43,8 @@ Sem as variáveis `VITE_SUPABASE_*`, o site continua útil: busca, descoberta, f
 | `favoritos.html` | `src/favorites-page.js` | Meus favoritos: abas, mover entre abas, código ao DJ (`index.html#favoritas` redireciona para cá) |
 | `conta.html` | `src/conta-page.js` | Menu da conta no mobile (favoritos, perfil, tema, sair); o tab Conta da island abre esta página |
 | `login.html` | `src/login.js` | Entrar, cadastrar, link, redefinir, Minha conta (perfil/LGPD) |
-| `garcom.html` | `src/garcom.js` | Fila, pagamento, rodada, código da noite, Resultados (dono) |
+| `garcom.html` | `src/garcom.js` | Fila, pagamento, rodada, código da noite, Resultados (dono ou admin) |
+| `admin.html` | `src/admin.js` | Interruptores do site, modo do pedido, provedores e papéis (`profiles.role = admin`) |
 | `cartaz.html` | `src/cartaz.js` | QR do catálogo para impressão (A5/A4 + origem) |
 | `evento.html` / `o-bar.html` | JS fino | Conteúdo institucional |
 
@@ -89,7 +90,7 @@ Módulos centrais em `src/`:
 | Pedido de casa | Impossível (cliente só gera QR local) | Barraível com código da noite |
 | Status no cliente | `get_ticket_status` (anon + authenticated) | `get_my_requests` + `get_public_queue` |
 
-Painel (`garcom.html`): abas Fila, A pagar (remoto), Rodada, Resultados (`owner_metrics`, exige `staff.role = 'dono'`).
+Painel (`garcom.html`): abas Fila, A pagar (remoto), Rodada, Resultados (`owner_metrics`). A fila aceita a linha em `staff` ou o papel do perfil `garcom` / `dono` / `admin`. Resultados aceita `staff.role = 'dono'` ou perfil `dono` / `admin`. Quem configura o site entra em `admin.html` (só `profiles.role = 'admin'`).
 
 ## Modelo de dados (migrações)
 
@@ -106,6 +107,7 @@ Aplicar **sempre** com o workflow (session pooler IPv4 no Actions). A ordem no d
 | `007_request_presence.sql` | código da noite em `bar_settings` | `create_song_request` (4 args), `staff_get_night_code`, `staff_set_night_code` |
 | `008_profile_extras.sql` | colunas LGPD/avatar em `profiles`, bucket `avatars` | PostgREST em `profiles` + Storage policies |
 | `009_profile_phone_key.sql` | chave Vault `profile_encryption_key` (só se faltar) | grants de `set_my_phone` / `get_my_phone` |
+| `010_site_config.sql` | `profiles.role`, singleton `site_features` | `get_site_features` (anon + authenticated), `set_site_features`, `admin_list_profiles`, `admin_set_profile_role` (só admin) |
 
 Quase todas as tabelas usam **RLS com revoke** para `anon`/`authenticated` e acesso via funções `security definer`. Exceções conscientes: `profiles` (select/update próprio) e Storage `avatars` (pasta = `auth.uid()`).
 
@@ -123,7 +125,7 @@ Quase todas as tabelas usam **RLS com revoke** para `anon`/`authenticated` e ace
 | Variável | Origem típica no Actions | Efeito |
 | --- | --- | --- |
 | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | `SUPABASE_URL` / `SUPABASE_ANON_KEY` | Liga Auth, RPC, perfil |
-| `VITE_ENABLE_AUTH` / `POPULARITY` / `REQUESTS` / `DISCOVERY` / `SPOTIFY` | `ENABLE_*` | Feature flags (`false` desliga) |
+| `VITE_ENABLE_AUTH` / `POPULARITY` / `REQUESTS` / `DISCOVERY` / `SPOTIFY` | `ENABLE_*` | Feature flags (`false` desliga). Com a migração `010` aplicada, o painel em `admin.html` grava o mesmo conjunto em `site_features` e o site obedece na hora; estas variáveis continuam o padrão quando o Supabase falta ou a leitura falha. Busca e código ao DJ não têm interruptor. |
 | `VITE_REQUEST_MODE` | `REQUEST_MODE` | `qr` (padrão) ou `remoto` |
 | `VITE_AUTH_PROVIDERS` | `AUTH_PROVIDERS` | Ex.: `google,facebook` |
 | `VITE_AUTH_CAPTCHA_SITE_KEY` | `AUTH_CAPTCHA_SITE_KEY` | Turnstile (site key pública) |
@@ -159,7 +161,7 @@ Se `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` ou `SUPABASE_PROJECT_REF` fal
 
 1. Secrets/variáveis do Actions preenchidos (tabela acima). Se o pooler auto falhar, adicione `SUPABASE_DB_URL` (Session, porta 5432).
 2. Painel Auth: Anonymous Sign-Ins, e-mail com confirmação, **Site URL** = `…/login.html` (não `localhost:3000`), Redirect URLs do domínio + Pages + `localhost:5173`, templates de e-mail a partir de `supabase/email-templates/`.
-3. **Actions → Deploy Supabase** verde (migrações `001`–`009` + functions; a `009` cria a chave Vault `profile_encryption_key` se faltar).
+3. **Actions → Deploy Supabase** verde (migrações `001`–`010` + functions; a `009` cria a chave Vault `profile_encryption_key` se faltar; a `010` liga o painel de funcionalidades).
 4. Confirmar no SQL Editor que a chave existe: `select name from vault.secrets where name = 'profile_encryption_key';`
 5. **Deploy Vite site to Pages** (ou push em `main`) para embutir `VITE_*` e rodar `sync-catalog`.
 6. Smoke: login → Minha conta (foto, aniversário, telefone) → favoritar em dois aparelhos → ranking → QR no `garcom.html`.

@@ -200,7 +200,7 @@ input:focus-visible {
   backdrop-filter: blur(14px) saturate(160%);
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 70%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, var(--glass-rim) 80%, rgba(232, 93, 76, 0.18)),
+    inset 0 0 0 1px var(--glass-rim),
     0 8px 22px color-mix(in srgb, var(--glass-drop) 70%, transparent);
   overflow: hidden;
 }
@@ -213,7 +213,7 @@ input:focus-visible {
   background:
     linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.34) 48%, transparent 72%),
     radial-gradient(120% 80% at 20% 0%, rgba(255, 255, 255, 0.35), transparent 55%);
-  opacity: 0.55;
+  opacity: 0.28;
   pointer-events: none;
 }
 
@@ -238,10 +238,10 @@ input:focus-visible {
   align-items: center;
   justify-content: center;
   padding: 0.45rem 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f7f7f4;
   text-decoration: none;
   font-size: 0.82rem;
   font-weight: 700;
@@ -251,9 +251,9 @@ input:focus-visible {
 
 .site-header nav a:hover,
 .site-header nav a.nav-active {
-  border-color: var(--amber);
-  background: rgba(222, 201, 73, 0.12);
-  color: var(--text);
+  border-color: transparent;
+  background: var(--amber);
+  color: var(--ink);
 }
 
 .theme-toggle {
@@ -274,9 +274,11 @@ input:focus-visible {
   transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
 }
 
-.theme-toggle:hover {
+.theme-toggle:hover,
+.theme-toggle[aria-pressed="true"] {
   border-color: var(--amber);
-  background: rgba(222, 201, 73, 0.12);
+  background: rgba(222, 201, 73, 0.16);
+  color: var(--amber);
 }
 
 .theme-toggle svg {
@@ -1906,15 +1908,15 @@ dialog::backdrop {
   gap: 0.6rem;
   min-height: 44px;
   padding: 0.65rem 1rem;
-  border: 2px solid #acc8d0;
-  border-radius: 14px;
-  background: transparent;
-  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f7f7f4;
   font-weight: 700;
   cursor: pointer;
   text-decoration: none;
   box-sizing: border-box;
-  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
 
 .favoritas-intro {
@@ -1963,8 +1965,15 @@ dialog::backdrop {
 
 .discovery-button:hover,
 .discovery-button.is-active {
-  background: #acc8d0;
-  color: #141414;
+  border-color: transparent;
+  background: var(--amber);
+  color: var(--ink);
+}
+
+.discovery-button:hover .favorite-count,
+.discovery-button.is-active .favorite-count {
+  background: var(--ink);
+  color: var(--amber);
 }
 
 .discovery-button:active {
@@ -3083,13 +3092,16 @@ body {
 :root[data-theme="light"] .site-header nav a {
   border-color: rgba(32, 35, 31, 0.2);
   background: rgba(255, 255, 255, 0.72);
+  color: var(--text);
 }
 
 :root[data-theme="light"] .site-header nav a:hover,
-:root[data-theme="light"] .site-header nav a.nav-active {
-  border-color: var(--amber);
-  background: rgba(222, 201, 73, 0.16);
-  color: var(--text);
+:root[data-theme="light"] .site-header nav a.nav-active,
+:root[data-theme="light"] .discovery-button:hover,
+:root[data-theme="light"] .discovery-button.is-active {
+  border-color: transparent;
+  background: var(--amber);
+  color: #fffdf8;
 }
 
 :root[data-theme="light"] .hero-bg {
@@ -4389,7 +4401,8 @@ dialog.discover-screen::backdrop { background: var(--bg); }
 @media (max-width: 1023px) {
   body:has(> .glass-island) { padding-bottom: calc(var(--island-gap) + var(--island-h) + 16px + env(safe-area-inset-bottom)); }
   body:has(> .glass-island) .site-header .desktop-nav,
-  body:has(> .glass-island) .site-header .header-actions { display: none; }
+  body:has(> .glass-island) .site-header .header-account,
+  body:has(> .glass-island) .site-header .header-account-menu { display: none; }
 
   /* Match sits above the island on the right and the orb level with it on the left. */
   body:has(> .glass-island) .discover-fab { bottom: calc(var(--island-gap) + var(--island-h) + 12px + env(safe-area-inset-bottom)); }
@@ -4727,10 +4740,7 @@ dialog.discover-screen::backdrop { background: var(--bg); }
     0 8px 20px rgba(32, 35, 31, 0.08);
 }
 :root[data-theme="light"] .site-header::before {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 48%),
-    radial-gradient(120% 140% at 12% -40%, rgba(168, 66, 53, 0.12), transparent 55%),
-    radial-gradient(90% 120% at 88% 120%, rgba(118, 89, 0, 0.08), transparent 50%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0) 52%);
 }
 
 /* Conta page — frosted settings list (white/gray + soft red accents). */

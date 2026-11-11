@@ -25,11 +25,14 @@ import {
   spotifySearchUrl,
 } from "./lib/song-row.js";
 import { recordSongOpen, setFavoriteSyncActive, setSongFavorite } from "./integrations/popularity.js";
-import { authConfigured, onAuthChange } from "./integrations/auth.js";
+import { authBackendReady, onAuthChange } from "./integrations/auth.js";
+import { loadSiteFeatures } from "./integrations/features.js";
+import { getFeatures } from "./lib/feature-state.js";
+import { showDeezer } from "./lib/features.js";
 import { syncAccountFavorites } from "./integrations/favorites-sync.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
 import { initAnalytics, trackEvent } from "./integrations/analytics.js";
-import { hideExpiredEventNav, initializeAccountMenu, initializeIsland, initializeTheme, setFooterYear } from "./site.js";
+import { applyFeatureChrome, hideExpiredEventNav, initializeAccountMenu, initializeIsland, initializeTheme, setFooterYear } from "./site.js";
 
 const BASE = import.meta.env.BASE_URL || "/";
 const RESULTS_VIEW_KEY = "bdc-results-view-v1";
@@ -302,7 +305,8 @@ function showSongToDJ(song) {
   const rowImg = row?.querySelector(".song-cover img");
   setDialogCover(song, catalogMeta.cover || rowImg?.currentSrc || rowImg?.src || null);
   const preview = catalogMeta.previewUrl || row?.querySelector(".preview-btn")?.dataset.preview || "";
-  els.dialogPreview.hidden = !(preview || catalogMeta.deezerId);
+  const deezer = showDeezer(getFeatures());
+  els.dialogPreview.hidden = !(deezer && (preview || catalogMeta.deezerId));
   if (preview) els.dialogPreview.dataset.preview = preview;
   else delete els.dialogPreview.dataset.preview;
   paintPreviewButton(els.dialogPreview, false);
@@ -326,7 +330,7 @@ async function applyAccountFavorites() {
 }
 
 async function watchAccountFavorites() {
-  if (!authConfigured) return;
+  if (!authBackendReady) return;
   let skipRecoverySignedIn = true;
   await onAuthChange(async (event) => {
     if (event === "SIGNED_OUT") {
@@ -409,11 +413,18 @@ async function init() {
   void applyAccountFavorites();
 }
 
-initializeTheme();
-initAnalytics();
-hideExpiredEventNav();
-setFooterYear();
-initializeIsland();
-void initializeAccountMenu();
-void watchAccountFavorites();
-init();
+async function boot() {
+  await loadSiteFeatures();
+  const open = applyFeatureChrome();
+  initializeTheme();
+  if (open) initAnalytics();
+  hideExpiredEventNav();
+  setFooterYear();
+  initializeIsland();
+  void initializeAccountMenu();
+  if (!open) return;
+  void watchAccountFavorites();
+  await init();
+}
+
+void boot();
