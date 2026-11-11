@@ -2352,6 +2352,8 @@ body {
   }
 
   .theme-toggle-label { display: none; }
+  .account-menu-text .theme-toggle-label,
+  .header-account-menu .theme-toggle-label { display: inline; }
 
   .theme-toggle { width: 44px; height: 44px; padding: 0; flex: 0 0 44px; }
 
