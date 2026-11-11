@@ -41,6 +41,7 @@ Sem as variáveis `VITE_SUPABASE_*`, o site continua útil: busca, descoberta, f
 | --- | --- | --- |
 | `index.html` | `src/main.js` | Busca (com o filtro “Somente favoritas”), descoberta, ranking, QR/pedido |
 | `favoritos.html` | `src/favorites-page.js` | Meus favoritos: abas, mover entre abas, código ao DJ (`index.html#favoritas` redireciona para cá) |
+| `conta.html` | `src/conta-page.js` | Menu da conta no mobile (favoritos, perfil, tema, sair); o tab Conta da island abre esta página |
 | `login.html` | `src/login.js` | Entrar, cadastrar, link, redefinir, Minha conta (perfil/LGPD) |
 | `garcom.html` | `src/garcom.js` | Fila, pagamento, rodada, código da noite, Resultados (dono ou admin) |
 | `admin.html` | `src/admin.js` | Interruptores do site, modo do pedido, provedores e papéis (`profiles.role = admin`) |

@@ -107,6 +107,7 @@ input:focus-visible, button:focus-visible { outline: 2px solid var(--amber); out
 .staff-hint { margin: .25rem 0 0; color: var(--muted); font-size: .85rem; line-height: 1.4; }
 .staff-hint a { color: var(--amber); }
 .staff-notice { padding: 1rem; border-radius: 12px; background: var(--card); color: var(--muted); }
+.staff-notice a { color: var(--amber); }
 
 .staff-round {
   margin: 0 0 .75rem;
