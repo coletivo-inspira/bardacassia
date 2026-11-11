@@ -44,7 +44,8 @@ Sem as variáveis `VITE_SUPABASE_*`, o site continua útil: busca, descoberta, f
 | `conta.html` | `src/conta-page.js` | Menu da conta no mobile (favoritos, perfil, tema, sair); o tab Conta da island abre esta página |
 | `login.html` | `src/login.js` | Entrar, cadastrar, link, redefinir, Minha conta (perfil/LGPD) |
 | `garcom.html` | `src/garcom.js` | Fila, pagamento, rodada, código da noite, Resultados (dono ou admin) |
-| `admin.html` | `src/admin.js` | Interruptores do site, modo do pedido, provedores, cores e papéis (`profiles.role = admin`) |
+| `gerente.html` | `src/gerente.js` | Painel executivo de movimento e fila da noite (controlado por `manager_panel`) |
+| `admin.html` | `src/admin.js` + `src/admin.css` | Console glass em 5 abas (`#visao`, `#config`, `#aparencia`, `#acessos`, `#banco-logs`), parâmetros sem deploy, equipe, tabelas e auditoria (`profiles.role = admin`) |
 | `cartaz.html` | `src/cartaz.js` | QR do catálogo para impressão (A5/A4 + origem) |
 | `evento.html` / `o-bar.html` | JS fino | Conteúdo institucional |
 
@@ -109,6 +110,7 @@ Aplicar **sempre** com o workflow (session pooler IPv4 no Actions). A ordem no d
 | `009_profile_phone_key.sql` | chave Vault `profile_encryption_key` (só se faltar) | grants de `set_my_phone` / `get_my_phone` |
 | `010_site_config.sql` | `profiles.role`, singleton `site_features` | `get_site_features` (anon + authenticated), `set_site_features`, `admin_list_profiles`, `admin_set_profile_role` (só admin) |
 | `011_site_palette.sql` | coluna `palette` em `site_features` | `get_site_features` também devolve `palette`; `set_site_palette` (só admin) |
+| `012_admin_console_logs.sql` | parâmetros runtime em `site_features`, `admin_audit_logs`, `private.log_admin_event` | `admin_set_runtime_params`, `admin_db_overview`, `admin_list_users`, `admin_update_user_access`, `admin_list_requests`, `admin_inspect_table`, `admin_list_audit_logs` (só admin) |
 
 Quase todas as tabelas usam **RLS com revoke** para `anon`/`authenticated` e acesso via funções `security definer`. Exceções conscientes: `profiles` (select/update próprio) e Storage `avatars` (pasta = `auth.uid()`).
 

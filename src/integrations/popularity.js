@@ -1,7 +1,7 @@
 import { ensureSession } from "./auth.js";
 import { getSupabase, supabaseConfigured } from "./supabase.js";
 import { getFeatures } from "../lib/feature-state.js";
-import { showPopularity } from "../lib/features.js";
+import { popularLimitOf, showPopularity } from "../lib/features.js";
 
 const QUEUE_KEY = "bdc-popularity-queue-v1";
 const CACHE_KEY = "bdc-popularity-cache-v1";
@@ -62,18 +62,26 @@ export function recordSongOpen(code) { enqueue("open", code); }
 export function setSongFavorite(code, active) { enqueue("favorite", code, Boolean(active)); }
 
 export async function fetchPopularSongs() {
-  if (!showPopularity(getFeatures())) return [];
+  const features = getFeatures();
+  if (!showPopularity(features)) return [];
+  const limit = popularLimitOf(features);
   const cache = readJson(CACHE_KEY, null);
-  if (cache?.expires > Date.now()) { stalePopularity = false; return cache.items; }
-  if (!popularityConfigured()) { stalePopularity = Boolean(cache?.items?.length); return cache?.items || []; }
-  try {
-    const items = await rpc("get_popular_songs", { p_limit: 40 });
+  if (cache?.expires > Date.now() && (cache.limit ?? 40) >= limit) {
     stalePopularity = false;
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ items, expires: Date.now() + CACHE_TTL })); } catch { /* cache is optional */ }
+    return (cache.items || []).slice(0, limit);
+  }
+  if (!popularityConfigured()) {
+    stalePopularity = Boolean(cache?.items?.length);
+    return (cache?.items || []).slice(0, limit);
+  }
+  try {
+    const items = await rpc("get_popular_songs", { p_limit: limit });
+    stalePopularity = false;
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ items, limit, expires: Date.now() + CACHE_TTL })); } catch { /* cache is optional */ }
     return items;
   } catch {
     stalePopularity = Boolean(cache?.items?.length);
-    return cache?.items || [];
+    return (cache?.items || []).slice(0, limit);
   }
 }
 
