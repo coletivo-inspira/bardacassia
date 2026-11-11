@@ -4,9 +4,11 @@ import {
   DRAFT_TAB_ID,
   addToTab,
   allCodes,
+  canClearTab,
   clearTab,
   codesToUpload,
   createTab,
+  createTabWithSong,
   deleteTab,
   emptyFavoritesState,
   FAVORITES_KEY,
@@ -70,13 +72,55 @@ test("renomeia e apaga abas, devolvendo as músicas para o Rascunho", () => {
   assert.equal(state.active, DRAFT_TAB_ID);
 });
 
-test("remove a música de qualquer aba e limpa uma aba", () => {
+test("remove a música de qualquer aba", () => {
   let state = addToTab(addToTab(emptyFavoritesState(), "1"), "2");
   state = removeSong(state, "1");
   assert.deepEqual(state.tabs[0].codes, ["2"]);
-  state = clearTab(state, DRAFT_TAB_ID);
-  assert.equal(allCodes(state).size, 0);
   assert.equal(createTab(state, "   "), state);
+});
+
+test("limpar uma aba devolve as músicas ao Rascunho sem desfavoritar", () => {
+  let state = addToTab(addToTab(addToTab(emptyFavoritesState(), "1"), "2"), "3");
+  state = createTab(state, "Sexta", "sexta");
+  state = moveSong(moveSong(state, "2", "sexta"), "3", "sexta");
+  assert.equal(canClearTab(state, "sexta"), true);
+  const before = allCodes(state);
+  state = clearTab(state, "sexta");
+  assert.deepEqual(state.tabs.find((tab) => tab.id === "sexta").codes, []);
+  assert.deepEqual(state.tabs[0].codes, ["1", "2", "3"]);
+  assert.deepEqual(allCodes(state), before);
+  assert.equal(state.active, "sexta");
+  assert.equal(canClearTab(state, "sexta"), false);
+  assert.equal(clearTab(state, "sexta"), state);
+});
+
+test("o Rascunho nunca pode ser limpo, nem quando é a única aba", () => {
+  const onlyDraft = addToTab(addToTab(emptyFavoritesState(), "1"), "2");
+  assert.equal(onlyDraft.tabs.length, 1);
+  assert.equal(canClearTab(onlyDraft, DRAFT_TAB_ID), false);
+  assert.equal(clearTab(onlyDraft, DRAFT_TAB_ID), onlyDraft);
+  assert.deepEqual([...allCodes(onlyDraft)], ["1", "2"]);
+
+  const withCustom = createTab(onlyDraft, "Sexta", "sexta");
+  assert.equal(canClearTab(withCustom, DRAFT_TAB_ID), false);
+  assert.equal(clearTab(withCustom, DRAFT_TAB_ID), withCustom);
+  assert.equal(canClearTab(withCustom, "sexta"), false, "aba vazia não tem o que limpar");
+  assert.equal(canClearTab(withCustom, "nao-existe"), false);
+});
+
+test("+ Nova aba cria a aba e a deixa ativa", () => {
+  const state = createTab(addToTab(emptyFavoritesState(), "1"), "  Noite de sexta  ", "sexta");
+  assert.deepEqual(state.tabs.map((tab) => tab.name), ["Rascunho", "Noite de sexta"]);
+  assert.equal(state.active, "sexta");
+  assert.deepEqual(state.tabs[0].codes, ["1"]);
+});
+
+test("+ Nova aba… no Mover para cria a aba com a música e mantém a aba atual", () => {
+  const state = addToTab(addToTab(emptyFavoritesState(), "1"), "2");
+  const next = createTabWithSong(state, "Aniversário", "2", "niver");
+  assert.equal(next.active, DRAFT_TAB_ID);
+  assert.deepEqual(next.tabs.map(({ id, codes }) => [id, codes]), [[DRAFT_TAB_ID, ["1"]], ["niver", ["2"]]]);
+  assert.equal(createTabWithSong(state, "   ", "2"), state);
 });
 
 test("merges local and account favorites without duplicates", () => {

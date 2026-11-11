@@ -5,8 +5,10 @@ import {
   FAVORITES_KEY,
   addToTab,
   allCodes,
+  canClearTab,
   clearTab,
   createTab,
+  createTabWithSong,
   deleteTab,
   loadFavoritesState,
   mergeFavoriteCodes,
@@ -44,6 +46,11 @@ const els = {
   renameTab: $("#rename-favorite-tab"),
   clearTab: $("#clear-favorite-tab"),
   deleteTab: $("#delete-favorite-tab"),
+  tabForm: $("#favorite-tab-form"),
+  tabFormLabel: $("#favorite-tab-form-label"),
+  tabName: $("#favorite-tab-name"),
+  tabSubmit: $("#favorite-tab-submit"),
+  tabCancel: $("#favorite-tab-cancel"),
   count: $("#results-count"),
   list: $("#songs-list"),
   empty: $("#favorites-empty"),
@@ -71,6 +78,7 @@ let dialogReturnFocus = null;
 let copyTimer = null;
 let coversPromise = null;
 let bootSyncStarted = false;
+let tabFormTask = null;
 
 function ensureSongCovers() {
   if (coversPromise) return coversPromise;
@@ -158,9 +166,13 @@ function renderTabs() {
     return button;
   }));
   const isDraft = current.id === DRAFT_TAB_ID;
+  if (tabFormTask?.mode === "rename" && tabFormTask.tabId !== current.id) closeTabForm({ restoreFocus: false });
   els.renameTab.hidden = isDraft;
   els.deleteTab.hidden = isDraft;
-  els.clearTab.disabled = current.codes.length === 0;
+  els.clearTab.disabled = !canClearTab(favoritesState, current.id);
+  els.clearTab.title = isDraft
+    ? "O Rascunho guarda suas favoritas e não pode ser limpo"
+    : "Devolve as músicas desta aba para o Rascunho, sem tirar das favoritas";
 }
 
 function toggleFavorite(song) {
@@ -181,7 +193,7 @@ function renderSongs() {
     onShowArtist: showArtist,
     onToggleFavorite: toggleFavorite,
     onTogglePreview: togglePreview,
-    extra: createMoveSelect(song, favoritesState, update),
+    extra: createMoveSelect(song, favoritesState, update, { onNewTab: (target) => openTabForm({ mode: "move", code: target.code }) }),
   }));
   els.list.replaceChildren(...rows);
   rowMeta.observe(rows);
@@ -205,15 +217,35 @@ function render() {
   renderSongs();
 }
 
-function promptNewTab() {
-  const name = window.prompt("Nome da nova aba (ex.: Noite de sexta):");
-  if (name?.trim()) update(createTab(favoritesState, name));
+// Inline form: embedded browsers (Electron, in-app webviews) ignore native prompt dialogs.
+function openTabForm(task) {
+  const rename = task.mode === "rename";
+  tabFormTask = rename ? { ...task, tabId: activeTab().id } : task;
+  els.tabFormLabel.textContent = rename ? "Novo nome da aba" : "Nome da nova aba";
+  els.tabSubmit.textContent = rename ? "Salvar nome" : "Criar aba";
+  els.tabName.value = rename ? activeTab().name : "";
+  els.tabForm.hidden = false;
+  els.tabName.focus();
+  if (rename) els.tabName.select();
 }
 
-function promptRenameTab() {
-  const tab = activeTab();
-  const name = window.prompt("Novo nome da aba:", tab.name);
-  if (name?.trim()) update(renameTab(favoritesState, tab.id, name));
+function closeTabForm({ restoreFocus = true } = {}) {
+  const task = tabFormTask;
+  tabFormTask = null;
+  els.tabForm.hidden = true;
+  els.tabName.value = "";
+  if (restoreFocus && task?.mode !== "move") (task?.mode === "rename" ? els.renameTab : els.newTab).focus();
+}
+
+function submitTabForm(event) {
+  event.preventDefault();
+  const name = els.tabName.value.trim();
+  if (!name || !tabFormTask) return;
+  const task = tabFormTask;
+  closeTabForm({ restoreFocus: false });
+  if (task.mode === "rename") update(renameTab(favoritesState, task.tabId, name));
+  else if (task.mode === "move") update(createTabWithSong(favoritesState, name, task.code));
+  else update(createTab(favoritesState, name));
 }
 
 function confirmDeleteTab() {
@@ -224,8 +256,8 @@ function confirmDeleteTab() {
 
 function confirmClearTab() {
   const tab = activeTab();
-  if (!tab.codes.length || !window.confirm(`Tirar todas as músicas da aba “${tab.name}”?`)) return;
-  for (const code of tab.codes) setSongFavorite(code, false);
+  if (!canClearTab(favoritesState, tab.id)) return;
+  if (!window.confirm(`Limpar a aba “${tab.name}”? As músicas voltam para o Rascunho e continuam nas suas favoritas.`)) return;
   update(clearTab(favoritesState, tab.id));
 }
 
@@ -379,8 +411,13 @@ els.dialog.addEventListener("close", () => {
   if (dialogReturnFocus?.isConnected) dialogReturnFocus.focus({ preventScroll: true });
 });
 els.audio.addEventListener("ended", stopPreview);
-els.newTab.addEventListener("click", promptNewTab);
-els.renameTab.addEventListener("click", promptRenameTab);
+els.newTab.addEventListener("click", () => openTabForm({ mode: "new" }));
+els.renameTab.addEventListener("click", () => openTabForm({ mode: "rename" }));
+els.tabForm.addEventListener("submit", submitTabForm);
+els.tabCancel.addEventListener("click", () => closeTabForm());
+els.tabName.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeTabForm();
+});
 els.deleteTab.addEventListener("click", confirmDeleteTab);
 els.clearTab.addEventListener("click", confirmClearTab);
 els.viewList.addEventListener("click", () => setResultsView("list"));

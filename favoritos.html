@@ -79,11 +79,17 @@
           <section id="favorite-tabs" class="favorite-tabs" aria-label="Abas das favoritas">
             <div id="favorite-tab-list" class="favorite-tab-list" role="tablist" aria-label="Suas abas"></div>
             <div class="favorite-tab-actions">
-              <button id="new-favorite-tab" class="text-button" type="button">+ Nova aba</button>
-              <button id="rename-favorite-tab" class="text-button" type="button">Renomear aba</button>
-              <button id="clear-favorite-tab" class="text-button" type="button">Limpar aba</button>
-              <button id="delete-favorite-tab" class="text-button" type="button">Apagar aba</button>
+              <button id="new-favorite-tab" class="favorite-tab-action favorite-tab-action--primary" type="button">+ Nova aba</button>
+              <button id="rename-favorite-tab" class="favorite-tab-action" type="button">Renomear aba</button>
+              <button id="clear-favorite-tab" class="favorite-tab-action" type="button">Limpar aba</button>
+              <button id="delete-favorite-tab" class="favorite-tab-action favorite-tab-action--danger" type="button">Apagar aba</button>
             </div>
+            <form id="favorite-tab-form" class="favorite-tab-form" autocomplete="off" hidden>
+              <label id="favorite-tab-form-label" class="visually-hidden" for="favorite-tab-name">Nome da nova aba</label>
+              <input id="favorite-tab-name" name="name" type="text" maxlength="40" required placeholder="Nome da aba (ex.: Noite de sexta)" />
+              <button id="favorite-tab-submit" class="favorite-tab-action favorite-tab-action--primary" type="submit">Criar aba</button>
+              <button id="favorite-tab-cancel" class="favorite-tab-action" type="button">Cancelar</button>
+            </form>
           </section>
 
           <div class="results-toolbar">
@@ -103,7 +109,7 @@
           <div id="songs-list" class="songs-list" role="list"></div>
           <div id="favorites-empty" class="empty-state favorites-empty" hidden>
             <p id="favorites-empty-text">Você ainda não favoritou nenhuma música.</p>
-            <a id="favorites-empty-link" class="button button-light" href="index.html#buscar">Explorar o catálogo</a>
+            <a id="favorites-empty-link" class="button favorites-empty-cta" href="index.html#buscar">Explorar o catálogo</a>
           </div>
         </div>
       </section>

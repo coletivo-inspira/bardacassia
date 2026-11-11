@@ -102,6 +102,13 @@ export function createTab(state, name, id = `aba-${Date.now().toString(36)}`) {
   return { ...state, tabs: [...state.tabs, { id, name: label, codes: [] }], active: id };
 }
 
+/** Creating from "Mover para…" moves the song there and keeps the current tab open. */
+export function createTabWithSong(state, name, code, id) {
+  const created = createTab(state, name, id);
+  if (created === state) return state;
+  return moveSong(setActiveTab(created, state.active), code, created.active);
+}
+
 export function renameTab(state, tabId, name) {
   const label = String(name || "").trim().slice(0, 40);
   if (!label || tabId === DRAFT_TAB_ID) return state;
@@ -118,8 +125,24 @@ export function deleteTab(state, tabId) {
   return { ...state, tabs, active: state.active === tabId ? DRAFT_TAB_ID : state.active };
 }
 
+/** Rascunho is where cleared songs go, so only a custom tab with songs can be cleared. */
+export function canClearTab(state, tabId) {
+  if (tabId === DRAFT_TAB_ID) return false;
+  return Boolean(state.tabs.find((tab) => tab.id === tabId)?.codes.length);
+}
+
+/** Clearing a tab returns its songs to Rascunho; it never unfavorites them. */
 export function clearTab(state, tabId) {
-  return { ...state, tabs: state.tabs.map((tab) => (tab.id === tabId ? { ...tab, codes: [] } : tab)) };
+  if (!canClearTab(state, tabId)) return state;
+  const cleared = state.tabs.find((tab) => tab.id === tabId);
+  return {
+    ...state,
+    tabs: state.tabs.map((tab) => {
+      if (tab.id === tabId) return { ...tab, codes: [] };
+      if (tab.id === DRAFT_TAB_ID) return { ...tab, codes: uniqueCodes([...tab.codes, ...cleared.codes]) };
+      return tab;
+    }),
+  };
 }
 
 export function setActiveTab(state, tabId) {

@@ -1,6 +1,6 @@
 import { cleanArtist, displayTitle } from "./catalog.js";
 import { cancelPendingDeezerMeta, fetchDeezerMeta, metaFromCatalog } from "../integrations/deezer.js";
-import { createTab, moveSong, setActiveTab, tabOf } from "./favorites.js";
+import { createTabWithSong, moveSong, tabOf } from "./favorites.js";
 import { getFeatures } from "./feature-state.js";
 import { showDeezer, showFavorites } from "./features.js";
 
@@ -242,8 +242,11 @@ export function createSongRow(song, { favorite, onShowCode, onShowArtist, onTogg
   return row;
 }
 
-/** "Mover para…" select; `onChange` receives the next favorites state after the move. */
-export function createMoveSelect(song, state, onChange) {
+/**
+ * "Mover para…" select; `onChange` receives the next favorites state after the move.
+ * `onNewTab(song)` replaces the native prompt, which embedded browsers may not support.
+ */
+export function createMoveSelect(song, state, onChange, { onNewTab = null } = {}) {
   const label = document.createElement("label");
   label.className = "move-favorite";
   const text = document.createElement("span");
@@ -259,12 +262,13 @@ export function createMoveSelect(song, state, onChange) {
   select.append(new Option("+ Nova aba…", "__new__"));
   select.addEventListener("change", () => {
     const value = select.value;
-    if (value === "__new__") {
+    if (value === "__new__" && onNewTab) {
+      select.value = "";
+      onNewTab(song);
+    } else if (value === "__new__") {
       const name = window.prompt("Nome da nova aba:");
       if (!name?.trim()) { select.value = ""; return; }
-      const created = createTab(state, name);
-      const next = setActiveTab(created, state.active);
-      onChange(moveSong(next, song.code, created.active));
+      onChange(createTabWithSong(state, name, song.code));
     } else if (value) {
       onChange(moveSong(state, song.code, value));
     }
