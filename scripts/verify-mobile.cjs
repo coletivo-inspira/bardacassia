@@ -28,7 +28,7 @@ const assert=require('node:assert/strict');
  assert(await page.locator('#catalog-filters').isHidden());
  await page.locator('#toggle-filters').click(); await page.locator('#filter-favorites').check();
  assert(await page.locator('#catalog-filters').isHidden());
- assert.equal(await page.locator('#songs-list').locator('.song-row').count(),0); assert.equal(await page.locator('.search-suggestion').filter({hasText:'Infiel'}).count(),0);
+ assert.equal(await page.locator('#songs-list').locator('.song-row').count(),0); assert.equal(await page.locator('#search-suggestions [role="option"]').filter({hasText:'Infiel'}).count(),0);
  await page.locator('#toggle-filters').click(); await page.locator('#clear-filters').click(); await page.locator('#clear-search').click();
  assert.equal(await page.locator('#toggle-filters').textContent(),'Filtros');
  await page.emulateMedia({reducedMotion:'reduce'}); assert((await page.locator('.hero-artwork img').evaluate(el=>el.currentSrc)).endsWith('logo_bar_da_cacia_animada.svg'));

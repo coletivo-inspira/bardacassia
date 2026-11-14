@@ -73,6 +73,10 @@
           <input
             id="song-search"
             type="search"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-controls="search-suggestions"
+            aria-expanded="false"
             placeholder="Qual música você quer cantar?"
             autocomplete="off"
             enterkeyhint="search"
@@ -80,6 +84,7 @@
           <button id="toggle-filters" class="clear-button" type="button" aria-expanded="false" aria-controls="catalog-filters">Filtros</button>
           <button id="clear-search" class="clear-button" type="button" hidden>Limpar</button>
         </div>
+        <div id="search-suggestions" class="search-suggest" role="listbox" aria-label="Sugestões de busca" hidden></div>
         <div id="catalog-filters" class="catalog-filters" hidden>
           <label>Idioma<select id="filter-language"><option value="">Todos os idiomas</option></select></label>
           <label>Artista<input id="filter-artist-search" type="search" placeholder="Buscar artista" aria-label="Buscar nome do artista no filtro" /><select id="filter-artist" aria-label="Selecionar artista"><option value="">Todos os artistas</option></select></label>
@@ -135,7 +140,6 @@
           <h2 id="catalog-title" class="browse-title">Explore o catálogo</h2>
           <div class="spotify-search">
             <div id="active-filter-chips" class="active-filter-chips" aria-label="Filtros ativos"></div>
-            <div id="search-suggestions" class="search-suggestions" aria-label="Sugestões de busca"></div>
             <p id="results-count" class="results-count" aria-live="polite"></p>
           </div>
           <p class="search-help">

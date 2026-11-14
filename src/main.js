@@ -1343,6 +1343,7 @@ const catalogFiltersPanel = document.querySelector("#catalog-filters");
 const searchChrome = document.querySelector(".spotify-search-chrome");
 
 function setFiltersPanelOpen(open) {
+  if (open) closeSuggestions();
   catalogFiltersPanel.hidden = !open;
   filtersToggle.setAttribute("aria-expanded", String(open));
   searchChrome?.classList.toggle("is-filters-open", open);
@@ -1351,6 +1352,105 @@ function setFiltersPanelOpen(open) {
 function collapseFiltersPanel() {
   setFiltersPanelOpen(false);
 }
+
+const suggestList = document.querySelector("#search-suggestions");
+const suggestionPicks = new WeakMap();
+const SUGGEST_ARTIST_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg>`;
+const SUGGEST_SONG_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 18V5.5l11-2.2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>`;
+let suggestIndex = -1;
+
+function suggestionOptions() {
+  return [...suggestList.querySelectorAll('[role="option"]:not([aria-disabled="true"])')];
+}
+
+function setActiveSuggestion(index) {
+  const options = suggestionOptions();
+  suggestIndex = index >= 0 && index < options.length ? index : -1;
+  options.forEach((option, i) => option.setAttribute("aria-selected", String(i === suggestIndex)));
+  const active = options[suggestIndex];
+  if (active) {
+    els.searchInput.setAttribute("aria-activedescendant", active.id);
+    active.scrollIntoView({ block: "nearest" });
+  } else {
+    els.searchInput.removeAttribute("aria-activedescendant");
+  }
+}
+
+function moveSuggestion(step) {
+  const count = suggestionOptions().length;
+  if (!count) return;
+  setActiveSuggestion(suggestIndex < 0 ? (step > 0 ? 0 : count - 1) : (suggestIndex + step + count) % count);
+}
+
+/** Keep the list above the on-screen keyboard (visual viewport) and the bottom island. */
+function fitSuggestions() {
+  if (suggestList.hidden) return;
+  const viewport = window.visualViewport;
+  let bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+  const island = document.querySelector(".glass-island");
+  if (island && getComputedStyle(island).display !== "none") bottom = Math.min(bottom, island.getBoundingClientRect().top);
+  suggestList.style.maxHeight = `${Math.max(140, Math.floor(bottom - suggestList.getBoundingClientRect().top - 12))}px`;
+}
+
+function setSuggestionsOpen(open) {
+  const show = Boolean(open) && suggestList.childElementCount > 0;
+  if (show) setFiltersPanelOpen(false);
+  suggestList.hidden = !show;
+  els.searchInput.setAttribute("aria-expanded", String(show));
+  searchChrome?.classList.toggle("is-suggesting", show);
+  if (show) fitSuggestions();
+  else setActiveSuggestion(-1);
+}
+
+function closeSuggestions() {
+  setSuggestionsOpen(false);
+}
+
+function pickSuggestion(option) {
+  const pick = suggestionPicks.get(option);
+  if (!pick) return;
+  closeSuggestions();
+  els.searchInput.blur();
+  pick();
+}
+
+// Taps on a row must not blur the field first, or the list would close before the click lands.
+suggestList.addEventListener("mousedown", (event) => event.preventDefault());
+suggestList.addEventListener("click", (event) => {
+  pickSuggestion(event.target.closest('[role="option"]:not([aria-disabled="true"])'));
+});
+els.searchInput.addEventListener("focus", () => {
+  if (els.searchInput.value.trim()) setSuggestionsOpen(true);
+});
+els.searchInput.addEventListener("keydown", (event) => {
+  const open = !suggestList.hidden;
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    if (!open) setSuggestionsOpen(Boolean(els.searchInput.value.trim()));
+    if (suggestList.hidden) return;
+    event.preventDefault();
+    moveSuggestion(event.key === "ArrowDown" ? 1 : -1);
+  } else if (event.key === "Enter") {
+    if (open && suggestIndex >= 0) {
+      event.preventDefault();
+      pickSuggestion(suggestionOptions()[suggestIndex]);
+      return;
+    }
+    closeSuggestions();
+    if (window.matchMedia("(pointer: coarse)").matches) els.searchInput.blur();
+  } else if (event.key === "Escape" && open) {
+    // type="search" clears its value on Escape; here Escape only closes the list.
+    event.preventDefault();
+    closeSuggestions();
+  }
+});
+searchChrome?.addEventListener("focusout", (event) => {
+  if (event.relatedTarget && !searchChrome.contains(event.relatedTarget)) closeSuggestions();
+});
+document.addEventListener("pointerdown", (event) => {
+  if (!suggestList.hidden && !searchChrome?.contains(event.target)) closeSuggestions();
+});
+window.visualViewport?.addEventListener("resize", fitSuggestions);
+window.addEventListener("resize", fitSuggestions, { passive: true });
 
 filtersToggle.addEventListener("click", () => {
   setFiltersPanelOpen(catalogFiltersPanel.hidden);
@@ -1689,34 +1789,48 @@ const categoryCoverObserver = new IntersectionObserver((entries) => {
   }
 }, { rootMargin: "150px" });
 
+/** Fills the Spotlight-style list under the top-bar field; it only shows while the field has focus and text. */
 function renderSearchSuggestions() {
-  const container = document.querySelector("#search-suggestions");
   const q = els.searchInput.value.trim();
-  container.replaceChildren();
-  if (!songs.length || !q) return;
-  const matches = filteredCatalog(q);
-  const options = [];
-  for (const song of matches) {
-    const artist = cleanArtist(song.artist);
-    if (normalize(artist).includes(normalize(q)) && !options.some((item) => item.artist === artist)) options.push({ artist });
-    if (options.length === 2) break;
-  }
-  for (const song of matches.slice(0, 3)) options.push({ song });
-  const label = document.createElement("p");
-  label.textContent = matches.length ? "Você está procurando…" : "Tente menos palavras, confira o nome ou remova um filtro.";
-  container.append(label);
-  const examples = options;
-  for (const item of examples) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "search-suggestion";
-    button.textContent = item.artist ? `Artista: ${item.artist}` : `${displayTitle(item.song.title)} · ${cleanArtist(item.song.artist)}`;
-    button.addEventListener("click", () => {
-      if (item.artist) showArtistSongs(item.artist);
-      else showSongToDJ(item.song);
+  suggestList.replaceChildren();
+  if (songs.length && q) {
+    const matches = filteredCatalog(q);
+    const options = [];
+    for (const song of matches) {
+      const artist = cleanArtist(song.artist);
+      if (normalize(artist).includes(normalize(q)) && !options.some((item) => item.artist === artist)) options.push({ artist });
+      if (options.length === 2) break;
+    }
+    for (const song of matches.slice(0, 3)) options.push({ song });
+    if (options.length) {
+      const label = document.createElement("p");
+      label.className = "search-suggest-label";
+      label.setAttribute("aria-hidden", "true");
+      label.textContent = "Você está procurando…";
+      suggestList.append(label);
+    } else {
+      const hint = document.createElement("div");
+      hint.className = "search-suggest-empty";
+      hint.setAttribute("role", "option");
+      hint.setAttribute("aria-disabled", "true");
+      hint.textContent = "Tente menos palavras, confira o nome ou remova um filtro.";
+      suggestList.append(hint);
+    }
+    options.forEach((item, index) => {
+      const option = document.createElement("div");
+      option.id = `search-suggestion-${index}`;
+      option.className = "search-suggest-option";
+      option.dataset.kind = item.artist ? "artist" : "song";
+      option.setAttribute("role", "option");
+      option.setAttribute("aria-selected", "false");
+      option.innerHTML = `<span class="search-suggest-icon">${item.artist ? SUGGEST_ARTIST_ICON : SUGGEST_SONG_ICON}</span><span class="search-suggest-text"><strong></strong><small></small></span>`;
+      option.querySelector("strong").textContent = item.artist || displayTitle(item.song.title);
+      option.querySelector("small").textContent = item.artist ? "Artista" : cleanArtist(item.song.artist);
+      suggestionPicks.set(option, () => (item.artist ? showArtistSongs(item.artist) : showSongToDJ(item.song)));
+      suggestList.append(option);
     });
-    container.append(button);
   }
+  setSuggestionsOpen(document.activeElement === els.searchInput && Boolean(q));
 }
 
 function createCategoryTile({ id, title, color, onClick, artLabel }) {
