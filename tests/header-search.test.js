@@ -73,6 +73,36 @@ test("suggestion panel is anchored to the pill and respects reduced motion", () 
   assert.doesNotMatch(css, /\.search-suggestions \{/);
 });
 
+test("the big logo hero is gone; the catalog sits right under the top bar", () => {
+  assert.doesNotMatch(html, /class="hero|hero-artwork|brand-hero|logo_bar_da_cacia_animada/);
+  assert.doesNotMatch(css, /(^|[\s,}])\.(hero|hero-[a-z-]+|brand-hero)\b/m);
+  assert.doesNotMatch(css, /@keyframes (heroGlow|floatLogo)/);
+  assert.doesNotMatch(read("src/main.js"), /enhanceHeroLogo|hero-artwork/);
+  assert.match(html, /<body id="inicio">/, "#inicio links still land at the top");
+  assert.match(html, /<main id="conteudo">\n      <h1 class="visually-hidden">Bar da Cácia — catálogo do karaokê<\/h1>/);
+  const main = html.slice(html.indexOf('<main id="conteudo">'));
+  assert.ok(main.indexOf('id="site-notice"') < main.indexOf('id="buscar"'));
+});
+
+test("typing never scrolls the page on touch screens (iOS keyboard keeps the bar)", () => {
+  const main = read("src/main.js");
+  const reveal = main.match(/function revealSearchSection\(\) \{[\s\S]*?\n\}/)?.[0] || "";
+  assert.match(reveal, /document\.activeElement === els\.searchInput && window\.matchMedia\("\(pointer: coarse\)"\)\.matches\) return;/);
+  assert.match(main, /els\.searchInput\.blur\(\);\n    if \(els\.searchInput\.value\.trim\(\)\) revealSearchSection\(\);/, "Enter dismisses the keyboard, then reveals results");
+  assert.doesNotMatch(main, /searchInput\.addEventListener\("focus"[^\n]*scrollIntoView/);
+});
+
+test("virtual keyboard: bar follows the visual viewport, dock steps aside", () => {
+  const watcher = site.match(/export function watchVirtualKeyboard\(\) \{[\s\S]*?\n\}/)?.[0] || "";
+  assert.match(watcher, /root\.classList\.toggle\("is-keyboard-open", open\)/);
+  assert.match(watcher, /viewport\.offsetTop/);
+  assert.match(watcher, /viewport\?\.addEventListener\("resize", schedule\)/);
+  assert.match(watcher, /viewport\?\.addEventListener\("scroll", schedule\)/);
+  assert.match(site, /watchIslandCompact\(island\);\n  watchVirtualKeyboard\(\);/);
+  assert.match(css, /:root\.is-keyboard-open \.site-header \{ transform: translate3d\(0, var\(--keyboard-offset, 0px\), 0\); \}/);
+  assert.match(css, /:root\.is-keyboard-open :is\(\.glass-island, \.discover-fab\) \{\n  opacity: 0;\n  visibility: hidden;/);
+});
+
 test("hero no longer has the Escolher música button or its CSS", () => {
   assert.doesNotMatch(html, /hero-cta/);
   assert.doesNotMatch(html, /Escolher música/);

@@ -1314,10 +1314,17 @@ function syncFilterControls() {
   });
   document.querySelector("#toggle-filters").textContent = filtersToggleLabel(count);
 }
-/** The search lives in the top bar, above the hero; bring its results up when the section is still below. */
+/**
+ * Brings the results back under the top bar when the visitor had scrolled away from them. Never while the field has
+ * focus on a touch screen: with the iOS keyboard up, a scroll pans the visual viewport and drags the pinned bar off-screen.
+ */
 function revealSearchSection() {
   const section = els.searchSection;
-  if (!section || section.getBoundingClientRect().top < window.innerHeight * 0.5) return;
+  if (!section) return;
+  if (document.activeElement === els.searchInput && window.matchMedia("(pointer: coarse)").matches) return;
+  const top = section.getBoundingClientRect().top;
+  const barBottom = document.querySelector(".site-header")?.getBoundingClientRect().bottom ?? 0;
+  if (top >= barBottom - 1 && top < window.innerHeight * 0.5) return;
   const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   section.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
 }
@@ -1388,7 +1395,8 @@ function fitSuggestions() {
   const viewport = window.visualViewport;
   let bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
   const island = document.querySelector(".glass-island");
-  if (island && getComputedStyle(island).display !== "none") bottom = Math.min(bottom, island.getBoundingClientRect().top);
+  const islandShown = island && getComputedStyle(island).display !== "none" && !document.documentElement.classList.contains("is-keyboard-open");
+  if (islandShown) bottom = Math.min(bottom, island.getBoundingClientRect().top);
   suggestList.style.maxHeight = `${Math.max(140, Math.floor(bottom - suggestList.getBoundingClientRect().top - 12))}px`;
 }
 
@@ -1437,6 +1445,7 @@ els.searchInput.addEventListener("keydown", (event) => {
     }
     closeSuggestions();
     if (window.matchMedia("(pointer: coarse)").matches) els.searchInput.blur();
+    if (els.searchInput.value.trim()) revealSearchSection();
   } else if (event.key === "Escape" && open) {
     // type="search" clears its value on Escape; here Escape only closes the list.
     event.preventDefault();
@@ -1450,6 +1459,7 @@ document.addEventListener("pointerdown", (event) => {
   if (!suggestList.hidden && !searchChrome?.contains(event.target)) closeSuggestions();
 });
 window.visualViewport?.addEventListener("resize", fitSuggestions);
+window.visualViewport?.addEventListener("scroll", fitSuggestions);
 window.addEventListener("resize", fitSuggestions, { passive: true });
 
 filtersToggle.addEventListener("click", () => {
@@ -2351,35 +2361,10 @@ async function init() {
   }
 }
 
-/** Show the static hero logo immediately; idle-swap to the animated SVG. */
-function enhanceHeroLogo() {
-  const img = document.querySelector(".hero-artwork img[data-animated-src]");
-  if (!img) return;
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const animatedSrc = String(img.dataset.animatedSrc || "").trim();
-  if (!animatedSrc || img.getAttribute("src") === animatedSrc) return;
-
-  const swapWhenIdle = () => {
-    const preload = new Image();
-    preload.decoding = "async";
-    preload.onload = () => {
-      if (img.isConnected) img.src = animatedSrc;
-    };
-    preload.src = animatedSrc;
-  };
-
-  if (typeof window.requestIdleCallback === "function") {
-    window.requestIdleCallback(swapWhenIdle, { timeout: 2500 });
-  } else {
-    window.setTimeout(swapWhenIdle, 1);
-  }
-}
-
 async function boot() {
   const ready = loadSiteFeatures();
   hideExpiredEventNav();
   setFooterYear();
-  enhanceHeroLogo();
   const catalog = init();
   await ready;
   applyFeatureChrome();
