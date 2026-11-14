@@ -3287,10 +3287,7 @@ body {
   display: block;
   object-fit: cover;
 }
-.search-suggestions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .75rem 0; }
-.search-suggestions:empty { display: none; }
 .search-portal-inner > .browse-title { margin-top: 0; }
-.search-suggestions > p { width: 100%; margin: 0 0 .2rem; color: var(--muted); font-size: .85rem; }
 .search-suggestion { max-width: 100%; min-height: 44px; padding: .6rem .85rem; border-radius: 12px; border: 1px solid var(--line); color: var(--text); background: var(--bg-soft); text-align: left; font: inherit; font-size: .85rem; cursor: pointer; }
 .search-suggestion:hover { border-color: var(--amber); }
 .search-suggestion:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
@@ -5889,6 +5886,81 @@ body .site-header:has(.header-search) .brand img {
   max-height: calc(100dvh - var(--header-stack) - 32px);
 }
 :root[data-theme="light"] .site-header .header-search .catalog-filters { background: var(--paper); }
+/* Spotlight-style suggestions under the field; like Filtros it carries its own surface. */
+.site-header .header-search .search-suggest {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 3;
+  max-height: calc(100dvh - var(--header-stack) - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.3rem 0 0.35rem;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--bg-elev) 96%, var(--bg));
+  color: var(--text);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 35%, transparent),
+    inset 0 0 0 1px var(--glass-rim),
+    0 18px 40px var(--glass-drop);
+  transform-origin: top center;
+  animation: search-suggest-in 160ms cubic-bezier(.2, .8, .2, 1);
+}
+.site-header .header-search .search-suggest[hidden] { display: none; }
+/* "Limpar" already clears the field; hide WebKit's own × so the two do not sit side by side. */
+.site-header .header-search input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }
+:root[data-theme="light"] .site-header .header-search .search-suggest { background: var(--paper); }
+.search-suggest-label {
+  margin: 0.4rem 1rem 0.2rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.search-suggest-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-height: 54px;
+  padding: 0.45rem 1rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* iOS-style hairline that starts after the icon column. */
+.search-suggest-option + .search-suggest-option::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(1rem + 36px + 0.8rem);
+  right: 0;
+  height: 1px;
+  background: var(--glass-rim);
+}
+.search-suggest-option:hover,
+.search-suggest-option[aria-selected="true"] { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.search-suggest-option:active { background: color-mix(in srgb, var(--text) 12%, transparent); }
+.search-suggest-icon {
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--amber) 18%, transparent);
+  color: var(--amber);
+}
+.search-suggest-option[data-kind="artist"] .search-suggest-icon { border-radius: 50%; }
+.search-suggest-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.search-suggest-text { display: grid; gap: 0.1rem; min-width: 0; }
+.search-suggest-text :is(strong, small) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.search-suggest-text strong { font-size: 0.95rem; font-weight: 600; }
+.search-suggest-text small { color: var(--muted); font-size: 0.78rem; }
+.search-suggest-empty { padding: 0.85rem 1rem; color: var(--muted); font-size: 0.88rem; line-height: 1.4; }
+@keyframes search-suggest-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.985); }
+}
 @media (min-width: 1024px) {
   :root[data-theme="light"] .site-header .header-search { background: color-mix(in srgb, var(--paper) 70%, transparent); box-shadow: inset 0 0 0 1px var(--glass-rim); }
   .site-header:has(.header-search) .desktop-nav { flex-wrap: nowrap; flex-shrink: 0; margin-left: auto; }
@@ -5938,6 +6010,9 @@ body .site-header:has(.header-search) .brand img {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-header .header-search .search-suggest { animation: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   body .site-header:has(.header-search),

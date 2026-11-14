@@ -30,11 +30,47 @@ test("the #buscar section opens with the catalog, count and artist hint", () => 
   assert.doesNotMatch(html, /aria-describedby="search-guidance"/);
 });
 
-test("idle search shows no example chips; typed queries still get suggestions", () => {
+test("idle search shows no example chips; typed queries open the list", () => {
   const main = read("src/main.js");
   assert.doesNotMatch(main, /Experimente buscar/);
-  assert.match(main, /if \(!songs\.length \|\| !q\) return;/);
+  assert.match(main, /if \(songs\.length && q\) \{/);
+  assert.match(main, /setSuggestionsOpen\(document\.activeElement === els\.searchInput && Boolean\(q\)\);/);
   assert.match(main, /els\.catalogTitle\.hidden = !browse;/);
+});
+
+test("suggestions are a listbox under the top-bar field, not chips in the catalog", () => {
+  const chrome = header.match(/<div class="spotify-search-chrome header-search">[\s\S]*?<nav class="desktop-nav"/)?.[0] || "";
+  assert.match(chrome, /<div id="search-suggestions" class="search-suggest" role="listbox" aria-label="Sugestões de busca" hidden><\/div>/);
+  const section = html.match(/<section class="search-portal" id="buscar"[\s\S]*?<\/section>/)?.[0] || "";
+  assert.doesNotMatch(section, /search-suggestions/);
+  assert.match(section, /id="results-count"/, "the result count stays in the catalog");
+  const input = header.match(/<input\s+id="song-search"[\s\S]*?\/>/)?.[0] || "";
+  for (const attr of ['role="combobox"', 'aria-autocomplete="list"', 'aria-controls="search-suggestions"', 'aria-expanded="false"']) {
+    assert.ok(input.includes(attr), `input has ${attr}`);
+  }
+});
+
+test("suggestion list keyboard, close rules and Filtros exclusivity", () => {
+  const main = read("src/main.js");
+  const keydown = main.match(/els\.searchInput\.addEventListener\("keydown"[\s\S]*?\n\}\);/)?.[0] || "";
+  assert.match(keydown, /"ArrowDown"/);
+  assert.match(keydown, /"ArrowUp"/);
+  assert.match(keydown, /event\.key === "Enter"[\s\S]*pickSuggestion\(suggestionOptions\(\)\[suggestIndex\]\)/);
+  assert.match(keydown, /event\.key === "Escape" && open[\s\S]*event\.preventDefault\(\);[\s\S]*closeSuggestions\(\);/);
+  assert.match(main, /els\.searchInput\.setAttribute\("aria-activedescendant", active\.id\)/);
+  assert.match(main, /document\.addEventListener\("pointerdown"[\s\S]{0,120}closeSuggestions\(\)/, "outside tap closes");
+  assert.match(main, /function pickSuggestion[\s\S]*?closeSuggestions\(\);[\s\S]*?pick\(\);/, "picking closes first");
+  assert.match(main, /function setFiltersPanelOpen\(open\) \{\n  if \(open\) closeSuggestions\(\);/, "Filtros closes suggestions");
+  assert.match(main, /function setSuggestionsOpen[\s\S]*?if \(show\) setFiltersPanelOpen\(false\);/, "suggestions close Filtros");
+  assert.match(main, /hint\.textContent = "Tente menos palavras, confira o nome ou remova um filtro\.";/);
+  assert.match(main, /window\.visualViewport\?\.addEventListener\("resize", fitSuggestions\)/, "fits above the on-screen keyboard");
+});
+
+test("suggestion panel is anchored to the pill and respects reduced motion", () => {
+  assert.match(css, /\.site-header \.header-search \.search-suggest \{\n  position: absolute;\n  top: calc\(100% \+ 8px\);\n  left: 0;\n  right: 0;/);
+  assert.match(css, /:root\[data-theme="light"\] \.site-header \.header-search \.search-suggest \{ background: var\(--paper\); \}/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\n  \.site-header \.header-search \.search-suggest \{ animation: none; \}/);
+  assert.doesNotMatch(css, /\.search-suggestions \{/);
 });
 
 test("hero no longer has the Escolher música button or its CSS", () => {
