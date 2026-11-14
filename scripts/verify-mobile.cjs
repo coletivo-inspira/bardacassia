@@ -31,7 +31,11 @@ const assert=require('node:assert/strict');
  assert.equal(await page.locator('#songs-list').locator('.song-row').count(),0); assert.equal(await page.locator('#search-suggestions [role="option"]').filter({hasText:'Infiel'}).count(),0);
  await page.locator('#toggle-filters').click(); await page.locator('#clear-filters').click(); await page.locator('#clear-search').click();
  assert.equal(await page.locator('#toggle-filters').textContent(),'Filtros');
- await page.emulateMedia({reducedMotion:'reduce'}); assert((await page.locator('.hero-artwork img').evaluate(el=>el.currentSrc)).endsWith('logo_bar_da_cacia_animada.svg'));
+ assert.equal(await page.locator('.hero').count(),0);
+ // The catalog opens right under the top bar; focusing and typing must not scroll the bar away.
+ await page.evaluate(()=>scrollTo(0,0)); await page.locator('#song-search').focus(); await page.locator('#song-search').pressSequentially('na',{delay:30}); await page.waitForTimeout(700);
+ assert(await page.locator('#search-suggestions').isVisible()); assert.equal(await page.evaluate(()=>Math.round(document.querySelector('.site-header').getBoundingClientRect().top)),12);
+ await page.locator('#clear-search').click(); await page.locator('#song-search').blur();
  assert((await page.locator('.brand img').getAttribute('src')).endsWith('logo_bar_da_cacia.svg'));
  
  assert.deepEqual(errors,[]);console.log(name+': themes/widths, filters, suggestions, logo, runtime PASS');await browser.close();

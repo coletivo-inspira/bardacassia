@@ -266,6 +266,40 @@ function watchIslandCompact(island) {
   }, { passive: true });
 }
 
+const TEXT_FIELD = 'input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="range"], [type="color"]), textarea, [contenteditable="true"]';
+const KEYBOARD_MIN_PX = 120;
+
+/**
+ * iOS pins sticky/fixed boxes to the layout viewport, but with the keyboard up the visible (visual) viewport can pan
+ * below it. While a text field has focus, follow the visual viewport's offset so the top bar stays on screen, and mark
+ * the page so the bottom dock steps aside instead of floating over the keyboard.
+ */
+export function watchVirtualKeyboard() {
+  const root = document.documentElement;
+  const viewport = window.visualViewport;
+  const touch = window.matchMedia("(pointer: coarse)");
+  let frame = 0;
+  const update = () => {
+    frame = 0;
+    const typing = Boolean(document.activeElement?.matches?.(TEXT_FIELD));
+    const shrunk = viewport ? window.innerHeight - viewport.height > KEYBOARD_MIN_PX : false;
+    const open = typing && (shrunk || touch.matches);
+    root.classList.toggle("is-keyboard-open", open);
+    const offset = open && viewport ? Math.max(0, Math.round(viewport.offsetTop)) : 0;
+    root.style.setProperty("--keyboard-offset", `${offset}px`);
+  };
+  const schedule = () => {
+    if (!frame) frame = requestAnimationFrame(update);
+  };
+  document.addEventListener("focusin", schedule);
+  // activeElement only settles after focusout has finished dispatching.
+  document.addEventListener("focusout", () => setTimeout(schedule, 0));
+  viewport?.addEventListener("resize", schedule);
+  viewport?.addEventListener("scroll", schedule);
+  window.addEventListener("scroll", schedule, { passive: true });
+  update();
+}
+
 /** Floating tab island on phones and tablets: page-based active tab and compact-on-scroll. */
 export function initializeIsland() {
   const island = document.querySelector(".glass-island");
@@ -274,6 +308,7 @@ export function initializeIsland() {
   const tab = ISLAND_PAGE_TABS[slug];
   if (tab) setIslandTab(tab, { current: tab === slug });
   watchIslandCompact(island);
+  watchVirtualKeyboard();
   window.addEventListener("resize", () => {
     const active = island.querySelector(":scope > [data-mobile-tab].is-active");
     syncIslandCapsule(island, active);
