@@ -73,15 +73,36 @@ test("suggestion panel is anchored to the pill and respects reduced motion", () 
   assert.doesNotMatch(css, /\.search-suggestions \{/);
 });
 
-test("the big logo hero is gone; the catalog sits right under the top bar", () => {
-  assert.doesNotMatch(html, /class="hero|hero-artwork|brand-hero|logo_bar_da_cacia_animada/);
-  assert.doesNotMatch(css, /(^|[\s,}])\.(hero|hero-[a-z-]+|brand-hero)\b/m);
-  assert.doesNotMatch(css, /@keyframes (heroGlow|floatLogo)/);
-  assert.doesNotMatch(read("src/main.js"), /enhanceHeroLogo|hero-artwork/);
-  assert.match(html, /<body id="inicio">/, "#inicio links still land at the top");
-  assert.match(html, /<main id="conteudo">\n      <h1 class="visually-hidden">Bar da Cácia — catálogo do karaokê<\/h1>/);
+test("the home intro hero is back, without the Escolher música button", () => {
+  const hero = html.match(/<div class="hero-collapse" data-hero-collapse>[\s\S]*?<\/section>\n      <\/div>/)?.[0] || "";
+  assert.ok(hero, "hero inside its collapse wrapper");
+  assert.match(hero, /<section class="hero" aria-labelledby="hero-title">/);
+  assert.match(hero, /<h1 id="hero-title">Solte a voz no microfone\.<\/h1>/);
+  assert.match(hero, /O palco é seu\./);
+  assert.match(hero, /data-animated-src="%BASE_URL%logo_bar_da_cacia_animada\.svg"/);
+  assert.doesNotMatch(hero, /hero-cta|Escolher música|id="inicio"/);
+  assert.match(html, /<body id="inicio">/, "#inicio lands at the top even while the hero is collapsed");
+  assert.equal((html.match(/<h1\b/g) || []).length, 1);
   const main = html.slice(html.indexOf('<main id="conteudo">'));
-  assert.ok(main.indexOf('id="site-notice"') < main.indexOf('id="buscar"'));
+  assert.ok(main.indexOf('id="site-notice"') < main.indexOf("data-hero-collapse") && main.indexOf("data-hero-collapse") < main.indexOf('id="buscar"'));
+  assert.match(css, /^\.hero \{/m);
+  assert.match(css, /^\.hero-artwork img \{/m);
+  assert.match(read("src/main.js"), /function enhanceHeroLogo\(\)/);
+});
+
+test("hero hides only while searching and comes back when the search is cleared", () => {
+  const main = read("src/main.js");
+  const sync = main.match(/function syncHero\(\) \{[\s\S]*?\n\}/)?.[0] || "";
+  assert.match(sync, /const typing = document\.activeElement === els\.searchInput && Boolean\(els\.searchInput\.value\.trim\(\)\);/);
+  assert.match(sync, /const searching = typing \|\| !els\.resultsView\.hidden;/);
+  assert.match(sync, /heroCollapse\.inert = searching;/);
+  assert.match(main, /els\.resultsView\.hidden = browse;\n  syncHero\(\);/, "results/artist mode and Voltar/Limpar go through setBrowseMode");
+  for (const event of ["input", "focus", "blur"]) assert.match(main, new RegExp(`els\\.searchInput\\.addEventListener\\("${event}", syncHero\\)`));
+  assert.match(main, /function revealSearchSection\(\) \{[\s\S]*?const wait = heroSettlesAt - performance\.now\(\);/, "reveal waits for the collapse to settle");
+  assert.match(main, /function scrollToResults\(\) \{\n  const wait = heroSettlesAt - performance\.now\(\);/, "category/artist picks wait too");
+  assert.doesNotMatch(main, /els\.resultsView\.scrollIntoView\(\{ behavior: "smooth"/);
+  assert.match(css, /\.hero-collapse\.is-collapsed \{ grid-template-rows: 0fr; \}/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\n  \.hero-collapse\.is-ready,/);
 });
 
 test("typing never scrolls the page on touch screens (iOS keyboard keeps the bar)", () => {
@@ -96,8 +117,8 @@ test("virtual keyboard: bar follows the visual viewport, dock steps aside", () =
   const watcher = site.match(/export function watchVirtualKeyboard\(\) \{[\s\S]*?\n\}/)?.[0] || "";
   assert.match(watcher, /root\.classList\.toggle\("is-keyboard-open", open\)/);
   assert.match(watcher, /viewport\.offsetTop/);
-  assert.match(watcher, /viewport\?\.addEventListener\("resize", schedule\)/);
-  assert.match(watcher, /viewport\?\.addEventListener\("scroll", schedule\)/);
+  assert.match(watcher, /viewport\?\.addEventListener\("resize", update\)/);
+  assert.match(watcher, /viewport\?\.addEventListener\("scroll", update\)/);
   assert.match(site, /watchIslandCompact\(island\);\n  watchVirtualKeyboard\(\);/);
   assert.match(css, /:root\.is-keyboard-open \.site-header \{ transform: translate3d\(0, var\(--keyboard-offset, 0px\), 0\); \}/);
   assert.match(css, /:root\.is-keyboard-open :is\(\.glass-island, \.discover-fab\) \{\n  opacity: 0;\n  visibility: hidden;/);
