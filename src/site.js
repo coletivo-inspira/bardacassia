@@ -294,8 +294,9 @@ export function watchVirtualKeyboard() {
   document.addEventListener("focusin", schedule);
   // activeElement only settles after focusout has finished dispatching.
   document.addEventListener("focusout", () => setTimeout(schedule, 0));
-  viewport?.addEventListener("resize", schedule);
-  viewport?.addEventListener("scroll", schedule);
+  // Visual-viewport changes apply at once so the bar does not trail the iOS keyboard pan by a frame.
+  viewport?.addEventListener("resize", update);
+  viewport?.addEventListener("scroll", update);
   window.addEventListener("scroll", schedule, { passive: true });
   update();
 }

@@ -1269,7 +1269,7 @@ function showArtistSongs(artist) {
   applyFilters();
   collapseFiltersPanel();
   renderRelatedArtists(artist);
-  els.resultsView.scrollIntoView({ behavior: "smooth", block: "start" });
+  scrollToResults();
 }
 
 let selectedLanguage = "";
@@ -1314,6 +1314,34 @@ function syncFilterControls() {
   });
   document.querySelector("#toggle-filters").textContent = filtersToggleLabel(count);
 }
+const heroCollapse = document.querySelector("[data-hero-collapse]");
+const HERO_COLLAPSE_MS = 320;
+let heroSettlesAt = 0;
+let revealTimer = 0;
+
+/** The home intro steps aside while someone is searching: field focused with text, or results/artist mode showing. */
+function syncHero() {
+  if (!heroCollapse) return;
+  const typing = document.activeElement === els.searchInput && Boolean(els.searchInput.value.trim());
+  const searching = typing || !els.resultsView.hidden;
+  if (heroCollapse.classList.contains("is-collapsed") === searching) return;
+  heroCollapse.classList.toggle("is-collapsed", searching);
+  heroCollapse.inert = searching;
+  const animated = heroCollapse.classList.contains("is-ready") && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  heroSettlesAt = animated ? performance.now() + HERO_COLLAPSE_MS + 40 : 0;
+}
+
+/** Category and artist picks jump to the results; wait for the hero collapse, or the target shifts mid-scroll. */
+function scrollToResults() {
+  const wait = heroSettlesAt - performance.now();
+  if (wait > 0) {
+    setTimeout(scrollToResults, wait);
+    return;
+  }
+  const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  els.resultsView.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+}
+
 /**
  * Brings the results back under the top bar when the visitor had scrolled away from them. Never while the field has
  * focus on a touch screen: with the iOS keyboard up, a scroll pans the visual viewport and drags the pinned bar off-screen.
@@ -1321,6 +1349,13 @@ function syncFilterControls() {
 function revealSearchSection() {
   const section = els.searchSection;
   if (!section) return;
+  // Measure only once the hero has finished collapsing, or the scroll target moves under the animation.
+  const wait = heroSettlesAt - performance.now();
+  clearTimeout(revealTimer);
+  if (wait > 0) {
+    revealTimer = setTimeout(revealSearchSection, wait);
+    return;
+  }
   if (document.activeElement === els.searchInput && window.matchMedia("(pointer: coarse)").matches) return;
   const top = section.getBoundingClientRect().top;
   const barBottom = document.querySelector(".site-header")?.getBoundingClientRect().bottom ?? 0;
@@ -1494,6 +1529,7 @@ function setBrowseMode(browse) {
   els.browseView.hidden = !browse;
   els.catalogTitle.hidden = !browse;
   els.resultsView.hidden = browse;
+  syncHero();
 }
 
 function showCategory(category) {
@@ -1522,7 +1558,7 @@ function showCategory(category) {
   els.songsList.hidden = false;
   els.activeFilter.textContent = category.label;
   applyFilters();
-  els.resultsView.scrollIntoView({ behavior: "smooth", block: "start" });
+  scrollToResults();
 }
 
 function backToBrowse() {
@@ -1964,6 +2000,10 @@ const onSearchInput = debounce(() => {
 }, 160);
 
 els.searchInput.addEventListener("input", onSearchInput);
+// Undebounced so the intro starts stepping aside on the first keystroke; blur with an empty field brings it back.
+els.searchInput.addEventListener("input", syncHero);
+els.searchInput.addEventListener("focus", syncHero);
+els.searchInput.addEventListener("blur", syncHero);
 const trackSearch = debounce(() => {
   const term = els.searchInput.value.trim();
   if (term.length >= 2) trackEvent("busca", { search_term: term.slice(0, 60) });
@@ -2361,10 +2401,38 @@ async function init() {
   }
 }
 
+/** Show the static hero logo immediately; idle-swap to the animated SVG. */
+function enhanceHeroLogo() {
+  const img = document.querySelector(".hero-artwork img[data-animated-src]");
+  if (!img) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const animatedSrc = String(img.dataset.animatedSrc || "").trim();
+  if (!animatedSrc || img.getAttribute("src") === animatedSrc) return;
+
+  const swapWhenIdle = () => {
+    const preload = new Image();
+    preload.decoding = "async";
+    preload.onload = () => {
+      if (img.isConnected) img.src = animatedSrc;
+    };
+    preload.src = animatedSrc;
+  };
+
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(swapWhenIdle, { timeout: 2500 });
+  } else {
+    window.setTimeout(swapWhenIdle, 1);
+  }
+}
+
 async function boot() {
   const ready = loadSiteFeatures();
   hideExpiredEventNav();
   setFooterYear();
+  enhanceHeroLogo();
+  syncHero();
+  // Animate collapse/expand only after the first state (e.g. a #buscar?q= deep link) has painted.
+  requestAnimationFrame(() => requestAnimationFrame(() => heroCollapse?.classList.add("is-ready")));
   const catalog = init();
   await ready;
   applyFeatureChrome();
