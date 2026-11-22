@@ -14,6 +14,9 @@ import {
   initializeAccountMenu,
   initializeIsland,
   initializeTheme,
+  installAvailable,
+  onAppInstalled,
+  openInstallSheet,
   setFooterYear,
 } from "./site.js";
 
@@ -30,6 +33,7 @@ const MANAGER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 19
 const POSTER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>`;
 const EVENT_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M8 3.5v3M16 3.5v3M3.5 10h17"/></svg>`;
 const HOME_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3.5 10.5 12 3.8l8.5 6.7v9.2a.8.8 0 0 1-.8.8H15v-6H9v6H4.3a.8.8 0 0 1-.8-.8z"/></svg>`;
+const INSTALL_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 4v10.5M7.5 10l4.5 4.5 4.5-4.5M5 19.5h14"/></svg>`;
 const REQUESTS_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 18V5.5l11-2.2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>`;
 
 /** Active requests, fetched once per visit; null until known. */
@@ -254,6 +258,9 @@ function customerRows({ signedIn }) {
   }
   rows.push(...songListRows(features));
   rows.push(menuRow({ href: "o-bar.html", icon: BAR_ICON, title: "O bar", detail: "Valores, endereço e horário" }));
+  if (installAvailable()) {
+    rows.push(menuRow({ action: "install", icon: INSTALL_ICON, title: "Instalar o app", detail: "Bar da Cácia na sua tela de início" }));
+  }
   if (signedIn) {
     rows.push(menuRow({ action: "signout", icon: EXIT_ICON, title: "Sair", detail: "Desconectar deste aparelho", danger: true }));
   }
@@ -426,7 +433,18 @@ async function bootAccountPage() {
   }
 }
 
+/** Rows re-render on every auth change, so the install row is handled by delegation. */
+function bindInstallRow() {
+  const list = document.querySelector("[data-account-menu]");
+  list?.addEventListener("click", (event) => {
+    const row = event.target.closest('[data-action="install"]');
+    if (row) openInstallSheet({ returnFocusTo: row });
+  });
+  onAppInstalled(() => list?.querySelector('[data-action="install"]')?.closest("li")?.remove());
+}
+
 initializeTheme();
+bindInstallRow();
 hideExpiredEventNav();
 setFooterYear();
 initializeIsland();

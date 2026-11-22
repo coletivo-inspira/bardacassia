@@ -39,6 +39,29 @@ const assert=require('node:assert/strict');
  await page.locator('#clear-search').click(); await page.locator('#song-search').blur(); await page.waitForTimeout(500);
  assert(await page.locator('.hero').isVisible());
  assert((await page.locator('.brand img').getAttribute('src')).endsWith('logo_bar_da_cacia.svg'));
- 
- assert.deepEqual(errors,[]);console.log(name+': themes/widths, filters, suggestions, logo, runtime PASS');await browser.close();
+ assert.equal(await page.locator('.install-notice').count(),0,'no install notice with a mouse pointer');
+ assert.equal(await page.locator('link[rel="manifest"]').count(),1); assert.equal(await page.locator('link[rel="apple-touch-icon"]').count(),1);
+ // Instalar o app on an iPhone: notice above the dock, out of the way while searching, sheet with the iOS steps.
+ const phone=await browser.newContext({viewport:{width:390,height:844},isMobile:name!=='firefox',hasTouch:true,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1'});
+ const ios=await phone.newPage(); ios.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.message)});
+ await ios.route('**/api.deezer.com/**',r=>r.abort()); await ios.route('**/api/deezer/**',r=>r.abort());
+ await ios.goto(process.env.TEST_URL || 'http://127.0.0.1:5173'); await ios.locator('.category-tile').first().waitFor();
+ await ios.locator('.install-notice').waitFor({timeout:8000});
+ const box=s=>ios.evaluate(q=>{const r=document.querySelector(q).getBoundingClientRect();return {top:r.top,bottom:r.bottom}},s);
+ assert((await box('.install-notice')).bottom<=(await box('.glass-island')).top,'notice sits above the island');
+ assert((await box('.install-notice')).bottom<=(await box('.discover-fab')).top,'notice sits above Match');
+ await ios.locator('#song-search').focus(); await ios.locator('#song-search').pressSequentially('na',{delay:30}); await ios.waitForTimeout(600);
+ assert(await ios.locator('.install-notice').isHidden(),'notice hides while searching');
+ await ios.locator('#clear-search').click(); await ios.locator('#song-search').blur(); await ios.waitForTimeout(500);
+ await ios.locator('.install-notice-cta').click(); await ios.locator('.install-sheet[open]').waitFor();
+ assert.equal(await ios.locator('#install-sheet-title').textContent(),'Instalar no iPhone');
+ assert.equal(await ios.locator('.install-sheet-steps li').count(),3);
+ await ios.keyboard.press('Escape'); assert.equal(await ios.locator('.install-sheet[open]').count(),0);
+ assert.equal(JSON.parse(await ios.evaluate(()=>localStorage.getItem('bdc-install-dismissed-v1'))).count,1);
+ await ios.goto((process.env.TEST_URL || 'http://127.0.0.1:5173').replace(/\/?(index\.html)?$/,'/conta.html'));
+ await ios.locator('[data-action="install"]').click(); await ios.locator('.install-sheet[open]').waitFor();
+ await ios.locator('.install-sheet-primary').click(); assert.equal(await ios.locator('.install-sheet[open]').count(),0);
+ await phone.close();
+
+ assert.deepEqual(errors,[]);console.log(name+': themes/widths, filters, suggestions, logo, install app, runtime PASS');await browser.close();
 }})().catch(e=>{console.error(e);process.exit(1)});

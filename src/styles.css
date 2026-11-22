@@ -6070,3 +6070,211 @@ body .site-header:has(.header-search) .brand img {
   .hero-collapse.is-ready > .hero,
   .hero-collapse.is-ready.is-collapsed > .hero { transition: none; }
 }
+
+/* Instalar o app: bottom sheet on phones, centred card from 720px; first-visit notice above the island. */
+.install-sheet {
+  width: min(500px, calc(100% - 2rem));
+  max-width: none;
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  border: 0;
+  border-radius: 26px;
+  background: transparent;
+  color: var(--text);
+  overflow: visible;
+}
+.install-sheet::backdrop {
+  background: color-mix(in srgb, var(--ink) 55%, transparent);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+.install-sheet-panel {
+  position: relative;
+  display: grid;
+  gap: 1rem;
+  max-height: inherit;
+  overflow-y: auto;
+  padding: 1.35rem 1.4rem 1.4rem;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, var(--glass-base), transparent 55%),
+    color-mix(in srgb, var(--bg-soft) 94%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  backdrop-filter: blur(24px) saturate(170%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 35%, transparent),
+    inset 0 0 0 1px var(--glass-rim),
+    0 24px 60px rgba(0, 0, 0, .45);
+}
+:root[data-theme="light"] .install-sheet-panel {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .6), transparent 55%), var(--paper);
+  box-shadow: inset 0 0 0 1px var(--glass-rim), 0 20px 48px rgba(32, 35, 31, .2);
+}
+.install-sheet-grabber { display: none; }
+.install-sheet-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: .8rem;
+}
+.install-sheet-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  box-shadow: 0 0 0 1px var(--glass-rim), 0 4px 12px var(--glass-drop);
+}
+.install-sheet-title {
+  margin: 0;
+  font: 800 clamp(1.45rem, 6vw, 1.75rem) / 1.05 var(--font-display);
+  letter-spacing: -.02em;
+}
+.install-sheet-close {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 45%, transparent);
+  color: var(--text);
+  cursor: pointer;
+}
+.install-sheet-close:hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.install-sheet-close svg,
+.install-notice-close svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.install-sheet-body { display: grid; gap: .6rem; }
+.install-sheet-lead,
+.install-sheet-note { margin: 0; color: var(--muted); font-size: 1rem; line-height: 1.45; }
+.install-sheet-note { font-size: .88rem; }
+.install-sheet-steps {
+  display: grid;
+  gap: .75rem;
+  margin: 0;
+  padding-left: 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+.install-sheet-steps li::marker { color: var(--muted); font-weight: 600; }
+.install-sheet-steps strong { font-weight: 700; }
+.install-inline-icon {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  margin-inline: .05em;
+  vertical-align: -.22em;
+  fill: none;
+  stroke: var(--sky);
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.install-inline-glyph { font-weight: 800; letter-spacing: .04em; color: var(--sky); white-space: nowrap; }
+.install-sheet-actions { display: flex; gap: .65rem; }
+.install-sheet-primary,
+.install-sheet-secondary {
+  flex: 1 1 0;
+  min-height: 54px;
+  padding: 0 1.2rem;
+  border: 0;
+  border-radius: 999px;
+  font: 700 1.05rem/1 var(--font-body);
+  cursor: pointer;
+  transition: transform 140ms ease, filter 140ms ease;
+}
+.install-sheet-primary { background: var(--text); color: var(--bg); }
+.install-sheet-secondary { background: transparent; color: var(--text); box-shadow: inset 0 0 0 1.5px var(--line); }
+.install-sheet-primary:hover { filter: brightness(1.06); }
+.install-sheet-primary:active,
+.install-sheet-secondary:active { transform: scale(.98); }
+:is(.install-sheet-primary, .install-sheet-secondary, .install-sheet-close, .install-notice button):focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.install-sheet[open] { animation: install-sheet-in 260ms cubic-bezier(.2, .9, .25, 1); }
+@keyframes install-sheet-in { from { opacity: 0; transform: translateY(18px) scale(.98); } }
+@media (max-width: 719px) {
+  .install-sheet {
+    width: 100%;
+    margin: auto 0 0;
+    max-height: calc(100dvh - 3rem);
+    border-radius: 28px 28px 0 0;
+  }
+  .install-sheet-panel {
+    padding: .7rem 1.4rem max(1.4rem, calc(1rem + env(safe-area-inset-bottom)));
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 35%, transparent),
+      inset 0 0 0 1px var(--glass-rim),
+      0 -12px 40px rgba(0, 0, 0, .35);
+  }
+  .install-sheet-grabber {
+    display: block;
+    justify-self: center;
+    width: 40px;
+    height: 5px;
+    margin-bottom: .2rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text) 28%, transparent);
+  }
+  .install-sheet[open] { animation-name: install-sheet-up; animation-duration: 300ms; }
+  @keyframes install-sheet-up { from { transform: translateY(100%); } }
+}
+
+.install-notice {
+  position: fixed;
+  z-index: 79;
+  left: var(--dock-side, 10px);
+  right: var(--dock-side-right, 10px);
+  bottom: calc(var(--dock-bottom, 12px) + var(--island-h) + 10px);
+  max-width: 520px;
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: .65rem;
+  padding: .55rem .45rem .55rem .55rem;
+  border-radius: 20px;
+  background: linear-gradient(180deg, var(--glass-base), transparent 70%), var(--island-tint);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  backdrop-filter: blur(22px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 40%, transparent),
+    inset 0 0 0 1px var(--glass-rim),
+    0 12px 30px var(--glass-drop);
+  animation: install-notice-in 280ms cubic-bezier(.2, .9, .25, 1);
+}
+:root[data-theme="light"] .install-notice {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .72), rgba(255, 255, 255, .3) 70%), var(--island-tint);
+}
+@keyframes install-notice-in { from { opacity: 0; transform: translateY(10px); } }
+.install-notice-icon { width: 40px; height: 40px; border-radius: 10px; box-shadow: 0 0 0 1px var(--glass-rim); }
+.install-notice-text { margin: 0; font-size: .9rem; font-weight: 600; line-height: 1.25; }
+.install-notice-cta {
+  min-height: 40px;
+  padding: 0 .95rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+  font: 700 .9rem/1 var(--font-body);
+  cursor: pointer;
+}
+.install-notice-close {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+/* Searching, filters, Match and the keyboard all take the space the notice would use. */
+.is-keyboard-open .install-notice,
+.discover-open .install-notice,
+body:has([data-hero-collapse].is-collapsed, .header-search.is-suggesting, .header-search.is-filters-open) .install-notice { display: none; }
+@media (min-width: 1024px) { .install-notice { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .install-sheet[open],
+  .install-notice { animation: none; }
+  .install-sheet-primary,
+  .install-sheet-secondary { transition: none; }
+}
