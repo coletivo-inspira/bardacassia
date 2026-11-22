@@ -77,3 +77,14 @@ test("the catalog page always marks Início in the island", () => {
   assert.match(main, /function updateMobileTabs\(\) \{\n  setIslandTab\("inicio"\);\n\}/);
   assert.doesNotMatch(main, /setIslandTab\([^)]*"buscar"/);
 });
+
+test("island Conta label is set as an attribute, never interpolated into innerHTML", () => {
+  const site = readFileSync(new URL("../src/site.js", import.meta.url), "utf8");
+  const render = site.match(/function renderIslandAccountLink\(user\) \{[\s\S]*?\n\}/)?.[0] || "";
+  assert.ok(render, "renderIslandAccountLink not found");
+  assert.doesNotMatch(render, /aria-label="\$\{/);
+  assert.match(render, /link\.setAttribute\("aria-label", label\);/);
+  for (const [, template] of site.matchAll(/innerHTML = `([\s\S]*?)`/g)) {
+    assert.doesNotMatch(template, /\$\{(?:name|label|displayName)/, "user names stay out of innerHTML");
+  }
+});

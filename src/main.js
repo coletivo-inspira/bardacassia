@@ -1839,6 +1839,7 @@ const categoryCoverObserver = new IntersectionObserver((entries) => {
 function renderSearchSuggestions() {
   const q = els.searchInput.value.trim();
   suggestList.replaceChildren();
+  setActiveSuggestion(-1);
   if (songs.length && q) {
     const matches = filteredCatalog(q);
     const options = [];
