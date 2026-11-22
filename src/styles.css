@@ -4796,6 +4796,32 @@ dialog.discover-screen::backdrop { background: var(--bg); }
 .account-hero.is-expanded .account-hero-chevron {
   transform: rotate(45deg);
 }
+.account-hero-login {
+  position: absolute;
+  inset: -1.15rem -1.2rem;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 1.35rem;
+  border-radius: 24px;
+  color: var(--text);
+  transition: background 140ms ease;
+}
+.account-hero-login[hidden] { display: none; }
+.account-hero-login:hover,
+.account-hero-login:focus-visible {
+  background: color-mix(in srgb, var(--coral) 10%, color-mix(in srgb, var(--text) 6%, transparent));
+}
+.account-hero-login:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: -2px;
+}
+:root[data-theme="light"] .account-hero-login:hover,
+:root[data-theme="light"] .account-hero-login:focus-visible {
+  background: color-mix(in srgb, var(--coral) 8%, transparent);
+}
+.account-hero.is-login-link .account-hero-copy { padding-right: 1.25rem; }
 .account-hero-details {
   margin-top: 0.85rem;
   padding-top: 0.85rem;

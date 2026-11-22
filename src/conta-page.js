@@ -25,7 +25,6 @@ const THEME_ICON_MOON = `<svg class="theme-icon-moon" aria-hidden="true" viewBox
 const HEART_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 20S4 15 4 9a4 4 0 0 1 8-2 4 4 0 0 1 8 2c0 6-8 11-8 11Z"/></svg>`;
 const USER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.2c1.3-3.6 4.2-5.4 7.5-5.4s6.2 1.8 7.5 5.4"/></svg>`;
 const EXIT_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 4H4v16h5m5-12 4 4-4 4M8 12h10"/></svg>`;
-const ENTER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15 4h5v16h-5M9 8l4 4-4 4M4 12h9"/></svg>`;
 const BAR_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4.5 4.5h15L12 12.8z"/><path d="M12 12.8v6.7M8 19.5h8M15.5 8.6l2.3-4.1"/></svg>`;
 const ADMIN_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>`;
 const STAFF_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 19V7.5L12 4l8 3.5V19"/><path d="M9 19v-6h6v6"/><path d="M4 10.5h16"/></svg>`;
@@ -253,9 +252,6 @@ function customerRows({ signedIn }) {
   const features = getFeatures();
   const rows = [];
   if (showThemeToggle(features)) rows.push(themeRow());
-  if (!signedIn && publicAuthEnabled()) {
-    rows.push(menuRow({ href: loginHref(), icon: ENTER_ICON, title: "Entrar", detail: "Acesse sua conta no bar" }));
-  }
   rows.push(...songListRows(features));
   rows.push(menuRow({ href: "o-bar.html", icon: BAR_ICON, title: "O bar", detail: "Valores, endereço e horário" }));
   if (installAvailable()) {
@@ -325,6 +321,20 @@ function bindHeroToggle(enabled) {
   });
 }
 
+/** Signed out, the whole hero card is the way in; without public login there is nowhere to send people. */
+function setHeroLoginLink(enabled) {
+  const hero = document.querySelector(".account-hero");
+  const link = document.querySelector("[data-account-hero-login]");
+  if (!hero || !link) return;
+  link.hidden = !enabled;
+  hero.classList.toggle("is-login-link", enabled);
+  if (!enabled) return;
+  link.href = loginHref();
+  if (link.dataset.bound === "1") return;
+  link.dataset.bound = "1";
+  link.addEventListener("click", () => { link.href = loginHref(); });
+}
+
 function heroInitial(user) {
   return Array.from(displayName(user))[0]?.toLocaleUpperCase("pt-BR") || "";
 }
@@ -352,6 +362,7 @@ function renderAccountPage(user, { role = null } = {}) {
     if (title) title.textContent = displayName(user);
     if (subtitle) subtitle.textContent = user.email || "Conta conectada neste aparelho.";
     if (!sameUser) setHeroAvatar(providerAvatarUrl(user), heroInitial(user));
+    setHeroLoginLink(false);
     bindHeroToggle(Boolean(editor));
     // Auth events re-render the page; only a new visit or #perfil decides whether the editor is open.
     if (!sameUser) setHeroExpanded(Boolean(editor) && isProfileHash(), { syncHash: false });
@@ -377,11 +388,10 @@ function renderAccountPage(user, { role = null } = {}) {
       fallback.removeAttribute("hidden");
     }
     bindHeroToggle(false);
+    setHeroLoginLink(publicAuthEnabled());
     list.innerHTML = customerRows({ signedIn: false }).join("");
     renderStaffPanel(null);
     renderRole(null);
-    const login = list.querySelector('a[href^="login.html"]');
-    login?.addEventListener("click", () => { login.href = loginHref(); });
   }
 
   initializeTheme();

@@ -59,7 +59,7 @@ async function loadAccountAvatars(buttons, user) {
   }
 }
 
-/** Like the island Conta tab, the desktop header button goes straight to conta.html (Entrar, tema e Sair live there). */
+/** Like the island Conta tab, the desktop header button goes straight to conta.html (login via the Conta card, tema e Sair live there). */
 function renderHeaderAccountLink(user) {
   const headerSlot = document.querySelector("#header-account");
   if (!headerSlot) return null;
