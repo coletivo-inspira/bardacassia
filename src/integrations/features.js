@@ -3,6 +3,11 @@ import { adoptRemoteFeatures, getFeatures } from "../lib/feature-state.js";
 import { FEATURE_IDS, requestModeOf } from "../lib/features.js";
 import { applyPalette, clearPalette } from "../lib/palette.js";
 import { applyDefaultTheme } from "../lib/theme.js";
+import {
+  createSiteFeaturesLoader,
+  isEmptyPalette,
+  shouldApplySiteDefaultTheme,
+} from "../lib/site-features-load.js";
 
 const LOAD_MS = 3000;
 
@@ -13,14 +18,8 @@ function rpcError(error) {
   return wrapped;
 }
 
-function shouldApplySiteDefaultTheme() {
-  if (typeof document === "undefined" || !document?.body) return true;
-  return !document.body.classList?.contains("admin-page");
-}
-
-/** null quando o Supabase não está configurado ou a RPC falha. O chamador fica no padrão do build. */
-export async function fetchSiteFeatures() {
-  if (!supabaseConfigured) return null;
+async function requestSiteFeatures() {
+  if (!supabaseConfigured) return { status: "off" };
   try {
     const supabase = await getSupabase();
     const rpc = supabase.rpc("get_site_features");
@@ -28,14 +27,19 @@ export async function fetchSiteFeatures() {
       setTimeout(() => resolve({ data: null, error: new Error("timeout") }), LOAD_MS);
     });
     const { data, error } = await Promise.race([rpc, timeout]);
-    if (error || !data || typeof data !== "object" || Array.isArray(data)) return null;
-    return data;
+    if (error || !data || typeof data !== "object" || Array.isArray(data)) return { status: "error" };
+    return { status: "ok", data };
   } catch {
-    return null;
+    return { status: "error" };
   }
 }
 
-let loading = null;
+/** null quando o Supabase não está configurado ou a RPC falha. O chamador fica no padrão do build. */
+export async function fetchSiteFeatures() {
+  const result = await requestSiteFeatures();
+  return result.status === "ok" ? result.data : null;
+}
+
 let lastPayload = null;
 
 export function peekSitePayload() {
@@ -47,7 +51,8 @@ export function updateCachedSitePayload(remote) {
   lastPayload = remote;
   adoptRemoteFeatures(remote);
   if (Object.prototype.hasOwnProperty.call(remote, "palette")) {
-    applyPalette(remote.palette);
+    if (isEmptyPalette(remote.palette)) clearPalette();
+    else applyPalette(remote.palette);
   }
   if (shouldApplySiteDefaultTheme() && Object.prototype.hasOwnProperty.call(remote, "default_theme")) {
     applyDefaultTheme(remote.default_theme);
@@ -55,19 +60,12 @@ export function updateCachedSitePayload(remote) {
   return getFeatures();
 }
 
-export function loadSiteFeatures() {
-  loading ??= (async () => {
-    const remote = await fetchSiteFeatures();
-    lastPayload = remote;
-    if (remote) {
-      updateCachedSitePayload(remote);
-    } else {
-      clearPalette();
-    }
-    return getFeatures();
-  })();
-  return loading;
-}
+export const loadSiteFeatures = createSiteFeaturesLoader({
+  request: requestSiteFeatures,
+  adopt: updateCachedSitePayload,
+  clearPalette,
+  getFeatures,
+});
 
 export async function saveSiteFeatures(features) {
   const supabase = await getSupabase();
