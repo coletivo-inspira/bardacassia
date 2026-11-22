@@ -41,6 +41,59 @@ test("conta-page.js wires existing account actions without inventing auth", () =
   assert.doesNotMatch(js, /createUser|signUp\(|password/);
 });
 
+test("signed out, the Conta hero card links to login instead of an Entrar menu row", () => {
+  const js = read("src/conta-page.js");
+  assert.doesNotMatch(js, /title: "Entrar"|ENTER_ICON/);
+  const html = read("conta.html");
+  const hero = html.slice(html.indexOf('<header class="account-hero">'), html.indexOf('id="account-details"'));
+  const link = hero.match(/<a class="account-hero-login"[^>]*>/)?.[0];
+  assert.ok(link, "hero card has a login link");
+  assert.match(link, /data-account-hero-login/);
+  assert.match(link, /href="login\.html\?next=conta\.html"/);
+  assert.match(link, /aria-label="Entrar na sua conta"/);
+  assert.match(link, / hidden>$/);
+  assert.match(hero, /class="account-hero-login"[\s\S]*account-menu-chevron[\s\S]*<\/a>/);
+  const css = read("src/styles.css");
+  assert.match(css, /\.account-hero-login\[hidden\] \{ display: none; \}/);
+  assert.match(css, /\.account-hero-login:focus-visible/);
+  assert.match(css, /:root\[data-theme="light"\] \.account-hero-login:hover/);
+});
+
+test("the hero login link only shows signed out with public login, and hides once signed in", async () => {
+  const hero = { classList: { classes: new Set(), toggle(name, on) { on ? this.classes.add(name) : this.classes.delete(name); } } };
+  const link = { hidden: true, href: "", dataset: {}, listeners: 0, addEventListener() { this.listeners += 1; } };
+  globalThis.location = { hash: "", pathname: "/conta.html", search: "" };
+  globalThis.document = { querySelector: (sel) => (sel === ".account-hero" ? hero : sel === "[data-account-hero-login]" ? link : null) };
+  const js = read("src/conta-page.js");
+  const fn = js.slice(js.indexOf("function setHeroLoginLink"), js.indexOf("function heroInitial"));
+  const loginFn = js.slice(js.indexOf("function isProfileHash"), js.indexOf("function setPageStatus"));
+  const PROFILE_HASH = "#perfil";
+  const setHeroLoginLink = new Function("PROFILE_HASH", `${loginFn}\n${fn}\nreturn setHeroLoginLink;`)(PROFILE_HASH);
+
+  setHeroLoginLink(true);
+  assert.equal(link.hidden, false);
+  assert.equal(link.href, "login.html?next=conta.html");
+  assert.ok(hero.classList.classes.has("is-login-link"));
+
+  globalThis.location.hash = "#perfil";
+  setHeroLoginLink(true);
+  assert.equal(link.href, `login.html?next=${encodeURIComponent("conta.html#perfil")}`);
+  assert.equal(link.listeners, 1);
+
+  setHeroLoginLink(false);
+  assert.equal(link.hidden, true);
+  assert.ok(!hero.classList.classes.has("is-login-link"));
+
+  const render = js.slice(js.indexOf("function renderAccountPage"), js.indexOf("function setupEditor"));
+  const signedIn = render.slice(0, render.indexOf("} else {"));
+  const signedOut = render.slice(render.indexOf("} else {"));
+  assert.match(signedIn, /setHeroLoginLink\(false\)/);
+  assert.match(signedIn, /bindHeroToggle\(Boolean\(editor\)\)/);
+  assert.match(signedOut, /bindHeroToggle\(false\);\s*setHeroLoginLink\(publicAuthEnabled\(\)\)/);
+  delete globalThis.location;
+  delete globalThis.document;
+});
+
 test("Minha conta is no longer a menu row; the hero opens Perfil, dados e privacidade", () => {
   const js = read("src/conta-page.js");
   assert.doesNotMatch(js, /login\.html#conta|title: "Minha conta"/);
@@ -90,10 +143,11 @@ test("login.html#conta and signed-in login visits land on Conta", () => {
 
 test("Modo claro is the first row of the Conta menu, signed in or not", () => {
   const js = read("src/conta-page.js");
-  assert.match(js, /const rows = \[\];\s*if \(showThemeToggle\(features\)\) rows\.push\(themeRow\(\)\);\s*if \(!signedIn && publicAuthEnabled\(\)\)/);
+  assert.match(js, /const rows = \[\];\s*if \(showThemeToggle\(features\)\) rows\.push\(themeRow\(\)\);\s*rows\.push\(\.\.\.songListRows\(features\)\)/);
   const html = read("conta.html");
-  const menu = html.slice(html.indexOf("data-account-menu"));
-  assert.ok(menu.indexOf("data-theme-toggle") < menu.indexOf('href="login.html"'), "static fallback also starts with the theme");
+  const menu = html.slice(html.indexOf("data-account-menu"), html.indexOf('id="gestao"'));
+  assert.ok(menu.indexOf("data-theme-toggle") < menu.indexOf('href="o-bar.html"'), "static fallback also starts with the theme");
+  assert.doesNotMatch(menu, /<strong>Entrar<\/strong>|href="login\.html"/, "static fallback has no Entrar row");
 });
 
 test("management rows live in their own Gestão do bar panel, id gestao", () => {
