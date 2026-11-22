@@ -6,8 +6,13 @@ import { hasStoredAuthSession } from "./integrations/supabase.js";
 import { providerAvatarUrl } from "./lib/profile.js";
 import { getFeatures } from "./lib/feature-state.js";
 import { showNavHref, showPageFile, showThemeToggle } from "./lib/features.js";
+import { captureInstallPrompt, registerServiceWorker, scheduleInstallNotice } from "./lib/install-app.js";
 
 export { applyTheme, initializeTheme, toggleTheme } from "./lib/theme.js";
+export { installAvailable, onAppInstalled, openInstallSheet } from "./lib/install-app.js";
+
+captureInstallPrompt();
+registerServiceWorker();
 
 const USER_ICON = `<svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.2c1.3-3.6 4.2-5.4 7.5-5.4s6.2 1.8 7.5 5.4"/></svg>`;
 
@@ -310,6 +315,8 @@ export function initializeIsland() {
   if (tab) setIslandTab(tab, { current: tab === slug });
   watchIslandCompact(island);
   watchVirtualKeyboard();
+  // Conta has its own Instalar o app row.
+  if (slug !== "conta") scheduleInstallNotice();
   window.addEventListener("resize", () => {
     const active = island.querySelector(":scope > [data-mobile-tab].is-active");
     syncIslandCapsule(island, active);
