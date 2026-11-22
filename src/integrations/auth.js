@@ -2,6 +2,8 @@ import { getSupabase, setPersistSession, supabaseConfigured } from "./supabase.j
 import { normalizeEmail, KNOWN_AUTH_PROVIDERS, parseAuthProviders } from "../lib/auth-validation.js";
 import { getFeatures } from "../lib/feature-state.js";
 import { effectiveAuthProviders, showPublicAuth } from "../lib/features.js";
+import { PENDING_CONSENT_METADATA_KEY } from "../lib/consent.js";
+import { DATA_CONSENT_VERSION } from "../lib/profile.js";
 
 export { KNOWN_AUTH_PROVIDERS, parseAuthProviders };
 
@@ -98,14 +100,16 @@ export async function signIn({ email, password, persist = true, captchaToken }) 
 
 /**
  * Creates an account. An existing anonymous visitor is upgraded in place so
- * ranking interactions stay attached to the same user id.
+ * ranking interactions stay attached to the same user id. `consent` is kept in
+ * user_metadata until the first session saves it on the profile (`applyPendingConsent`).
  * @returns {{ needsConfirmation: boolean, needsPassword: boolean }}
  */
-export async function signUp({ email, password, displayName: name, persist = true, captchaToken, next = "" }) {
+export async function signUp({ email, password, displayName: name, persist = true, captchaToken, next = "", consent = false }) {
   const supabase = await client();
   setPersistSession(persist);
   const normalized = normalizeEmail(email);
   const metadata = { display_name: String(name || "").trim() };
+  if (consent) metadata[PENDING_CONSENT_METADATA_KEY] = DATA_CONSENT_VERSION;
   const { data: current } = await supabase.auth.getSession();
 
   if (isAnonymous(current.session?.user)) {

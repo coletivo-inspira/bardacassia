@@ -1,6 +1,14 @@
 import { authBackendReady, getCurrentUser } from "./auth.js";
 import { getSupabase } from "./supabase.js";
 import {
+  hasCurrentConsent,
+  hasPendingConsent,
+  PENDING_CONSENT_METADATA_KEY,
+  PENDING_CONSENT_STORAGE_KEY,
+  pendingConsentRecord,
+  shouldApplyPendingConsent,
+} from "../lib/consent.js";
+import {
   AVATAR_MAX_OUTPUT_BYTES,
   compressAvatarFile,
   DATA_CONSENT_VERSION,
@@ -63,7 +71,7 @@ export async function updateMyProfile({ birthDate, avatarUrl, grantConsent = fal
  * @param {Blob} file
  * @param {{ compressed?: boolean, maxSize?: number, quality?: number, crop?: { sx: number, sy: number, sw: number, sh: number } }} [options]
  */
-export async function uploadMyAvatar(file, { compressed = false, maxSize, quality, crop } = {}) {
+export async function uploadMyAvatar(file, { compressed = false, maxSize, quality, crop, grantConsent = false } = {}) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Entre na sua conta para enviar a foto.");
   const supabase = await client();
@@ -83,7 +91,7 @@ export async function uploadMyAvatar(file, { compressed = false, maxSize, qualit
   if (uploadError) throw uploadError;
   const { data } = supabase.storage.from("avatars").getPublicUrl(path);
   const url = `${data.publicUrl}?v=${Date.now()}`;
-  return updateMyProfile({ avatarUrl: url });
+  return updateMyProfile({ avatarUrl: url, grantConsent });
 }
 
 /** Papel do perfil da sessão atual (`cliente`, `garcom`, `dono`, `admin`), ou null. */
@@ -115,6 +123,42 @@ export async function setMyPhone(e164) {
   if (error) throw error;
 }
 
-export function hasCurrentConsent(profile) {
-  return Boolean(profile?.data_consent_at) && profile?.data_consent_version === DATA_CONSENT_VERSION;
+export { hasCurrentConsent };
+
+function localStore() {
+  try { return globalThis.localStorage || null; } catch { return null; }
+}
+
+/** Remember the sign-up checkbox across an OAuth redirect; `false` forgets it. */
+export function rememberPendingConsent(pending = true) {
+  try {
+    if (pending) localStore()?.setItem(PENDING_CONSENT_STORAGE_KEY, pendingConsentRecord());
+    else localStore()?.removeItem(PENDING_CONSENT_STORAGE_KEY);
+  } catch { /* private mode: consent can still be given on Conta */ }
+}
+
+/**
+ * Saves consent given at sign-up before a session existed (e-mail confirmation or OAuth),
+ * then clears both pending markers. Failures keep the markers so the next sign-in retries.
+ */
+export async function applyPendingConsent(user) {
+  if (!user) return null;
+  const metadata = user.user_metadata || {};
+  const store = localStore();
+  let stored = null;
+  try { stored = store?.getItem(PENDING_CONSENT_STORAGE_KEY) ?? null; } catch { /* ignore */ }
+  const hasMetadataFlag = metadata[PENDING_CONSENT_METADATA_KEY] != null;
+  if (!hasMetadataFlag && stored == null) return null;
+  const pending = hasPendingConsent({ metadata, stored });
+  let profile = null;
+  if (pending) {
+    profile = await getMyProfile();
+    if (shouldApplyPendingConsent(profile, pending)) profile = await updateMyProfile({ grantConsent: true });
+  }
+  rememberPendingConsent(false);
+  if (hasMetadataFlag) {
+    const supabase = await client();
+    await supabase.auth.updateUser({ data: { [PENDING_CONSENT_METADATA_KEY]: null } });
+  }
+  return profile;
 }
