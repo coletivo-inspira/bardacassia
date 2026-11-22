@@ -130,6 +130,7 @@ export function filterStaffRequests(requests, query) {
 
 const ERROR_MESSAGES = {
   fila_fechada: "A fila está fechada no momento. Aguarde a próxima rodada.",
+  pedidos_desligados: "Os pedidos de música estão desligados no momento.",
   codigo_invalido: "Essa música não está mais no catálogo.",
   nome_invalido: "Informe seu nome.",
   telefone_invalido: "Informe o telefone com DDD.",
