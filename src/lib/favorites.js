@@ -164,6 +164,30 @@ export function loadFavoritesState(storage = globalThis.localStorage) {
   }
 }
 
+/**
+ * Re-reads the tabs another page may have saved since `current` was loaded.
+ * Keeps `current` when nothing is stored or storage is unreadable, so a
+ * browser that refuses localStorage does not lose the in-memory favorites.
+ */
+export function refreshFavoritesState(current, { storage = globalThis.localStorage, allowed = null } = {}) {
+  let raw;
+  try {
+    raw = storage.getItem(FAVORITES_KEY);
+  } catch {
+    return { state: current, changed: false };
+  }
+  if (!raw) return { state: current, changed: false };
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { state: current, changed: false };
+  }
+  const state = sanitizeFavoritesState(parsed, allowed ? { allowed } : {});
+  const changed = JSON.stringify(state) !== JSON.stringify(current);
+  return { state: changed ? state : current, changed };
+}
+
 /** @returns {boolean} false when the browser refuses to store (private mode, quota). */
 export function saveFavoritesState(state, storage = globalThis.localStorage) {
   try {

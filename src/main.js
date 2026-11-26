@@ -3,15 +3,17 @@ import { initializeRecommendationCarousel } from "./lib/recommendation-carousel.
 import { displayTitle, filterCatalog, filtersForArtistSelection, countActiveFilterChips, filtersToggleLabel, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
 import { fetchDeezerMeta, fetchRelatedArtists, fetchArtistPicture, metaFromCatalog, resolvePreview } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
-import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState, emptyDiscoveryState } from "./lib/discovery.js";
+import { buildDiscoveryQueue, catalogArtists, discoveryCursor, filterArtists, recordDiscoveryMove, sanitizeDiscoveryState, emptyDiscoveryState, undoDiscoveryMove } from "./lib/discovery.js";
 import { relatedCodesFor } from "./lib/connections.js";
 import { GENRES, artistsForGenres, genreById, genreForSong } from "./lib/genres.js";
 import {
   DRAFT_TAB_ID,
+  FAVORITES_KEY,
   addToTab,
   allCodes,
   loadFavoritesState,
   mergeFavoriteCodes,
+  refreshFavoritesState,
   removeSong,
   sanitizeFavoritesState,
   saveFavoritesState,
@@ -608,7 +610,7 @@ function renderArtistOptions() {
 }
 
 function hasDiscoverySession() {
-  return discovery.genres.length > 0 && discovery.queue.length > 0 && discovery.index < discovery.queue.length;
+  return discovery.genres.length > 0 && discovery.queue.length > 0 && discoveryIndex() < discovery.queue.length;
 }
 
 function openDiscover() {
@@ -714,18 +716,12 @@ function discoverySourceLabel(song) {
   return "Sugestão da casa";
 }
 
-function skipFavoriteDiscoverySongs() {
-  let moved = false;
-  while (discovery.index < discovery.queue.length && favoriteCodes.has(String(discovery.queue[discovery.index]))) {
-    discovery.index += 1;
-    moved = true;
-  }
-  if (moved) persistDiscovery();
+function discoveryIndex() {
+  return discoveryCursor(discovery, (code) => favoriteCodes.has(code));
 }
 
 function currentDiscoverySong() {
-  skipFavoriteDiscoverySongs();
-  const code = discovery.queue[discovery.index];
+  const code = discovery.queue[discoveryIndex()];
   return code ? songByCode.get(code) : null;
 }
 
@@ -746,8 +742,9 @@ function renderDiscoveryCard() {
     return;
   }
   els.discoveryDescription.textContent = "Deslize ou use os botões: escolha músicas para cantar ou passe para a próxima.";
-  const remaining = discovery.queue.slice(discovery.index).filter((code) => !favoriteCodes.has(String(code))).length;
-  els.cardPosition.textContent = `Sugestão ${discovery.index + 1} · ${remaining} restante${remaining === 1 ? "" : "s"}`;
+  const position = discoveryIndex();
+  const remaining = discovery.queue.slice(position).filter((code) => !favoriteCodes.has(String(code))).length;
+  els.cardPosition.textContent = `Sugestão ${position + 1} · ${remaining} restante${remaining === 1 ? "" : "s"}`;
   els.restartPassed.hidden = false;
 
   const catalogMeta = metaFromCatalog(song);
@@ -812,7 +809,11 @@ function renderDiscoveryCard() {
   remind.addEventListener("click", (event) => {
     event.stopPropagation();
     if (favoriteCodes.has(String(song.code))) unsaveFavorite(song.code);
-    else saveFavorite(song);
+    else {
+      discovery = recordDiscoveryMove(discovery, { action: "remind", code: song.code, cursor: discoveryIndex(), added: true });
+      saveFavorite(song);
+      persistDiscovery();
+    }
     renderDiscoveryCard();
   });
 
@@ -900,7 +901,7 @@ function createDiscoveryCardBody(song, { interactive = true } = {}) {
 
 function upcomingDiscoverySongs(count) {
   const upcoming = [];
-  for (let i = discovery.index + 1; i < discovery.queue.length && upcoming.length < count; i++) {
+  for (let i = discoveryIndex() + 1; i < discovery.queue.length && upcoming.length < count; i++) {
     const code = discovery.queue[i];
     if (favoriteCodes.has(String(code))) continue;
     const song = songByCode.get(code);
@@ -945,24 +946,18 @@ function moveDiscovery(action) {
   const song = currentDiscoverySong();
   if (!song) return;
   const added = action === "choose" && !favoriteCodes.has(song.code);
-  discovery.history.push({ action, code: song.code, index: discovery.index, added });
-  discovery.history = discovery.history.slice(-1);
-  discovery.seen = [...new Set([...discovery.seen, song.code])];
-  if (action === "pass" && !discovery.passed.includes(song.code)) discovery.passed.push(song.code);
+  discovery = recordDiscoveryMove(discovery, { action, code: song.code, cursor: discoveryIndex(), added });
   if (added) saveFavorite(song);
-  discovery.index++;
   persistDiscovery();
   renderDiscoveryCard();
 }
 
 function undoDiscovery() {
   if (cardAnimating) return;
-  const last = discovery.history.pop();
+  const { state, last } = undoDiscoveryMove(discovery);
   if (!last) return;
-  discovery.index = last.index;
-  discovery.seen = discovery.seen.filter((code) => code !== last.code);
-  if (last.action === "pass") discovery.passed = discovery.passed.filter((code) => code !== last.code);
-  if (last.action === "choose" && last.added) unsaveFavorite(last.code);
+  discovery = state;
+  if (last.added) unsaveFavorite(last.code);
   persistDiscovery();
   renderDiscoveryCard();
 }
@@ -1022,6 +1017,23 @@ function showPopular() {
   });
 }
 
+/** favoritos.html edits the same tabs; writing a stale copy would erase them. */
+function reloadFavoritesState() {
+  const { state, changed } = refreshFavoritesState(favoritesState, songByCode.size ? { allowed: new Set(songByCode.keys()) } : {});
+  if (!changed) return false;
+  favoritesState = state;
+  favoriteCodes = allCodes(favoritesState);
+  return true;
+}
+
+function syncFavoritesFromStorage() {
+  if (!reloadFavoritesState()) return;
+  updateFavoriteControls();
+  if (favoritesOnly) applyFilters();
+  else refreshFavoriteButtons();
+  if (els.discoverDialog.open && discoverStep === "cards" && !cardAnimating) renderDiscoveryCard();
+}
+
 function persistFavorites() {
   favoriteCodes = allCodes(favoritesState);
   if (!saveFavoritesState(favoritesState)) {
@@ -1038,6 +1050,7 @@ async function applyAccountFavorites() {
   if (hasStoredAuthSession()) favoritesBootSyncStarted = true;
   const remote = await syncAccountFavorites(favoriteCodes);
   if (!remote) return;
+  reloadFavoritesState();
   const merged = mergeFavoriteCodes(favoriteCodes, remote, (code) => songByCode.has(code));
   const incoming = [...merged].filter((code) => !favoriteCodes.has(code));
   if (!incoming.length) return;
@@ -1104,6 +1117,7 @@ function onFavoritesChanged(code) {
 }
 
 function saveFavorite(song) {
+  reloadFavoritesState();
   const code = String(song.code);
   if (favoriteCodes.has(code)) return;
   const wasEmpty = favoriteCodes.size === 0;
@@ -1115,6 +1129,7 @@ function saveFavorite(song) {
 }
 
 function unsaveFavorite(code) {
+  reloadFavoritesState();
   const key = String(code);
   if (!favoriteCodes.has(key)) return;
   favoritesState = removeSong(favoritesState, key);
@@ -1124,6 +1139,7 @@ function unsaveFavorite(code) {
 }
 
 function addFavorites(newSongs) {
+  reloadFavoritesState();
   for (const song of newSongs) favoritesState = addToTab(favoritesState, String(song.code), DRAFT_TAB_ID);
   persistFavorites();
   updateFavoriteControls();
@@ -2076,6 +2092,7 @@ els.discoverDialog.addEventListener("close", () => {
 });
 els.goToFavorites.addEventListener("click", () => {
   closeDiscover();
+  reloadFavoritesState();
   favoritesState = setActiveTab(favoritesState, DRAFT_TAB_ID);
   persistFavorites();
   location.assign(new URL(FAVORITES_PAGE, location.href).href);
@@ -2311,6 +2328,13 @@ document.querySelectorAll('.mobile-tabbar a[data-mobile-tab][href^="#"]').forEac
     queueMicrotask(updateMobileTabs);
   });
 });
+window.addEventListener("storage", (event) => {
+  if (event.key === null || event.key === FAVORITES_KEY) syncFavoritesFromStorage();
+});
+window.addEventListener("pageshow", syncFavoritesFromStorage);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") syncFavoritesFromStorage();
+});
 window.addEventListener("hashchange", () => {
   if (redirectLegacyFavoritesHash()) return;
   updateMobileTabs();
@@ -2374,9 +2398,9 @@ async function init() {
       const matches = matchSpotifyTracks(songs, topTracks);
       spotifySuggestions = matches;
       els.spotifyStatus.textContent = `${matches.length} de ${topTracks.length} músicas mais ouvidas estão disponíveis para suas sugestões. Escolha “Quero cantar” para salvar nas favoritas.`;
-      if (discovery.queue.length && discovery.index < discovery.queue.length) {
+      if (discovery.queue.length && discoveryIndex() < discovery.queue.length) {
         const additions = matches.map((song) => String(song.code)).filter((code) => !discovery.queue.includes(code) && !discovery.seen.includes(code));
-        discovery.queue.splice(discovery.index + 1, 0, ...additions);
+        discovery.queue.splice(discoveryIndex() + 1, 0, ...additions);
         persistDiscovery();
         openDiscover();
       } else if (discovery.genres.length) {

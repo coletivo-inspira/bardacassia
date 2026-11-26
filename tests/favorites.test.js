@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   DRAFT_TAB_ID,
   addToTab,
@@ -17,6 +18,7 @@ import {
   MAX_SYNCED_FAVORITES,
   mergeFavoriteCodes,
   moveSong,
+  refreshFavoritesState,
   removeSong,
   renameTab,
   sanitizeFavoritesState,
@@ -170,4 +172,51 @@ test("armazenamento bloqueado não quebra as favoritas", () => {
   const blocked = { getItem() { throw new Error("blocked"); }, setItem() { throw new Error("blocked"); } };
   assert.deepEqual(loadFavoritesState(blocked), emptyFavoritesState());
   assert.equal(saveFavoritesState(emptyFavoritesState(), blocked), false);
+});
+
+test("refreshFavoritesState traz as abas editadas em favoritos.html antes de gravar", () => {
+  const storage = memoryStorage();
+  const stale = addToTab(emptyFavoritesState(), "1");
+  saveFavoritesState(stale, storage);
+  const edited = createTabWithSong(stale, "Sertanejo", "1", "aba-x");
+  saveFavoritesState(edited, storage);
+
+  const { state, changed } = refreshFavoritesState(stale, { storage });
+  assert.equal(changed, true);
+  const next = addToTab(state, "2");
+  saveFavoritesState(next, storage);
+  const saved = loadFavoritesState(storage);
+  assert.deepEqual(saved.tabs.map((tab) => tab.id), [DRAFT_TAB_ID, "aba-x"]);
+  assert.equal(tabOf(saved, "1")?.id, "aba-x");
+  assert.equal(tabOf(saved, "2")?.id, DRAFT_TAB_ID);
+});
+
+test("refreshFavoritesState mantém o estado em memória sem nada salvo ou com storage bloqueado", () => {
+  const current = addToTab(emptyFavoritesState(), "9");
+  assert.equal(refreshFavoritesState(current, { storage: memoryStorage() }).state, current);
+  assert.equal(refreshFavoritesState(current, { storage: memoryStorage({ [FAVORITES_KEY]: "{oops" }) }).state, current);
+  const blocked = { getItem() { throw new Error("blocked"); } };
+  const result = refreshFavoritesState(current, { storage: blocked });
+  assert.equal(result.state, current);
+  assert.equal(result.changed, false);
+});
+
+test("refreshFavoritesState não marca mudança quando o salvo é igual e respeita o catálogo", () => {
+  const current = addToTab(emptyFavoritesState(), "1");
+  const storage = memoryStorage({ [FAVORITES_KEY]: JSON.stringify(addToTab(current, "404")) });
+  const same = refreshFavoritesState(current, { storage: memoryStorage({ [FAVORITES_KEY]: JSON.stringify(current) }) });
+  assert.equal(same.changed, false);
+  assert.equal(same.state, current);
+  const filtered = refreshFavoritesState(current, { storage, allowed: new Set(["1"]) });
+  assert.deepEqual([...allCodes(filtered.state)], ["1"]);
+});
+
+test("o catálogo relê as favoritas no storage, pageshow, visibilidade e antes de gravar", () => {
+  const main = readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
+  assert.match(main, /addEventListener\("storage"/);
+  assert.match(main, /addEventListener\("pageshow", syncFavoritesFromStorage\)/);
+  assert.match(main, /addEventListener\("visibilitychange"/);
+  for (const name of ["saveFavorite\\(song\\)", "unsaveFavorite\\(code\\)", "addFavorites\\(newSongs\\)"]) {
+    assert.match(main, new RegExp(`function ${name} \\{\\n  reloadFavoritesState\\(\\);`));
+  }
 });
