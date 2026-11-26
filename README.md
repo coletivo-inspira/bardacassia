@@ -21,7 +21,7 @@
 - **Pesquisa local:** música, artista, código ou começo da letra, sem diferenciar acentos; correspondências mais relevantes aparecem primeiro.
 - **Descoberta:** clique no nome do artista para filtrar suas músicas e explorar artistas relacionados disponíveis no próprio catálogo.
 - **Favoritas:** página `favoritos.html` com abas locais no navegador, sem criar conta; no catálogo, o filtro “Somente favoritas”. Com login, a **lista de códigos** sincroniza entre aparelhos (as abas continuam só neste aparelho).
-- **Spotify opcional:** com autorização do usuário, usa suas **50 mais ouvidas** como sugestões e só as adiciona à lista da noite quando a pessoa escolhe “Quero cantar”.
+- **Spotify opcional:** com login, a pessoa liga o Spotify à conta. Na Conta, **Seu gosto musical** mostra a persona (estilos e artistas que ela mais ouve em 4 semanas, 6 meses e ~1 ano), e o catálogo sugere músicas do karaokê com esse perfil. Sem conta, usa as 50 mais ouvidas só nesta visita. Nada entra na lista da noite sem “Quero cantar”.
 - **Descoberta por cartões:** escolha artistas, passe ou selecione músicas e mantenha uma lista da noite salva neste navegador.
 - **Mais populares:** ranking agregado, quando o Supabase está configurado e as migrações estão aplicadas.
 - **Deezer:** capas e trechos de áudio quando disponíveis; o site continua funcional sem a API.
@@ -68,19 +68,20 @@ Revise os dados gerados antes de fazer commit de `public/data/songs.json`, `publ
 
 ## Integração Spotify (opcional)
 
-O botão só aparece quando o Client ID estiver configurado. A autorização usa **OAuth 2.0 com PKCE** e o escopo `user-top-read`, sem segredo no frontend.
+O botão só aparece quando o Client ID estiver configurado. A autorização usa **OAuth 2.0 com PKCE** (escopos `user-top-read` e `user-read-recently-played`), sem segredo no frontend.
 
 1. Cadastre um app no [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
-2. Cadastre a Redirect URI exata do site, por exemplo `https://coletivo-inspira.github.io/bardacassia/`.
+2. Cadastre as Redirect URIs exatas da raiz e da Conta, por exemplo `https://coletivo-inspira.github.io/bardacassia/` e `https://coletivo-inspira.github.io/bardacassia/conta.html`.
 3. Localmente, copie `.env.example` para `.env.local` e preencha `VITE_SPOTIFY_CLIENT_ID`.
-4. No GitHub, crie a variável de Actions `SPOTIFY_CLIENT_ID` para habilitar o recurso no deploy.
-5. Confira as regras atuais de acesso do Spotify, inclusive usuários autorizados e limites do modo de desenvolvimento.
+4. No GitHub, crie a variável de Actions `SPOTIFY_CLIENT_ID`. Ela habilita o botão no deploy e vira secret da Edge Function `spotify-connect`.
+5. Aplique a migração `014` e publique a `spotify-connect` (**Deploy Supabase**) para ligar o Spotify à conta.
+6. Confira as regras atuais de acesso do Spotify. Em modo de desenvolvimento, só entram os usuários cadastrados no painel.
 
-**Mais ouvidas não são as faixas curtidas.** A integração lê as top tracks de um período recente, cruza título e artista com o catálogo e usa os códigos correspondentes como sugestões. Nenhum token é persistido no armazenamento local. Leia os [detalhes, limites e privacidade](./docs/INTEGRACOES.md).
+**Com conta**, o refresh token fica criptografado no Postgres (Vault) e só a função o lê. A Conta guarda um resumo (mais ouvidas e artistas por período, últimas tocadas), que pode ser atualizado ou apagado em **Desconectar**. **Sem conta**, nenhum token é persistido. A API do Spotify cobre no máximo cerca de 1 ano de histórico. Leia os [detalhes, limites e privacidade](./docs/INTEGRACOES.md#spotify-conta-ligada-e-persona-musical).
 
 ## Arquitetura e Supabase
 
-Mapa do ambiente (páginas, migrações `001`–`008`, RPCs, Storage, variáveis e workflows): [Arquitetura](./docs/ARQUITETURA.md).
+Mapa do ambiente (páginas, migrações `001`–`014`, RPCs, Storage, variáveis e workflows): [Arquitetura](./docs/ARQUITETURA.md).
 
 O backend opcional é um único projeto Supabase (ex.: **Cacia**). `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` ligam o cliente; `SUPABASE_SERVICE_ROLE_KEY` fica só no Actions para `sync-catalog`. Com `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` e `SUPABASE_PROJECT_REF`, o workflow `.github/workflows/supabase.yml` aplica as migrações pelo **session pooler IPv4** (o Actions não alcança o host direto IPv6) e publica as Edge Functions. Se o host auto falhar, use o secret `SUPABASE_DB_URL` (URI Session do Dashboard → Connect). **Sem um Deploy Supabase verde, Auth pode funcionar e mesmo assim perfil (`PGRST205`), ranking e favoritas falham.**
 
@@ -115,7 +116,10 @@ src/
   lib/catalog.js           # ranking, normalização e conciliação
   lib/requests.js          # validação e textos de pedidos, fila e rodada
   integrations/deezer.js   # metadados e artistas relacionados
-  integrations/spotify.js  # autorização PKCE e top tracks
+  integrations/spotify.js  # autorização PKCE; com conta, envia o código à spotify-connect
+  integrations/music-profile.js # music_profiles e ações da spotify-connect
+  lib/music-persona.js     # persona musical e sugestões com motivo
+  account-music.js         # Conta: Seu gosto musical
   integrations/supabase.js # cliente Supabase compartilhado (sessão)
   integrations/auth.js     # login, cadastro, OAuth, redefinição de senha
   integrations/profile.js  # perfil, avatar Storage e consentimento LGPD
@@ -125,7 +129,7 @@ src/
   integrations/favorites-sync.js # sync_my_favorites
 supabase/
   migrations/              # 001–008: ranking, auth, favoritas, pedidos, perfil/Storage
-  functions/               # Edge Functions (account-delete, deezer-proxy)
+  functions/               # Edge Functions (account-delete, deezer-proxy, spotify-connect)
 public/
   data/songs.json          # catálogo publicado (sem coverUrl)
   data/song-covers.json    # capas Deezer (code → url)

@@ -56,6 +56,10 @@ Módulos centrais em `src/`:
 - `integrations/supabase.js` — cliente compartilhado, sessão PKCE, storage “Manter conectado”
 - `integrations/auth.js` — login, OAuth, exclusão via Edge Function `account-delete`
 - `integrations/profile.js` — `profiles` + upload no Storage `avatars`
+- `integrations/spotify.js` — PKCE do Spotify; com conta, envia o código para a Edge Function `spotify-connect`
+- `integrations/music-profile.js` — leitura de `music_profiles` e ações `exchange` / `sync` / `disconnect` da `spotify-connect`
+- `lib/music-persona.js` — persona musical (estilos com porcentagem, artistas) e sugestões do catálogo com motivo
+- `account-music.js` — seção “Seu gosto musical” em `conta.html`
 - `integrations/popularity.js` — `record_song_open`, `set_song_favorite`, `get_popular_songs`
 - `integrations/favorites-sync.js` — `sync_my_favorites` (lista plana de códigos)
 - `integrations/requests.js` — RPCs de pedidos, staff e dono
@@ -114,8 +118,9 @@ Aplicar **sempre** com o workflow (session pooler IPv4 no Actions). A ordem no d
 | `011_site_palette.sql` | coluna `palette` em `site_features` | `get_site_features` também devolve `palette`; `set_site_palette` (só admin) |
 | `012_admin_console_logs.sql` | parâmetros runtime em `site_features`, `admin_audit_logs`, `private.log_admin_event` | `admin_set_runtime_params`, `admin_db_overview`, `admin_list_users`, `admin_update_user_access`, `admin_list_requests`, `admin_inspect_table`, `admin_list_audit_logs` (só admin) |
 | `013_staff_list_requests_fix.sql` | — | `staff_list_requests` volta a responder (a 012 tinha `id` ambíguo entre `site_features` e a coluna de saída) |
+| `014_spotify_connection.sql` | `private.spotify_connections` (refresh token criptografado com `profile_encryption_key`), `music_profiles` (select só do dono) | `spotify_save_connection`, `spotify_rotate_token`, `spotify_get_connection`, `spotify_save_profile`, `spotify_disconnect` (só **service_role**, usadas pela `spotify-connect`) |
 
-Quase todas as tabelas usam **RLS com revoke** para `anon`/`authenticated` e acesso via funções `security definer`. Exceções conscientes: `profiles` (select/update próprio) e Storage `avatars` (pasta = `auth.uid()`).
+Quase todas as tabelas usam **RLS com revoke** para `anon`/`authenticated` e acesso via funções `security definer`. Exceções conscientes: `profiles` (select/update próprio), `music_profiles` (select próprio) e Storage `avatars` (pasta = `auth.uid()`).
 
 ## Edge Functions
 
@@ -123,6 +128,7 @@ Quase todas as tabelas usam **RLS com revoke** para `anon`/`authenticated` e ace
 | --- | --- | --- |
 | `account-delete` | Obrigatório | Apaga a conta com service role após validar o usuário |
 | `deezer-proxy` | Desligado (`--no-verify-jwt`) | Proxy allowlisted para metadados Deezer; secret `ALLOWED_ORIGINS` |
+| `spotify-connect` | Obrigatório (só conta permanente) | Liga o Spotify à conta: troca o código PKCE, guarda o refresh token criptografado, lê mais ouvidas/artistas (3 períodos) e últimas tocadas e grava `music_profiles`; também `sync` (intervalo mínimo de 10 min) e `disconnect`. Secrets `SPOTIFY_CLIENT_ID` e `ALLOWED_ORIGINS` |
 
 ## Variáveis de ambiente
 
@@ -149,7 +155,8 @@ Quase todas as tabelas usam **RLS com revoke** para `anon`/`authenticated` e ace
 | `SUPABASE_DB_URL` (opcional) | URI Session pooler do Dashboard → Connect; sobrescreve o host auto `aws-0-<region>` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Sync do catálogo e Edge Functions (injetada pela plataforma nas functions) |
 | `SUPABASE_PROJECT_REF` (variável) | Ref do projeto (`ajhokdqtpufpfceszyfo` no Cacia) |
-| `ALLOWED_ORIGINS` (variável) | CORS do `deezer-proxy` |
+| `ALLOWED_ORIGINS` (variável) | CORS do `deezer-proxy` e da `spotify-connect` (também valida a Redirect URI do Spotify) |
+| `SPOTIFY_CLIENT_ID` (variável) | Além do build, vira secret da `spotify-connect` no `supabase.yml` |
 
 Modelo local: copiar [`.env.example`](../.env.example) para `.env.local`.
 
@@ -159,7 +166,7 @@ Modelo local: copiar [`.env.example`](../.env.example) para `.env.local`.
 | --- | --- | --- |
 | `ci.yml` | PR / push | `npm test`, build; `deno check` nas functions |
 | `static.yml` | push `main` | `vite build`, `sync-catalog` (service role), publish Pages |
-| `supabase.yml` | push em `supabase/**` / o YAML, ou manual | `db push` no session pooler IPv4, secrets das functions, deploy `account-delete` e `deezer-proxy` |
+| `supabase.yml` | push em `supabase/**` / o YAML, ou manual | `db push` no session pooler IPv4, secrets das functions, deploy `account-delete`, `deezer-proxy` e `spotify-connect` |
 
 Se `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` ou `SUPABASE_PROJECT_REF` faltarem, o deploy Supabase **só avisa e sai** (não falha). Com secrets presentes, o push usa o **shared session pooler** (IPv4): o host direto do Postgres é IPv6 e o Actions não alcança. Sem esse caminho, o schema de produção fica vazio — sintomas: `PGRST205` em `profiles`, RPC **404**, avatar **400**. Detalhes em [Integrações → Troubleshooting](./INTEGRACOES.md#troubleshooting-do-schema).
 
