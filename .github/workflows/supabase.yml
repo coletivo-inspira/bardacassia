@@ -25,6 +25,7 @@ jobs:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
       ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS }}
+      SPOTIFY_CLIENT_ID: ${{ vars.SPOTIFY_CLIENT_ID }}
     steps:
       - name: Check configuration
         id: config
@@ -74,8 +75,12 @@ jobs:
         if: steps.config.outputs.ready == 'true' && env.ALLOWED_ORIGINS != ''
         # CLI v3+ requires --yes when stdout is not a TTY (GitHub Actions).
         run: supabase secrets set ALLOWED_ORIGINS="$ALLOWED_ORIGINS" --remote="$SUPABASE_PROJECT_REF" --yes
+      - name: Configure Spotify function secret
+        if: steps.config.outputs.ready == 'true' && env.SPOTIFY_CLIENT_ID != ''
+        run: supabase secrets set SPOTIFY_CLIENT_ID="$SPOTIFY_CLIENT_ID" --remote="$SUPABASE_PROJECT_REF" --yes
       - name: Deploy Edge Functions
         if: steps.config.outputs.ready == 'true'
         run: |
           supabase functions deploy account-delete --remote="$SUPABASE_PROJECT_REF" --yes
           supabase functions deploy deezer-proxy --no-verify-jwt --remote="$SUPABASE_PROJECT_REF" --yes
+          supabase functions deploy spotify-connect --remote="$SUPABASE_PROJECT_REF" --yes

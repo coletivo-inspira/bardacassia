@@ -25,6 +25,11 @@ export function cleanArtist(value) {
   return String(value || "").replace(/\.\.\.$/, "").trim();
 }
 
+/** Catalog writes "Beatles (The)"; Spotify writes "The Beatles". */
+export function artistMatchKey(value) {
+  return normalizeText(cleanArtist(value)).replace(/^(?:the|os|as) /, "").replace(/ (?:the|os|as)$/, "");
+}
+
 function scoreSong(song, query, tokens) {
   const title = normalizeText(song.title);
   const artist = normalizeText(cleanArtist(song.artist));
@@ -81,7 +86,8 @@ export function matchSpotifyTracks(catalog, tracks) {
       const catalogArtist = normalizeText(cleanArtist(candidate.artist));
       return artists.some((artist) =>
         artist.length >= 3 && (catalogArtist === artist ||
-          catalogArtist.includes(artist) || artist.includes(catalogArtist))
+          catalogArtist.includes(artist) || artist.includes(catalogArtist) ||
+          artistMatchKey(artist) === artistMatchKey(catalogArtist))
       );
     });
     if (song && !seen.has(song.code)) {
