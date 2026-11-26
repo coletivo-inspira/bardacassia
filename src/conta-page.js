@@ -1,4 +1,5 @@
 import { createAccountEditor } from "./account-editor.js";
+import { createAccountMusic } from "./account-music.js";
 import { authBackendReady, displayName, getCurrentUser, onAuthChange, publicAuthEnabled, signOut } from "./integrations/auth.js";
 import { loadSiteFeatures } from "./integrations/features.js";
 import { getMyRole } from "./integrations/profile.js";
@@ -51,6 +52,9 @@ const PROFILE_HASH = "#perfil";
 const PASSWORD_SAVED_PARAM = "senha";
 
 let editor = null;
+let music = null;
+/** Latest "Seu gosto musical" render, so the Spotify callback waits for it. */
+let musicRender = Promise.resolve();
 let currentUser = null;
 /** Shown in the editor once the signed-in render runs (the boot-time signed-out render clears it). */
 let pendingEditorStatus = null;
@@ -375,9 +379,11 @@ function renderAccountPage(user, { role = null } = {}) {
       pendingEditorStatus = null;
     }
     void editor?.load(user);
+    musicRender = music?.render(user) ?? Promise.resolve();
   } else {
     currentUser = null;
     editor?.clear();
+    musicRender = music?.render(null) ?? Promise.resolve();
     if (title) title.textContent = "Conta";
     if (subtitle) subtitle.textContent = "Entre para sincronizar favoritos e perfil entre aparelhos.";
     setHeroAvatar("", "");
@@ -421,15 +427,21 @@ function setupEditor() {
 async function bootAccountPage() {
   await loadSiteFeatures();
   if (authBackendReady) setupEditor();
+  music = createAccountMusic({ notify: setPageStatus });
   renderAccountPage(null);
   void loadRequestsCount();
-  if (!authBackendReady || !hasStoredAuthSession()) return;
+  if (!authBackendReady || !hasStoredAuthSession()) {
+    void music.handleCallback();
+    return;
+  }
   try {
     const user = await getCurrentUser();
     if (user) {
       const role = await getMyRole().catch(() => null);
       renderAccountPage(user, { role });
     }
+    await musicRender;
+    void music.handleCallback();
     await onAuthChange(async (event) => {
       if (event === "SIGNED_OUT") renderAccountPage(null);
       else if (event === "SIGNED_IN" || event === "USER_UPDATED") {
@@ -440,6 +452,7 @@ async function bootAccountPage() {
     });
   } catch {
     /* signed-out menu stays usable when auth is unreachable */
+    void music.handleCallback();
   }
 }
 

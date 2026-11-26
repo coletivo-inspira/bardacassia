@@ -99,7 +99,7 @@ test("sugestões: ouvidas, depois mais do artista, depois estilo, sem repetir", 
   assert.equal(items[0].reason, "Você ouve muito");
   const artistItems = items.filter((item) => item.kind === "artist");
   assert.deepEqual(artistItems.slice(0, 2).map((item) => item.song.code), ["2", "3"]);
-  assert.equal(artistItems[0].reason, "Porque você ouve Marília Mendonça");
+  assert.equal(artistItems[0].reason, "Você ouve Marília Mendonça");
   assert.ok(artistItems.some((item) => item.song.code === "7"));
   const styleItems = items.filter((item) => item.kind === "style");
   assert.ok(styleItems.some((item) => item.song.code === "8" && item.reason === "Seu estilo: Sertanejo"));

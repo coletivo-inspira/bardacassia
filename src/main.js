@@ -3,6 +3,8 @@ import { initializeRecommendationCarousel } from "./lib/recommendation-carousel.
 import { displayTitle, filterCatalog, filtersForArtistSelection, countActiveFilterChips, filtersToggleLabel, searchCatalog, matchSpotifyTracks, curatedArtistSuggestions, normalizeText, cleanArtist } from "./lib/catalog.js";
 import { fetchDeezerMeta, fetchRelatedArtists, fetchArtistPicture, metaFromCatalog, resolvePreview } from "./integrations/deezer.js";
 import { spotifyConfigured, connectSpotify, completeSpotifyConnection } from "./integrations/spotify.js";
+import { getMyMusicProfile, syncSpotify } from "./integrations/music-profile.js";
+import { buildPersona, musicSuggestions } from "./lib/music-persona.js";
 import { buildDiscoveryQueue, catalogArtists, filterArtists, sanitizeDiscoveryState, emptyDiscoveryState } from "./lib/discovery.js";
 import { relatedCodesFor } from "./lib/connections.js";
 import { GENRES, artistsForGenres, genreById, genreForSong } from "./lib/genres.js";
@@ -210,6 +212,12 @@ let discoverStep = "genres";
 let artistView = loadArtistView();
 let popularSongs = [];
 let spotifySuggestions = [];
+/** code → motivo ("Você ouve muito", "Seu estilo: MPB"), from the profile saved in the account. */
+let spotifyReasons = new Map();
+let musicPersona = null;
+let musicProfileConnected = false;
+/** conta.html "Ver músicas para cantar" lands here. */
+const SPOTIFY_SUGGESTIONS_HASH = "#para-cantar";
 /** @type {Record<string, string[]>|null} */
 let songConnections = null;
 /** @type {Promise<Record<string, string[]>|null>|null} */
@@ -707,7 +715,7 @@ function discoverySourceLabel(song) {
   const isSpotify = spotifySuggestions.some((item) => item.code === song.code);
   const isChosenArtist = discovery.artists.some((name) => normalize(name) === normalize(cleanArtist(song.artist)));
   const genre = isChosenArtist ? null : genreForSong(song, discovery.genres);
-  if (isSpotify) return "Do seu Spotify";
+  if (isSpotify) return spotifyReasons.get(String(song.code)) || "Do seu Spotify";
   if (isChosenArtist) return "Artista escolhido";
   if (genre) return genre.label;
   if (popularSongs.some((item) => item.code === song.code)) return "Mais popular";
@@ -1072,6 +1080,7 @@ async function watchAccountFavorites() {
   let skipRecoverySignedIn = true;
   await onAuthChange(async (event) => {
     if (event === "SIGNED_OUT") {
+      if (musicProfileConnected) useMusicProfile(null);
       setFavoriteSyncActive(false);
       favoritesBootSyncStarted = false;
       skipRecoverySignedIn = false;
@@ -2315,7 +2324,81 @@ window.addEventListener("hashchange", () => {
   updateMobileTabs();
 });
 updateMobileTabs();
+/** Inserts Spotify songs right after the current card, or starts discovery from the persona's styles. */
+async function openSpotifySuggestions() {
+  if (!spotifySuggestions.length) return;
+  const queueSpotifyAt = (position) => {
+    const codes = spotifySuggestions.map((song) => String(song.code)).filter((code) => !discovery.seen.includes(code));
+    const before = discovery.queue.slice(0, position);
+    const ahead = codes.filter((code) => !before.includes(code));
+    const rest = discovery.queue.slice(position).filter((code) => !ahead.includes(code));
+    discovery.queue = [...before, ...ahead, ...rest];
+    persistDiscovery();
+  };
+  if (discovery.queue.length && discovery.index < discovery.queue.length) {
+    queueSpotifyAt(discovery.index + 1);
+    openDiscover();
+    return;
+  }
+  if (!discovery.genres.length && musicPersona?.topGenres.length) {
+    discovery.genres = musicPersona.topGenres.map((genre) => genre.id);
+    persistDiscovery();
+  }
+  openDiscover();
+  if (!discovery.genres.length) return;
+  await startDiscovery();
+  queueSpotifyAt(0);
+  renderDiscoveryCard();
+}
+
+function setSpotifyButtonLabel() {
+  if (els.spotifyButton) els.spotifyButton.textContent = musicProfileConnected ? "Atualizar do Spotify" : "Conectar ao Spotify";
+}
+
+function useMusicProfile(profile) {
+  musicProfileConnected = Boolean(profile);
+  setSpotifyButtonLabel();
+  if (!profile) {
+    musicPersona = null;
+    spotifyReasons = new Map();
+    return;
+  }
+  musicPersona = buildPersona(profile, songs);
+  const items = musicSuggestions(songs, profile, { persona: musicPersona, excludeCodes: favoriteCodes });
+  spotifyReasons = new Map(items.map((item) => [String(item.song.code), item.reason]));
+  spotifySuggestions = items.map((item) => item.song);
+  els.spotifyStatus.hidden = false;
+  if (!items.length) {
+    els.spotifyStatus.textContent = `${musicPersona.label}. Ainda não achamos músicas do karaokê para o seu perfil do Spotify.`;
+    return;
+  }
+  const open = document.createElement("button");
+  open.type = "button";
+  open.className = "text-button";
+  open.textContent = "Ver sugestões";
+  open.addEventListener("click", () => void openSpotifySuggestions());
+  els.spotifyStatus.replaceChildren(
+    document.createTextNode(`${musicPersona.label}: ${items.length.toLocaleString("pt-BR")} músicas do seu Spotify para cantar. `),
+    open,
+  );
+}
+
 els.spotifyButton.addEventListener("click", async () => {
+  if (musicProfileConnected) {
+    els.spotifyButton.disabled = true;
+    els.spotifyStatus.hidden = false;
+    els.spotifyStatus.textContent = "Atualizando com o Spotify…";
+    try {
+      useMusicProfile(await syncSpotify());
+      await openSpotifySuggestions();
+    } catch (error) {
+      els.spotifyStatus.textContent = error.message;
+      if (error.code === "spotify_revoked" || error.code === "not_connected") useMusicProfile(null);
+    } finally {
+      els.spotifyButton.disabled = false;
+    }
+    return;
+  }
   try {
     els.spotifyStatus.textContent = "Redirecionando para o Spotify…";
     await connectSpotify();
@@ -2368,22 +2451,26 @@ async function init() {
   void applyAccountFavorites();
 
   try {
-  const topTracks = spotifyConfigured() ? await completeSpotifyConnection() : null;
-    if (topTracks) {
-      const matches = matchSpotifyTracks(songs, topTracks);
+    const result = spotifyConfigured() ? await completeSpotifyConnection() : null;
+    const wantsSuggestions = location.hash === SPOTIFY_SUGGESTIONS_HASH;
+    if (wantsSuggestions) history.replaceState(null, "", location.pathname + location.search);
+    if (result?.kind === "linked") {
+      useMusicProfile(result.profile);
+      await openSpotifySuggestions();
+    } else if (result?.kind === "tracks") {
+      const matches = matchSpotifyTracks(songs, result.tracks);
       spotifySuggestions = matches;
-      els.spotifyStatus.textContent = `${matches.length} de ${topTracks.length} músicas mais ouvidas estão disponíveis para suas sugestões. Escolha “Quero cantar” para salvar nas favoritas.`;
-      if (discovery.queue.length && discovery.index < discovery.queue.length) {
-        const additions = matches.map((song) => String(song.code)).filter((code) => !discovery.queue.includes(code) && !discovery.seen.includes(code));
-        discovery.queue.splice(discovery.index + 1, 0, ...additions);
-        persistDiscovery();
-        openDiscover();
-      } else if (discovery.genres.length) {
-        openDiscover();
-        await startDiscovery();
-      } else openDiscover();
+      els.spotifyStatus.textContent = `${matches.length} de ${result.tracks.length} músicas mais ouvidas estão disponíveis para suas sugestões. Escolha “Quero cantar” para salvar nas favoritas.`;
+      await openSpotifySuggestions();
+    } else if (spotifyConfigured() && hasStoredAuthSession()) {
+      const profile = await getMyMusicProfile().catch(() => null);
+      if (profile) {
+        useMusicProfile(profile);
+        if (wantsSuggestions) await openSpotifySuggestions();
+      }
     }
   } catch (error) {
+    els.spotifyStatus.hidden = false;
     els.spotifyStatus.textContent = error.message;
   }
 

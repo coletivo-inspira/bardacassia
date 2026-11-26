@@ -187,7 +187,7 @@ export function musicSuggestions(catalog, profile, { persona = buildPersona(prof
   for (const artist of scoreArtists(profile).slice(0, 25)) {
     const songs = byArtist.get(artist.key) || [];
     songs.filter((song) => !seen.has(String(song.code))).slice(0, perArtist)
-      .forEach((song) => push(song, `Porque você ouve ${artist.name}`, "artist"));
+      .forEach((song) => push(song, `Você ouve ${artist.name}`, "artist"));
   }
 
   for (const style of persona.topGenres) {
