@@ -24,6 +24,9 @@ jobs:
       # Optional: Dashboard → Connect → Session pooler URI (IPv4). Overrides the auto-built URL.
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      # Optional: pooler host when the project is not on aws-0 (e.g. aws-1-sa-east-1.pooler.supabase.com).
+      # Empty keeps aws-0-<region>.pooler.supabase.com.
+      SUPABASE_POOLER_HOST: ${{ vars.SUPABASE_POOLER_HOST }}
       ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS }}
       SPOTIFY_CLIENT_ID: ${{ vars.SPOTIFY_CLIENT_ID }}
     steps:
@@ -63,7 +66,7 @@ jobs:
               exit 1
             fi
             ENCODED_PASS=$(python3 -c "import urllib.parse, os; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
-            POOLER_HOST="aws-0-${REGION}.pooler.supabase.com"
+            POOLER_HOST="${SUPABASE_POOLER_HOST:-aws-0-${REGION}.pooler.supabase.com}"
             DB_URL="postgresql://postgres.${SUPABASE_PROJECT_REF}:${ENCODED_PASS}@${POOLER_HOST}:5432/postgres"
             echo "Using shared session pooler at ${POOLER_HOST} (region ${REGION})."
           fi

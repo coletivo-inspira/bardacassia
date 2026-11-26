@@ -118,7 +118,7 @@ Aplicar **sempre** com o workflow (session pooler IPv4 no Actions). A ordem no d
 | `011_site_palette.sql` | coluna `palette` em `site_features` | `get_site_features` também devolve `palette`; `set_site_palette` (só admin) |
 | `012_admin_console_logs.sql` | parâmetros runtime em `site_features`, `admin_audit_logs`, `private.log_admin_event` | `admin_set_runtime_params`, `admin_db_overview`, `admin_list_users`, `admin_update_user_access`, `admin_list_requests`, `admin_inspect_table`, `admin_list_audit_logs` (só admin) |
 | `013_staff_list_requests_fix.sql` | — | `staff_list_requests` volta a responder (a 012 tinha `id` ambíguo entre `site_features` e a coluna de saída) |
-| `014_spotify_connection.sql` | `private.spotify_connections` (refresh token criptografado com `profile_encryption_key`), `music_profiles` (select só do dono) | `spotify_save_connection`, `spotify_rotate_token`, `spotify_get_connection`, `spotify_save_profile`, `spotify_disconnect` (só **service_role**, usadas pela `spotify-connect`) |
+| `015_spotify_connection.sql` | `private.spotify_connections` (refresh token criptografado com `profile_encryption_key`), `music_profiles` (select só do dono) | `spotify_save_connection`, `spotify_rotate_token`, `spotify_get_connection`, `spotify_save_profile`, `spotify_disconnect` (só **service_role**, usadas pela `spotify-connect`) |
 
 Quase todas as tabelas usam **RLS com revoke** para `anon`/`authenticated` e acesso via funções `security definer`. Exceções conscientes: `profiles` (select/update próprio), `music_profiles` (select próprio) e Storage `avatars` (pasta = `auth.uid()`).
 

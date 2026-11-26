@@ -59,7 +59,7 @@ O adaptador está em `src/integrations/spotify.js`. Ele é **opcional** e o bot�
 3. Para desenvolvimento, copie `.env.example` para `.env.local` e defina `VITE_SPOTIFY_CLIENT_ID`.
 4. No GitHub, configure a **Actions variable** `SPOTIFY_CLIENT_ID` (não um segredo). O build do Pages a expõe como `VITE_SPOTIFY_CLIENT_ID`, e o `supabase.yml` a grava como secret `SPOTIFY_CLIENT_ID` da função `spotify-connect`.
 5. Em `ALLOWED_ORIGINS`, inclua a origem do site (e a de desenvolvimento). A função recusa uma Redirect URI fora dessa lista.
-6. Rode **Actions → Deploy Supabase** para aplicar a migração `014_spotify_connection.sql` e publicar a `spotify-connect`. Sem a função, quem tem conta cai no modo sem conta, e nada quebra.
+6. Rode **Actions → Deploy Supabase** para aplicar a migração `015_spotify_connection.sql` e publicar a `spotify-connect`. Sem a função, quem tem conta cai no modo sem conta, e nada quebra.
 7. **Acesso do público:** em modo de desenvolvimento, o Spotify só deixa entrar os usuários cadastrados em *User Management* no painel, e em número pequeno. A cota estendida (público geral) hoje exige requisitos de organização definidos pelo Spotify. Confira as regras vigentes antes de divulgar. Quem não está liberado recebe a mensagem “Esta conta do Spotify ainda não tem acesso…”.
 
 ### Fluxo com conta

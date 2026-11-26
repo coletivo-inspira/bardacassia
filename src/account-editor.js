@@ -102,6 +102,16 @@ export function createAccountEditor({ onProfile = () => {}, onDeleted = () => {}
     }
   }
 
+  /** Birthday, phone and photo are all personal data: none is stored without LGPD consent. */
+  function consentMissing() {
+    return !els.consent.checked && !hasCurrentConsent(profile);
+  }
+
+  function requireConsent() {
+    setLgpdStatus("Marque a autorização para salvar seus dados.", "error");
+    els.consent.focus();
+  }
+
   function setPhoneError(message) {
     els.phoneError.textContent = message;
     els.phone.setAttribute("aria-invalid", String(Boolean(message)));
@@ -148,6 +158,14 @@ export function createAccountEditor({ onProfile = () => {}, onDeleted = () => {}
 
   function markClean() {
     savedSnapshot = snapshot();
+  }
+
+  /** The photo upload saved consent; keep any unsaved birthday or phone edits marked as unsaved. */
+  function markConsentClean() {
+    if (savedSnapshot === null) return;
+    const saved = JSON.parse(savedSnapshot);
+    saved[2] = els.consent.checked;
+    savedSnapshot = JSON.stringify(saved);
   }
 
   function hasUnsavedChanges() {
@@ -215,9 +233,8 @@ export function createAccountEditor({ onProfile = () => {}, onDeleted = () => {}
       (birthError ? els.birthDate : els.phone).focus();
       return false;
     }
-    if (!els.consent.checked && !hasCurrentConsent(profile)) {
-      setLgpdStatus("Marque a autorização para salvar seus dados.", "error");
-      els.consent.focus();
+    if (consentMissing()) {
+      requireConsent();
       return false;
     }
     const nextPhone = toE164Phone(els.phone.value);
@@ -446,12 +463,23 @@ export function createAccountEditor({ onProfile = () => {}, onDeleted = () => {}
     els.cropConfirm.focus({ preventScroll: true });
   }
 
+  function blockAvatarWithoutConsent() {
+    if (!consentMissing()) return false;
+    els.avatarStatus.textContent = "Marque a autorização de dados (LGPD) abaixo para enviar a foto.";
+    requireConsent();
+    return true;
+  }
+
   function bindAvatarCrop() {
+    els.avatarInput.addEventListener("click", (event) => {
+      if (blockAvatarWithoutConsent()) event.preventDefault();
+    });
     els.avatarInput.addEventListener("change", async () => {
       const file = els.avatarInput.files?.[0];
       els.avatarInput.value = "";
       if (!file || busy) return;
       els.avatarStatus.textContent = "";
+      if (blockAvatarWithoutConsent()) return;
       try {
         await openCrop(file);
       } catch (error) {
@@ -509,6 +537,12 @@ export function createAccountEditor({ onProfile = () => {}, onDeleted = () => {}
     els.cropConfirm.addEventListener("click", async () => {
       const file = crop.file;
       if (!file || busy) return;
+      if (consentMissing()) {
+        closeCrop();
+        blockAvatarWithoutConsent();
+        return;
+      }
+      const grantConsent = !hasCurrentConsent(profile);
       busy = true;
       els.cropConfirm.disabled = true;
       els.cropCancel.disabled = true;
@@ -517,7 +551,11 @@ export function createAccountEditor({ onProfile = () => {}, onDeleted = () => {}
         const rect = cropRectFromViewport(crop);
         const blob = await compressAvatarFile(file, { crop: rect });
         closeCrop();
-        profile = await uploadMyAvatar(blob, { compressed: true });
+        profile = await uploadMyAvatar(blob, { compressed: true, grantConsent });
+        if (grantConsent) {
+          renderLgpd();
+          markConsentClean();
+        }
         onProfile(profile);
         els.avatarStatus.textContent = "Foto atualizada.";
       } catch (error) {

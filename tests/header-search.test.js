@@ -155,3 +155,12 @@ test("island Conta tab gives the avatar more room than the icon tabs", () => {
   assert.match(css, /\.glass-island \.island-account-trigger \{ gap: 0\.55rem;/);
   assert.match(css, /\.glass-island\.is-compact \.island-account-trigger \{ gap: 0\.45rem; \}/);
 });
+
+test("re-rendering suggestions clears the highlighted option and aria-activedescendant", () => {
+  const main = read("src/main.js");
+  const render = main.match(/function renderSearchSuggestions\(\) \{[\s\S]*?\n\}/)?.[0] || "";
+  assert.match(render, /suggestList\.replaceChildren\(\);\n  setActiveSuggestion\(-1\);/);
+  const setActive = main.match(/function setActiveSuggestion\(index\) \{[\s\S]*?\n\}/)?.[0] || "";
+  assert.match(setActive, /suggestIndex = index >= 0 && index < options\.length \? index : -1;/);
+  assert.match(setActive, /removeAttribute\("aria-activedescendant"\)/);
+});

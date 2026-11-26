@@ -141,7 +141,7 @@ export function sanitizeDiscoveryState(value, songCodes) {
   const seen = validStrings(value.seen).slice(0, 2000);
   const passed = validStrings(value.passed).filter((code) => allowed.has(code)).slice(0, 2000);
   const history = Array.isArray(value.history) ? value.history.slice(-1).map((entry) => {
-    if (!entry || !["pass", "choose"].includes(entry.action) || typeof entry.code !== "string" || !allowed.has(entry.code)) return null;
+    if (!entry || !DISCOVERY_ACTIONS.includes(entry.action) || typeof entry.code !== "string" || !allowed.has(entry.code)) return null;
     return { action: entry.action, code: entry.code, index: Number.isInteger(entry.index) ? Math.max(0, entry.index) : 0, added: entry.added === true };
   }).filter(Boolean) : [];
   return {
@@ -159,4 +159,49 @@ export function sanitizeDiscoveryState(value, songCodes) {
 
 export function emptyDiscoveryState() {
   return { version: 2, genres: [], artists: [], queue: [], index: 0, seen: [], passed: [], list: [], history: [] };
+}
+
+const DISCOVERY_ACTIONS = ["pass", "choose", "remind"];
+
+/**
+ * Position of the card on screen. Favorites are skipped on the fly instead of
+ * advancing `state.index`, so unfavoriting a song brings its card back.
+ */
+export function discoveryCursor(state, isFavorite) {
+  let index = state.index;
+  while (index < state.queue.length && isFavorite(String(state.queue[index]))) index += 1;
+  return index;
+}
+
+/**
+ * Applies a card action and records it as the single undoable step. Pass and
+ * choose move past the card; remind only favorites it (the cursor then skips it).
+ */
+export function recordDiscoveryMove(state, { action, code, cursor, added = false }) {
+  const key = String(code);
+  const entry = { action, code: key, index: state.index, added };
+  if (action === "remind") return { ...state, history: [entry] };
+  return {
+    ...state,
+    index: cursor + 1,
+    seen: [...new Set([...state.seen, key])],
+    passed: action === "pass" && !state.passed.includes(key) ? [...state.passed, key] : state.passed,
+    history: [entry],
+  };
+}
+
+/** @returns {{ state: object, last: object|null }} `last.added` tells the caller to unfavorite `last.code`. */
+export function undoDiscoveryMove(state) {
+  const last = state.history.at(-1);
+  if (!last) return { state, last: null };
+  return {
+    state: {
+      ...state,
+      index: last.index,
+      seen: last.action === "remind" ? state.seen : state.seen.filter((code) => code !== last.code),
+      passed: last.action === "pass" ? state.passed.filter((code) => code !== last.code) : state.passed,
+      history: state.history.slice(0, -1),
+    },
+    last,
+  };
 }

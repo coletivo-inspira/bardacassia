@@ -14,7 +14,7 @@ import {
   signUp,
   updatePassword,
 } from "./integrations/auth.js";
-import { updateMyProfile } from "./integrations/profile.js";
+import { applyPendingConsent, rememberPendingConsent } from "./integrations/profile.js";
 import { getPersistSession } from "./integrations/supabase.js";
 import {
   authErrorMessage,
@@ -201,6 +201,25 @@ function resetCaptcha() {
   window.turnstile.reset(captchaWidget);
 }
 
+/** Consent from sign-up is saved once a session exists; a failure retries on the next sign-in. */
+let consentSettling = null;
+async function settlePendingConsent(user) {
+  if (!user) return;
+  consentSettling ??= applyPendingConsent(user)
+    .catch(() => { /* o consentimento pode ser dado depois na Conta */ })
+    .finally(() => { consentSettling = null; });
+  await consentSettling;
+}
+
+/** Social sign-up must carry the same LGPD checkbox as the e-mail form. */
+function socialConsentMissing() {
+  if (mode !== "cadastrar" || consentInput?.checked) return false;
+  touched.add("consent");
+  renderValidation();
+  consentInput?.focus();
+  return true;
+}
+
 function goNext() {
   location.assign(new URL(nextPath, location.href).href);
 }
@@ -223,14 +242,15 @@ async function handleSubmit(event) {
   const persist = persistInput.checked;
   try {
     if (mode === "entrar") {
-      await signIn({ email, password, persist, captchaToken });
+      const user = await signIn({ email, password, persist, captchaToken });
+      await settlePendingConsent(user);
       goNext();
       return;
     }
     if (mode === "cadastrar") {
-      const result = await signUp({ email, password, persist, captchaToken, displayName: fields.displayName.input.value, next: nextPath });
+      const result = await signUp({ email, password, persist, captchaToken, displayName: fields.displayName.input.value, next: nextPath, consent: true });
       if (!result.needsConfirmation) {
-        try { await updateMyProfile({ grantConsent: true }); } catch { /* o perfil pode ser preenchido depois na Conta */ }
+        await settlePendingConsent(await getCurrentUser());
         goNext();
         return;
       }
@@ -306,10 +326,13 @@ function bindEvents() {
   document.querySelectorAll("[data-provider]").forEach((button) => {
     button.hidden = !currentAuthProviders().includes(button.dataset.provider);
     button.addEventListener("click", async () => {
+      if (socialConsentMissing()) return;
       button.disabled = true;
+      rememberPendingConsent(mode === "cadastrar");
       try {
         await signInWithProvider(button.dataset.provider, { persist: persistInput.checked, next: nextPath });
       } catch (error) {
+        rememberPendingConsent(false);
         setStatus(authErrorMessage(error), "error");
         button.disabled = false;
       }
@@ -346,6 +369,7 @@ async function start() {
   } catch {
     currentUser = null;
   }
+  if (currentUser) await settlePendingConsent(currentUser);
   if (returnedFromProvider) {
     params.delete("code");
     history.replaceState(null, "", `${location.pathname}${params.size ? `?${params}` : ""}${location.hash}`);
@@ -370,6 +394,7 @@ async function start() {
       if (mode === "nova-senha") setMode("entrar", { keepStatus: true });
     } else if (event === "USER_UPDATED" || event === "SIGNED_IN") {
       currentUser = await getCurrentUser();
+      if (event === "SIGNED_IN") await settlePendingConsent(currentUser);
     }
   });
 }

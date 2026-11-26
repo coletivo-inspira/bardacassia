@@ -74,14 +74,14 @@ O botão só aparece quando o Client ID estiver configurado. A autorização usa
 2. Cadastre as Redirect URIs exatas da raiz e da Conta, por exemplo `https://coletivo-inspira.github.io/bardacassia/` e `https://coletivo-inspira.github.io/bardacassia/conta.html`.
 3. Localmente, copie `.env.example` para `.env.local` e preencha `VITE_SPOTIFY_CLIENT_ID`.
 4. No GitHub, crie a variável de Actions `SPOTIFY_CLIENT_ID`. Ela habilita o botão no deploy e vira secret da Edge Function `spotify-connect`.
-5. Aplique a migração `014` e publique a `spotify-connect` (**Deploy Supabase**) para ligar o Spotify à conta.
+5. Aplique a migração `015` e publique a `spotify-connect` (**Deploy Supabase**) para ligar o Spotify à conta.
 6. Confira as regras atuais de acesso do Spotify. Em modo de desenvolvimento, só entram os usuários cadastrados no painel.
 
 **Com conta**, o refresh token fica criptografado no Postgres (Vault) e só a função o lê. A Conta guarda um resumo (mais ouvidas e artistas por período, últimas tocadas), que pode ser atualizado ou apagado em **Desconectar**. **Sem conta**, nenhum token é persistido. A API do Spotify cobre no máximo cerca de 1 ano de histórico. Leia os [detalhes, limites e privacidade](./docs/INTEGRACOES.md#spotify-conta-ligada-e-persona-musical).
 
 ## Arquitetura e Supabase
 
-Mapa do ambiente (páginas, migrações `001`–`014`, RPCs, Storage, variáveis e workflows): [Arquitetura](./docs/ARQUITETURA.md).
+Mapa do ambiente (páginas, migrações `001`–`015`, RPCs, Storage, variáveis e workflows): [Arquitetura](./docs/ARQUITETURA.md).
 
 O backend opcional é um único projeto Supabase (ex.: **Cacia**). `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` ligam o cliente; `SUPABASE_SERVICE_ROLE_KEY` fica só no Actions para `sync-catalog`. Com `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` e `SUPABASE_PROJECT_REF`, o workflow `.github/workflows/supabase.yml` aplica as migrações pelo **session pooler IPv4** (o Actions não alcança o host direto IPv6) e publica as Edge Functions. Se o host auto falhar, use o secret `SUPABASE_DB_URL` (URI Session do Dashboard → Connect). **Sem um Deploy Supabase verde, Auth pode funcionar e mesmo assim perfil (`PGRST205`), ranking e favoritas falham.**
 
