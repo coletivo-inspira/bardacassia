@@ -4,6 +4,7 @@ import { loadSiteFeatures } from "./integrations/features.js";
 import { getMyRole } from "./integrations/profile.js";
 import { fetchMyRequests, requestMode, requestsConfigured } from "./integrations/requests.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
+import { eventActive } from "./lib/event.js";
 import { getFeatures } from "./lib/feature-state.js";
 import { allCodes, loadFavoritesState } from "./lib/favorites.js";
 import { showFavorites, showManagerPanel, showPageFile, showStaffPanel, showThemeToggle } from "./lib/features.js";
@@ -228,7 +229,7 @@ function rolePanelRows(role, features) {
       detail: "QR do catálogo para impressão",
     }));
   }
-  if (isAdmin && showPageFile(features, "evento.html")) {
+  if (isAdmin && showPageFile(features, "evento.html") && eventActive()) {
     rows.push(menuRow({
       href: "evento.html",
       icon: EVENT_ICON,

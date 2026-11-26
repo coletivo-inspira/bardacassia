@@ -4,10 +4,12 @@ import { loadSiteFeatures } from "./integrations/features.js";
 import { getMyProfile } from "./integrations/profile.js";
 import { hasStoredAuthSession } from "./integrations/supabase.js";
 import { providerAvatarUrl } from "./lib/profile.js";
+import { EVENT_EXPIRES, isBeforeExpiry } from "./lib/event.js";
 import { getFeatures } from "./lib/feature-state.js";
 import { showNavHref, showPageFile, showThemeToggle } from "./lib/features.js";
 import { captureInstallPrompt, registerServiceWorker, scheduleInstallNotice } from "./lib/install-app.js";
 
+export { isBeforeExpiry } from "./lib/event.js";
 export { applyTheme, initializeTheme, toggleTheme } from "./lib/theme.js";
 export { installAvailable, onAppInstalled, openInstallSheet } from "./lib/install-app.js";
 
@@ -85,11 +87,12 @@ function renderIslandAccountLink(user) {
     ? `<span class="island-account-initial" data-avatar-fallback aria-hidden="true"></span>`
     : USER_ICON;
   islandSlot.innerHTML = `
-    <a class="mobile-tab island-account-trigger" href="conta.html" aria-label="${label}"${onAccountPage ? ' aria-current="page"' : ""}>
+    <a class="mobile-tab island-account-trigger" href="conta.html"${onAccountPage ? ' aria-current="page"' : ""}>
       ${trigger}
       <span class="mobile-tab-label">Conta</span>
     </a>`;
   const link = islandSlot.querySelector(".island-account-trigger");
+  link.setAttribute("aria-label", label);
   if (user) {
     link.querySelector(".island-account-initial").textContent = Array.from(name)[0]?.toLocaleUpperCase("pt-BR") || "";
     link.dataset.avatarClass = "island-account-avatar";
@@ -329,14 +332,6 @@ export function initializeIsland() {
   }));
 }
 
-/** @returns {boolean} true if the page/section is still active */
-export function isBeforeExpiry(expires) {
-  if (!expires) return true;
-  const today = new Date();
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  return todayKey < expires;
-}
-
 export function setFooterYear() {
   const year = String(new Date().getFullYear());
   document.querySelectorAll("[data-current-year]").forEach((el) => {
@@ -351,7 +346,7 @@ export function hideExpiredEventNav() {
     el.hidden = true;
   });
   document.querySelectorAll('a[href="evento.html"], a[href="./evento.html"]').forEach((link) => {
-    const expires = link.getAttribute("data-expires") || "2026-11-01";
+    const expires = link.getAttribute("data-expires") || EVENT_EXPIRES;
     if (!isBeforeExpiry(expires)) link.hidden = true;
   });
 }

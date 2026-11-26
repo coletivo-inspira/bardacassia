@@ -1,11 +1,10 @@
-import { applyFeatureChrome, hideExpiredEventNav, initializeAccountMenu, initializeIsland, initializeTheme, isBeforeExpiry, setFooterYear } from "./site.js";
+import { applyFeatureChrome, hideExpiredEventNav, initializeAccountMenu, initializeIsland, initializeTheme, setFooterYear } from "./site.js";
 import { initAnalytics } from "./integrations/analytics.js";
 import { loadSiteFeatures } from "./integrations/features.js";
-
-const EVENT_EXPIRES = "2026-11-01";
+import { eventActive } from "./lib/event.js";
 
 async function boot() {
-  if (!isBeforeExpiry(EVENT_EXPIRES)) {
+  if (!eventActive()) {
     location.replace(new URL("index.html", location.href).href);
     return;
   }
