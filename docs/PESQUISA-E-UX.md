@@ -12,7 +12,7 @@ Encontrar uma música **que realmente está no karaokê**, identificar seu códi
 
 **Favoritas:** o botão `Favoritar` salva um código neste navegador (com abas locais). A página `favoritos.html` concentra a lista e as abas; dá para entrar pelo menu da conta, pelo botão Favoritas do catálogo ou pela descoberta. No catálogo fica só o filtro “Somente favoritas”. Sem conta, limpar os dados do navegador apaga a lista. Com login, a **união dos códigos** sobe para a conta (`sync_my_favorites`); a organização em abas permanece só neste aparelho.
 
-**Spotify (quando configurado):** o usuário autoriza suas mais ouvidas; a aplicação cruza os dados com o catálogo e adiciona apenas músicas disponíveis à lista local. A interface informa quantas foram conciliadas.
+**Spotify (quando configurado):** o usuário autoriza suas mais ouvidas. Com conta, o Spotify fica ligado ao perfil e gera uma persona musical (estilos e artistas). A aplicação cruza os dados com o catálogo e sugere só músicas disponíveis: primeiro as que a pessoa ouve, depois outras dos mesmos artistas e, por fim, do mesmo estilo. A interface informa quantas foram conciliadas.
 
 **Código ao DJ:** o diálogo mostra o código e a música para digitar no controle. Isso **não grava pedido no servidor**.
 

@@ -1,13 +1,16 @@
 /**
- * Spotify Authorization Code + PKCE. Somente no navegador; sem client secret.
- * A conexão é opcional e requer VITE_SPOTIFY_CLIENT_ID + redirect URI cadastrada.
+ * Spotify Authorization Code + PKCE, sem client secret.
+ * Com conta: o código vai para a Edge Function `spotify-connect`, que liga o
+ * Spotify à conta e salva o resumo em music_profiles. Sem conta: troca no
+ * navegador, lê as mais ouvidas e não guarda nada.
  */
 import { getFeatures } from "../lib/feature-state.js";
 import { showSpotify } from "../lib/features.js";
+import { canLinkMusicAccount, linkSpotify, MusicProfileError, UNAVAILABLE_CODES } from "./music-profile.js";
 
 const CLIENT_ID = String(import.meta.env.VITE_SPOTIFY_CLIENT_ID || "").trim();
 const PKCE_KEY = "bdc-spotify-pkce";
-const SCOPE = "user-top-read";
+const SCOPE = "user-top-read user-read-recently-played";
 
 export function spotifyConfigured() {
   return showSpotify(getFeatures(), CLIENT_ID);
@@ -22,6 +25,37 @@ function base64url(bytes) {
   bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
+
+function readSaved() {
+  try {
+    return JSON.parse(sessionStorage.getItem(PKCE_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Supabase Auth also returns `?code=`; only a callback whose state matches the
+ * PKCE entry saved here belongs to Spotify. The URL is cleaned at import time,
+ * before supabase-js can look at it.
+ */
+function captureCallback() {
+  if (typeof location === "undefined") return null;
+  const params = new URLSearchParams(location.search);
+  if (!params.has("state") || (!params.has("code") && !params.has("error"))) return null;
+  const saved = readSaved();
+  if (!saved || saved.state !== params.get("state")) return null;
+  const callback = { code: params.get("code"), state: params.get("state"), error: params.get("error"), saved };
+  params.delete("code");
+  params.delete("state");
+  params.delete("error");
+  const query = params.toString();
+  history.replaceState(null, "", location.pathname + (query ? `?${query}` : "") + location.hash);
+  sessionStorage.removeItem(PKCE_KEY);
+  return callback;
+}
+
+let pendingCallback = captureCallback();
 
 export async function connectSpotify() {
   if (!spotifyConfigured()) throw new Error("Spotify não configurado neste site.");
@@ -57,39 +91,7 @@ async function spotifyJson(url, accessToken) {
   return response.json();
 }
 
-/**
- * Retorna null sem callback, ou uma lista de faixas. Não persiste tokens.
- * Os códigos de karaokê são conciliados localmente em outro módulo.
- */
-export async function completeSpotifyConnection() {
-  const params = new URLSearchParams(location.search);
-  if (!params.has("code") && !params.has("error")) return null;
-  const code = params.get("code");
-  const state = params.get("state");
-  const error = params.get("error");
-
-  // Remover parâmetros sensíveis do endereço antes de fazer requisições.
-  params.delete("code");
-  params.delete("state");
-  params.delete("error");
-  const query = params.toString();
-  history.replaceState(null, "", location.pathname + (query ? `?${query}` : "") + location.hash);
-
-  const saved = sessionStorage.getItem(PKCE_KEY);
-  sessionStorage.removeItem(PKCE_KEY);
-  if (error) throw new Error("A conexão com o Spotify foi cancelada ou recusada.");
-  if (!saved || !code || !state) throw new Error("Sessão Spotify expirada. Conecte novamente.");
-
-  let auth;
-  try {
-    auth = JSON.parse(saved);
-  } catch {
-    throw new Error("Sessão Spotify inválida. Conecte novamente.");
-  }
-  if (state !== auth.state || redirectUri() !== auth.redirectUri) {
-    throw new Error("A validação de segurança do Spotify falhou. Conecte novamente.");
-  }
-
+async function browserTopTracks(code, auth) {
   const body = new URLSearchParams({
     client_id: CLIENT_ID,
     grant_type: "authorization_code",
@@ -111,4 +113,30 @@ export async function completeSpotifyConnection() {
     name: item.name,
     artists: (item.artists || []).map(({ name }) => ({ name })),
   }));
+}
+
+/**
+ * Sem callback: null. Com conta: `{ kind: "linked", profile }` (resumo salvo).
+ * Sem conta, ou sem a função publicada: `{ kind: "tracks", tracks }`, sem persistir tokens.
+ */
+export async function completeSpotifyConnection() {
+  const callback = pendingCallback;
+  pendingCallback = null;
+  if (!callback) return null;
+  const { code, error, saved } = callback;
+  if (error) throw new Error("A conexão com o Spotify foi cancelada ou recusada.");
+  if (!code || !saved?.verifier) throw new Error("Sessão Spotify expirada. Conecte novamente.");
+  if (redirectUri() !== saved.redirectUri) {
+    throw new Error("A validação de segurança do Spotify falhou. Conecte novamente.");
+  }
+
+  if (await canLinkMusicAccount()) {
+    try {
+      const profile = await linkSpotify({ code, codeVerifier: saved.verifier, redirectUri: saved.redirectUri });
+      return { kind: "linked", profile };
+    } catch (err) {
+      if (!(err instanceof MusicProfileError) || !UNAVAILABLE_CODES.has(err.code)) throw err;
+    }
+  }
+  return { kind: "tracks", tracks: await browserTopTracks(code, saved) };
 }

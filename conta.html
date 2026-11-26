@@ -163,6 +163,34 @@
 
         <p id="conta-status" class="auth-banner" role="status" aria-live="polite" hidden></p>
 
+        <section id="gosto-musical" class="account-menu-panel account-music-panel" aria-labelledby="account-music-title" data-account-music hidden>
+          <header class="account-menu-heading">
+            <h2 id="account-music-title">Seu gosto musical</h2>
+            <p data-music-intro>Conecte o Spotify e a gente sugere músicas do karaokê com a sua cara.</p>
+          </header>
+          <div class="account-music-body">
+            <div class="account-music-persona" data-music-persona hidden>
+              <p class="account-music-label" data-music-label></p>
+              <ul class="account-music-genres" data-music-genres aria-label="Seus estilos"></ul>
+              <p class="account-music-subtitle" data-music-artists-title>Artistas que você mais ouve</p>
+              <ul class="account-music-artists" data-music-artists></ul>
+              <p class="account-music-matches" data-music-matches></p>
+              <a class="discovery-button spotify-button account-music-cta" data-music-suggestions href="index.html#para-cantar" hidden>Ver músicas para cantar</a>
+            </div>
+            <p class="account-music-meta" data-music-meta hidden></p>
+            <p class="auth-hint account-music-status" data-music-status role="status" aria-live="polite"></p>
+            <div class="account-music-actions">
+              <button type="button" class="discovery-button spotify-button" data-music-connect>Conectar Spotify</button>
+              <button type="button" class="auth-secondary" data-music-sync hidden>Atualizar do Spotify</button>
+              <button type="button" class="auth-danger" data-music-disconnect hidden>Desconectar e apagar dados</button>
+            </div>
+            <details class="account-music-privacy">
+              <summary>O que lemos do Spotify</summary>
+              <p>Com a sua autorização, lemos as músicas e os artistas que você mais ouve (últimas 4 semanas, 6 meses e cerca de 1 ano) e as 50 últimas tocadas. Guardamos só esse resumo na sua conta, para sugerir músicas do karaokê. A autorização fica criptografada, e nada é publicado nem alterado no seu Spotify. Desconectar apaga tudo.</p>
+            </details>
+          </div>
+        </section>
+
         <nav class="account-menu-panel" aria-label="Opções da conta">
           <ul class="account-menu-list" data-account-menu>
             <li>

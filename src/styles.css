@@ -5019,6 +5019,95 @@ dialog.discover-screen::backdrop { background: var(--bg); }
 }
 .account-menu-row:has(> .account-menu-count:not([hidden])) { grid-template-columns: auto 1fr auto auto; }
 .account-menu-count { font-weight: 700; }
+.account-music-panel { scroll-margin-top: calc(var(--header-stack) + 12px); }
+.account-music-panel[hidden],
+.account-music-panel [hidden] { display: none; }
+.account-music-body {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.6rem 1.2rem 1.1rem;
+}
+.account-music-persona { display: grid; gap: 0.6rem; }
+.account-music-label {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+.account-music-genres,
+.account-music-artists {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.account-music-genres { display: grid; gap: 0.4rem; }
+.account-music-genre {
+  display: grid;
+  grid-template-columns: minmax(7rem, auto) 1fr 3ch;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+.account-music-genre-share {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.account-music-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  overflow: hidden;
+}
+.account-music-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--coral), var(--amber));
+}
+.account-music-subtitle {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.account-music-artists { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.account-music-artist {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 32px;
+  padding: 0.2rem 0.7rem 0.2rem 0.25rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 35%, transparent);
+  box-shadow: inset 0 0 0 1px var(--glass-rim);
+  font-size: 0.82rem;
+}
+.account-music-artist:not(:has(img)) { padding-left: 0.7rem; }
+.account-music-artist img {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.account-music-matches,
+.account-music-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.account-music-cta { justify-self: start; text-decoration: none; }
+.account-music-status { margin: 0; }
+.account-music-status:empty { display: none; }
+.account-music-status[data-tone="error"] { color: var(--coral); }
+.account-music-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.account-music-actions .auth-secondary,
+.account-music-actions .auth-danger { width: auto; padding: 0 1rem; }
+.account-music-privacy { color: var(--muted); font-size: 0.8rem; }
+.account-music-privacy summary { cursor: pointer; }
+.account-music-privacy p { margin: 0.4rem 0 0; line-height: 1.45; }
 :root[data-theme="light"] .account-hero,
 :root[data-theme="light"] .account-menu-panel {
   background:

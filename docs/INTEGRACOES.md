@@ -10,7 +10,7 @@ A visão de arquitetura (páginas, migrações `001`–`010`, fluxos e variávei
 | --- | --- | --- | --- |
 | Catálogo local | Títulos, artistas, códigos, início da letra | Nenhuma | Exibir erro de carregamento |
 | Deezer | Capas, previews e artistas relacionados | Sem chave; proxy próprio opcional (Edge Function `deezer-proxy`) | Iniciais no lugar da capa, sem preview; sugestões editoriais quando disponíveis |
-| Spotify (opcional) | Sugerir músicas a partir das 50 faixas mais ouvidas da conta | OAuth 2.0 Authorization Code + PKCE, `user-top-read` | Seleção manual de artistas continua funcionando |
+| Spotify (opcional) | Ligar o Spotify à conta, montar a persona musical e sugerir músicas do catálogo | OAuth 2.0 Authorization Code + PKCE (`user-top-read`, `user-read-recently-played`); com conta, Edge Function `spotify-connect` | Sem a função ou sem conta, lê as 50 mais ouvidas só no navegador; a seleção manual de artistas continua funcionando |
 | Supabase (opcional) | Ranking agregado e identidade anônima por navegador | Auth anônima + RPC com RLS | Descoberta, busca e lista local continuam funcionando |
 | Supabase Auth (opcional) | Login, cadastro, perfil e exclusão de conta | E-mail + senha, link por e-mail, OAuth (PKCE) | Catálogo, favoritas e lista da noite continuam sem conta |
 | Supabase: pedidos (opcional) | Pedidos de música, fila e painel do garçom | Sessão anônima ou conta (cliente), conta cadastrada em `staff` (garçom), RPC com RLS | Botão de pedido e “Meus pedidos” ficam ocultos; o código continua visível |
@@ -45,35 +45,63 @@ O adaptador está em `src/integrations/deezer.js`:
 
 Não coloque segredos no frontend.
 
-## Spotify: importar as mais ouvidas
+## Spotify: conta ligada e persona musical
 
-O adaptador está em `src/integrations/spotify.js`. Ele é **opcional** e o botão só aparece quando o Client ID estiver configurado.
+O adaptador está em `src/integrations/spotify.js`. Ele é **opcional** e o botão só aparece quando o Client ID estiver configurado. Há dois modos:
+
+- **Com conta (login):** o Spotify fica **ligado à conta**. A Edge Function `spotify-connect` guarda a autorização criptografada e salva em `music_profiles` um resumo do que a pessoa ouve. Na Conta, a seção **Seu gosto musical** mostra a persona (estilos com porcentagem e artistas principais), com os botões Atualizar e Desconectar. No catálogo, as sugestões aparecem sem precisar autorizar de novo.
+- **Sem conta:** o fluxo antigo continua. O navegador troca o código, lê as 50 mais ouvidas dos últimos 6 meses, cruza com o catálogo e não guarda nada.
 
 ### Preparação
 
-1. Crie um aplicativo no [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
-2. Cadastre a **Redirect URI exata** do site, por exemplo `https://coletivo-inspira.github.io/bardacassia/` (com barra final), e a URL de desenvolvimento que efetivamente usar. O Spotify pode restringir URIs HTTP locais conforme suas políticas.
+1. Crie um aplicativo no [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) e marque a **Web API**.
+2. Cadastre as **Redirect URIs exatas** do site, com barra final na raiz: `https://<site>/` (catálogo) **e** `https://<site>/conta.html` (Conta), mais as URLs de desenvolvimento que usar (por exemplo, `http://127.0.0.1:5173/` e `http://127.0.0.1:5173/conta.html`). O Spotify não aceita `localhost`, só `127.0.0.1`.
 3. Para desenvolvimento, copie `.env.example` para `.env.local` e defina `VITE_SPOTIFY_CLIENT_ID`.
-4. No GitHub, configure a **Actions variable** `SPOTIFY_CLIENT_ID` (não um segredo). O workflow de deploy a expõe como `VITE_SPOTIFY_CLIENT_ID` durante o build.
-5. Verifique no painel do Spotify os requisitos vigentes para modo de desenvolvimento, usuários permitidos, aprovação do aplicativo e eventual exigência de conta Premium.
+4. No GitHub, configure a **Actions variable** `SPOTIFY_CLIENT_ID` (não um segredo). O build do Pages a expõe como `VITE_SPOTIFY_CLIENT_ID`, e o `supabase.yml` a grava como secret `SPOTIFY_CLIENT_ID` da função `spotify-connect`.
+5. Em `ALLOWED_ORIGINS`, inclua a origem do site (e a de desenvolvimento). A função recusa uma Redirect URI fora dessa lista.
+6. Rode **Actions → Deploy Supabase** para aplicar a migração `015_spotify_connection.sql` e publicar a `spotify-connect`. Sem a função, quem tem conta cai no modo sem conta, e nada quebra.
+7. **Acesso do público:** em modo de desenvolvimento, o Spotify só deixa entrar os usuários cadastrados em *User Management* no painel, e em número pequeno. A cota estendida (público geral) hoje exige requisitos de organização definidos pelo Spotify. Confira as regras vigentes antes de divulgar. Quem não está liberado recebe a mensagem “Esta conta do Spotify ainda não tem acesso…”.
 
-### Fluxo de autorização e privacidade
+### Fluxo com conta
 
-- O usuário escolhe **Importar minhas mais ouvidas do Spotify** e autoriza o escopo `user-top-read`.
-- O aplicativo usa **Authorization Code + PKCE**, sem `client_secret` no navegador.
-- Após o retorno, consulta `GET /v1/me/top/tracks?limit=50&time_range=medium_term`.
-- O token fica somente na memória da operação; o verificador PKCE fica temporariamente no `sessionStorage` e é apagado após o retorno. Os parâmetros de autorização são removidos da URL.
-- O navegador compara artista e título com `songs.json`. Apenas **códigos correspondentes do karaokê** entram nas sugestões. Só “Quero cantar” inclui a música na lista da noite.
-- O aplicativo **não publica playlist**, não altera a biblioteca do Spotify e não armazena o histórico completo de audição.
+1. Em **Conta → Seu gosto musical** ou no botão do catálogo, a pessoa autoriza os escopos `user-top-read` e `user-read-recently-played`.
+2. O navegador gera o PKCE (verificador no `sessionStorage`) e o Spotify volta para a mesma página com `?code=…&state=…`. O módulo só aceita o retorno quando o `state` bate com o salvo, porque o Supabase Auth também usa `?code=`. Ele limpa a URL antes de carregar o cliente Supabase.
+3. O navegador envia `code`, `codeVerifier` e `redirectUri` para `spotify-connect`, junto com o JWT da conta. A função troca o código, sem `client_secret` (PKCE), e guarda o **refresh token criptografado** (`pgp_sym_encrypt` com a chave Vault `profile_encryption_key`) em `private.spotify_connections`.
+4. A função lê:
+   - `/v1/me`;
+   - `/v1/me/top/tracks` e `/v1/me/top/artists`, 50 itens de cada nos três períodos (`short_term` ≈ 4 semanas, `medium_term` ≈ 6 meses, `long_term` ≈ 1 ano);
+   - `/v1/me/player/recently-played` (50 últimas).
 
-**Importante:** “mais ouvidas” (top tracks) **não é** a lista de músicas marcadas como “curtidas” no Spotify. Para importar curtidas, seria necessário outro escopo, outro endpoint e nova avaliação de permissões.
+   Ela grava em `music_profiles` só nome, ID, artistas, gêneros e foto do artista.
+5. **Atualizar** (`sync`) renova o token e relê tudo, com um intervalo mínimo de 10 minutos. Se o Spotify fizer a rotação do refresh token, o novo substitui o antigo. Um token revogado apaga a conexão.
+6. **Desconectar** apaga `spotify_connections` e `music_profiles`. Excluir a conta apaga tudo em cascata.
+
+### Persona e sugestões (`src/lib/music-persona.js`)
+
+- **Artistas:** a pontuação considera a posição em cada período, com peso 1 para ~1 ano, 0,8 para 6 meses e 0,5 para 4 semanas, além dos créditos nas mais ouvidas e das últimas tocadas.
+- **Estilos:** primeiro pelos artistas curados de `src/lib/genres.js` e depois pelos gêneros do Spotify (`sertanejo`, `mpb`, `funk carioca`…), que podem vir vazios. A persona mostra até 3 estilos com porcentagem e um rótulo (“Coração sertanejo”, “MPB com pitada de rock nacional”).
+- **Sugestões, nesta ordem:**
+  1. mais ouvidas que existem no catálogo (“Você ouve muito”);
+  2. outras músicas dos artistas mais ouvidos (“Você ouve X”);
+  3. artistas curados dos estilos dominantes (“Seu estilo: MPB”).
+
+  Na descoberta, essas músicas vêm primeiro. `index.html#para-cantar` abre a descoberta direto nelas.
+
+### Privacidade
+
+- O navegador **não guarda tokens**. O refresh token só existe criptografado no schema `private`, lido apenas pela função (service role).
+- `music_profiles` tem RLS de leitura só para o dono e é gravado apenas pela função.
+- O aplicativo **não publica playlist**, não altera a biblioteca do Spotify e não guarda o histórico completo, só o resumo acima.
+
+**Importante:** “mais ouvidas” (top tracks) **não é** a lista de músicas “curtidas”. Importar curtidas exigiria outro escopo (`user-library-read`).
 
 ### Limitações conhecidas
 
-- A correspondência usa artista e título normalizados; versões ao vivo, remixes, participações e grafias diferentes podem não coincidir.
-- Nem toda música ouvida no Spotify existe no catálogo do bar. O resultado informa quantas foram encontradas.
-- O Spotify impõe requisitos de cadastro, permissões, limites de acesso e de requisições, que podem mudar. A disponibilidade para público geral precisa ser confirmada antes do lançamento.
-- Se o Spotify negar acesso, a busca e as favoritas locais continuam utilizáveis.
+- **Histórico:** a API cobre no máximo cerca de 1 ano (`long_term`). Anos de histórico só vêm do “Histórico de streaming estendido”, que a pessoa pede ao Spotify e recebe em arquivos JSON. Isso não está implementado.
+- A correspondência usa artista e título normalizados (inclusive “Beatles (The)” e “The Beatles”). Versões ao vivo, participações e grafias diferentes podem não coincidir. As sugestões por artista compensam parte disso.
+- Nem toda música ouvida no Spotify existe no catálogo do bar. A Conta informa quantas foram encontradas.
+- O Spotify impõe requisitos de cadastro, permissões e limites de acesso e de requisições, que podem mudar.
+- Se o Spotify negar acesso, a busca e as favoritas continuam utilizáveis.
 
 ## Supabase: ranking e interações anônimas
 
@@ -168,7 +196,7 @@ Ordem sugerida para um projeto Supabase novo (ex.: **Cacia**):
    - Callback único do Supabase (cadastre em cada console OAuth): `https://<projeto>.supabase.co/auth/v1/callback`.
    - Ative o provedor em **Authentication → Providers** e preencha Client ID / Secret (Apple exige Services ID + Key; Spotify Auth usa *Client ID/Secret* do [Developer Dashboard](https://developer.spotify.com/dashboard) — escopos de identidade, não `user-top-read`).
    - Variável GitHub `AUTH_PROVIDERS` (vira `VITE_AUTH_PROVIDERS`), ex.: `google,facebook,apple,spotify`. Só os nomes listados aparecem; sem a variável, os botões ficam ocultos.
-   - **Spotify login ≠ importar mais ouvidas:** o login Auth usa este provedor Supabase; o botão “Importar minhas mais ouvidas” continua com `VITE_SPOTIFY_CLIENT_ID` e PKCE próprio.
+   - **Spotify login ≠ importar mais ouvidas:** o login Auth usa este provedor Supabase; a conexão do Spotify com a conta (“Seu gosto musical”) continua com `VITE_SPOTIFY_CLIENT_ID`, PKCE próprio e a função `spotify-connect`.
 7. Mantenha os Anonymous Sign-Ins ativos para o ranking de visitantes.
 8. Confirme o bucket Storage `avatars` (criado pela `008`) após o primeiro deploy bem-sucedido.
 9. **E-mails Auth (marca Bar da Cácia):** em **Authentication → Email Templates**, cole o *Subject* e o HTML de cada arquivo em [`supabase/email-templates/`](../supabase/email-templates/) (`confirm_signup`, `magic_link`, `recovery`, `email_change`). Notas, variáveis Go e URL do logo: [`_layout-notes.md`](../supabase/email-templates/_layout-notes.md). Depois do deploy Pages, confira se `https://cacia.inspira.dev.br/email-logo.png` abre. O remetente `Supabase Auth <noreply@mail.app.supabase.io>` e o rodapé genérico do mailer gratuito **só mudam** com **Custom SMTP** no Dashboard (Resend/SendGrid/etc.; opcional e fora do app).
