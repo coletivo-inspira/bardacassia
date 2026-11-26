@@ -89,6 +89,7 @@ test("nextOccurrence usa o dia seguinte quando o horário já passou", () => {
 
 test("requestErrorMessage traduz dicas do servidor", () => {
   assert.match(requestErrorMessage({ hint: "fila_fechada" }), /fechada/);
+  assert.match(requestErrorMessage({ hint: "pedidos_desligados" }), /desligados/);
   assert.match(requestErrorMessage({ status: 401 }), /permissão/);
   assert.match(requestErrorMessage(new Error("offline")), /conexão/);
 });
